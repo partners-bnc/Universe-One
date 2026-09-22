@@ -139,6 +139,7 @@ const DEPARTMENT_DESIGNATION_SUGGESTIONS: Record<string, string[]> = {
 const DOCUMENT_TYPES = [
   { key: 'aadhaar_card', label: 'Aadhaar Card' },
   { key: 'pan_card', label: 'PAN Card' },
+  { key: 'bank_passbook_cancel_cheque', label: 'Bank Passbook / Cancel Cheque' },
   { key: 'passport', label: 'Passport' },
   { key: 'appointment_letter', label: 'Appointment Letter (Previous Organisation)' },
   { key: 'experience_letter', label: 'Experience Letter' },

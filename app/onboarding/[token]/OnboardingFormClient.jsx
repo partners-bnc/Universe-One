@@ -3,12 +3,13 @@
 import React, { useEffect, useState } from 'react';
 
 const DOCUMENT_TYPES = [
-  { key: 'aadhaar_card', label: 'Aadhaar Card' },
-  { key: 'pan_card', label: 'PAN Card' },
-  { key: 'passport', label: 'Passport' },
-  { key: 'appointment_letter', label: 'Appointment Letter (Previous Organisation)' },
-  { key: 'experience_letter', label: 'Experience Letter' },
-  { key: 'salary_slip', label: 'Salary Slip' },
+  { key: 'aadhaar_card', label: 'Aadhaar Card', required: true },
+  { key: 'pan_card', label: 'PAN Card', required: true },
+  { key: 'bank_passbook_cancel_cheque', label: 'Bank Passbook / Cancel Cheque', required: true },
+  { key: 'passport', label: 'Passport', required: false },
+  { key: 'appointment_letter', label: 'Appointment Letter (Previous Organisation)', required: false },
+  { key: 'experience_letter', label: 'Experience Letter', required: false },
+  { key: 'salary_slip', label: 'Salary Slip', required: false },
 ];
 
 const DEFAULT_EDUCATION = [
@@ -183,10 +184,13 @@ function Section({ title, subtitle, children }) {
   );
 }
 
-function Field({ label, children }) {
+function Field({ label, required = false, children }) {
   return (
     <label className="flex flex-col gap-2">
-      <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant">{label}</span>
+      <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant">
+        {label}
+        {required && <span className="ml-1 font-bold text-rose-500">*</span>}
+      </span>
       {children}
     </label>
   );
@@ -567,10 +571,13 @@ export default function OnboardingFormClient({ token }) {
       missingDocs.push('Profile Picture');
     }
     if (!documents.aadhaar_card?.fileName) {
-      missingDocs.push('Aadhaar Card Document');
+      missingDocs.push('Aadhaar Card');
     }
     if (!documents.pan_card?.fileName) {
-      missingDocs.push('PAN Card Document');
+      missingDocs.push('PAN Card');
+    }
+    if (!documents.bank_passbook_cancel_cheque?.fileName) {
+      missingDocs.push('Bank Passbook / Cancel Cheque');
     }
 
     if (missingDocs.length > 0) {
@@ -822,7 +829,7 @@ export default function OnboardingFormClient({ token }) {
             <Field label="Invite Email">
               <input className={inputClass(false, true)} value={form.candidateEmail} readOnly />
             </Field>
-            <Field label="Professional Profile Picture">
+            <Field label="Professional Profile Picture" required>
               <div className="space-y-3">
                 <label className={fileButtonClassName(Boolean(uploadingFields.profilePicture || form.profilePictureName))}>
                   <span>
@@ -855,16 +862,16 @@ export default function OnboardingFormClient({ token }) {
                 ) : null}
               </div>
             </Field>
-            <Field label="Personal Email">
+            <Field label="Personal Email" required>
               <input className={inputClass()} type="email" value={form.personalEmail} onChange={(event) => updateForm('personalEmail', event.target.value)} />
             </Field>
-            <Field label="Phone Number">
+            <Field label="Phone Number" required>
               <input className={inputClass()} value={form.phone} onChange={(event) => updateForm('phone', event.target.value)} />
             </Field>
-            <Field label="Date Of Birth">
+            <Field label="Date Of Birth" required>
               <input className={inputClass()} type="date" value={form.dateOfBirth} onChange={(event) => updateForm('dateOfBirth', event.target.value)} />
             </Field>
-            <Field label="Gender">
+            <Field label="Gender" required>
               <select className={selectClass()} value={form.gender} onChange={(event) => updateForm('gender', event.target.value)}>
                 <option value="">Select gender</option>
                 {GENDER_OPTIONS.map((option) => (
@@ -990,25 +997,25 @@ export default function OnboardingFormClient({ token }) {
 
         <Section title="Identity & Financials" subtitle="Save government identity numbers and banking details.">
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-            <Field label="Aadhaar Number">
+            <Field label="Aadhaar Number" required>
               <input className={inputClass()} value={form.aadhaarNumber} onChange={(event) => updateForm('aadhaarNumber', event.target.value)} />
             </Field>
-            <Field label="PAN Number">
+            <Field label="PAN Number" required>
               <input className={inputClass()} value={form.panNumber} onChange={(event) => updateForm('panNumber', event.target.value)} />
             </Field>
             <Field label="Passport Number">
               <input className={inputClass()} value={form.passportNumber} onChange={(event) => updateForm('passportNumber', event.target.value)} />
             </Field>
-            <Field label="Bank Account Number">
+            <Field label="Bank Account Number" required>
               <input className={inputClass()} value={form.bankAccountNumber} onChange={(event) => updateForm('bankAccountNumber', event.target.value)} />
             </Field>
-            <Field label="Bank Account Holder Name">
+            <Field label="Bank Account Holder Name" required>
               <input className={inputClass()} value={form.bankAccountHolderName} onChange={(event) => updateForm('bankAccountHolderName', event.target.value)} />
             </Field>
-            <Field label="IFSC Code">
+            <Field label="IFSC Code" required>
               <input className={inputClass()} value={form.bankIfscCode} onChange={(event) => updateForm('bankIfscCode', event.target.value)} />
             </Field>
-            <Field label="Bank Name">
+            <Field label="Bank Name" required>
               <input className={inputClass()} value={form.bankName} onChange={(event) => updateForm('bankName', event.target.value)} />
             </Field>
           </div>
@@ -1145,7 +1152,7 @@ export default function OnboardingFormClient({ token }) {
               const selectedFileName = currentDocument?.fileName || '';
               const isUploading = Boolean(uploadingFields[`document_${document.key}`]);
               return (
-                <Field key={document.key} label={document.label}>
+                <Field key={document.key} label={document.label} required={document.required}>
                   <CompactUploadField
                     id={`document-${document.key}`}
                     accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"
@@ -1169,10 +1176,10 @@ export default function OnboardingFormClient({ token }) {
 
         <Section title="Declaration" subtitle="Confirm that the submitted details are correct.">
           <div className="grid gap-6 md:grid-cols-2">
-            <Field label="Declaration Name">
+            <Field label="Declaration Name" required>
               <input className={inputClass()} value={form.declarationName} onChange={(event) => updateForm('declarationName', event.target.value)} />
             </Field>
-            <Field label="Declaration Date">
+            <Field label="Declaration Date" required>
               <input className={inputClass()} type="date" value={form.declarationDate} onChange={(event) => updateForm('declarationDate', event.target.value)} />
             </Field>
           </div>

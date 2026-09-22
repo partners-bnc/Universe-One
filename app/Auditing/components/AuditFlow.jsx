@@ -5,11 +5,39 @@ import { AUDIT_TEMPLATES } from "./templateLibrary";
 import PdplWorkspace from "./PdplWorkspace";
 import CstAuditWorkspace from "./CstAuditWorkspace";
 import SaudiAuditWorkspace from "./SaudiAuditWorkspace";
+import DynamicSaaSWorkspace from "./DynamicSaaSWorkspace";
+import Link from "next/link";
+import {
+  ShieldCheck,
+  Sparkles,
+  Layers,
+  Workflow,
+  ArrowRight,
+  CheckCircle2,
+  Building2,
+  Cpu,
+  Database,
+  Grid,
+  FileSpreadsheet,
+  ArrowLeft,
+  ChevronRight,
+  Home,
+  Calendar,
+  Table2,
+  UploadCloud,
+  CheckSquare,
+  MessageSquare,
+  Users,
+  Shield,
+  FileText,
+  Clock,
+  Mail
+} from "lucide-react";
 
 // ─── FONTS ───────────────────────────────────────────────────────────────────
 const FontLink = () => (
   <style>{`
-    @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@1,6..72,400;1,6..72,500;1,6..72,600&family=Playfair+Display:ital,wght@1,400;1,500;1,600&family=Sora:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
     *{margin:0;padding:0;box-sizing:border-box;}
     body,#root{height:100%;font-family:'Sora',sans-serif;}
     ::-webkit-scrollbar{width:5px;height:5px;}
@@ -57,18 +85,8 @@ const getFileType = name => FILE_TYPES[name?.split('.').pop()?.toLowerCase()] ||
 const fmtSize = bytes => bytes < 1024 ? bytes+'B' : bytes < 1048576 ? (bytes/1024).toFixed(1)+'KB' : (bytes/1048576).toFixed(1)+'MB';
 
 // ─── SEED DATA ────────────────────────────────────────────────────────────────
-const INIT_MEMBERS = [
-  {id:1,name:'Anil Mehta',role:'Admin',email:'anil.mehta@lixil.com',initials:'AM'},
-  {id:2,name:'Priya Sharma',role:'Auditor',email:'priya.sharma@lixil.com',initials:'PS'},
-  {id:3,name:'Rajan Verma',role:'Auditor',email:'rajan.verma@lixil.com',initials:'RV'},
-  {id:4,name:'Sneha Gupta',role:'Reviewer',email:'sneha.gupta@lixil.com',initials:'SG'},
-  {id:5,name:'Deepak Joshi',role:'Auditor',email:'deepak.joshi@lixil.com',initials:'DJ'},
-  {id:6,name:'Kavita Singh',role:'Auditor',email:'kavita.singh@lixil.com',initials:'KS'},
-  {id:7,name:'Mohit Agarwal',role:'Reviewer',email:'mohit.agarwal@lixil.com',initials:'MA'},
-  {id:8,name:'Neha Patel',role:'Auditor',email:'neha.patel@lixil.com',initials:'NP'},
-  {id:9,name:'Rahul Tiwari',role:'Auditor',email:'rahul.tiwari@lixil.com',initials:'RT'},
-  {id:10,name:'Sunita Rao',role:'Reviewer',email:'sunita.rao@lixil.com',initials:'SR'},
-];
+const INIT_MEMBERS = [];
+
 
 const mkStep = (id,step,status,aqc,risk,assignee,due,obs='',docs=[],comments=[]) =>
   ({id,step,status,aqc,risk,assignee,due,obs,docs,comments});
@@ -334,46 +352,55 @@ const ProjectCard=({project,members,onClick})=>{
   );
 };
 
-const TemplateCard=({template,projectCount,stepCount,onClick})=>(
+const TemplateCard=({template,onClick})=>(
   <button
     type="button"
     onClick={onClick}
     style={{
       background:`linear-gradient(145deg, #ffffff 0%, ${template.bg} 100%)`,
-      border:`1px solid ${template.border}`,
-      borderRadius:24,
-      padding:'26px 24px',
+      border:`1.5px solid ${template.border}`,
+      borderRadius:20,
+      padding:'32px 30px',
       cursor:'pointer',
       position:'relative',
       overflow:'hidden',
-      boxShadow:'0 10px 32px rgba(15,23,42,0.08)',
-      transition:'all .2s',
+      boxShadow:'0 8px 24px rgba(15,23,42,0.05)',
+      transition:'all .2s cubic-bezier(0.16, 1, 0.3, 1)',
       textAlign:'left',
-      minHeight:220,
+      minHeight:260,
       display:'flex',
-      flexDirection:'column'
+      flexDirection:'column',
+      justifyContent:'space-between'
     }}
-    onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-4px)';e.currentTarget.style.boxShadow='0 18px 40px rgba(15,23,42,0.12)';}}
-    onMouseLeave={e=>{e.currentTarget.style.transform='none';e.currentTarget.style.boxShadow='0 10px 32px rgba(15,23,42,0.08)';}}
+    onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-4px)';e.currentTarget.style.boxShadow='0 16px 36px rgba(15,23,42,0.1)';e.currentTarget.style.borderColor=template.accent;}}
+    onMouseLeave={e=>{e.currentTarget.style.transform='none';e.currentTarget.style.boxShadow='0 8px 24px rgba(15,23,42,0.05)';e.currentTarget.style.borderColor=template.border;}}
   >
-    <div style={{position:'absolute',inset:0,background:`radial-gradient(circle at top right, ${template.accent}16 0%, transparent 42%)`,pointerEvents:'none'}} />
-    <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:14,marginBottom:20,position:'relative'}}>
-      <div style={{display:'flex',alignItems:'center',gap:12}}>
-        <div style={{width:56,height:56,borderRadius:18,background:'#ffffffcc',border:`1px solid ${template.border}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:24,boxShadow:'0 6px 20px rgba(15,23,42,0.06)'}}>
-          {template.icon}
+    <div style={{position:'absolute',inset:0,background:`radial-gradient(circle at top right, ${template.accent}14 0%, transparent 50%)`,pointerEvents:'none'}} />
+    
+    <div>
+      <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:14,marginBottom:20,position:'relative'}}>
+        <div style={{display:'flex',alignItems:'center',gap:14}}>
+          <div style={{width:56,height:56,borderRadius:16,background:'#ffffff',border:`1px solid ${template.border}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:26,boxShadow:'0 4px 14px rgba(15,23,42,0.06)'}}>
+            {template.icon}
+          </div>
+          <div>
+            <div style={{fontSize:22,fontWeight:800,color:C.text1,lineHeight:1.2,letterSpacing:'-0.4px'}}>{template.name}</div>
+            <div style={{fontSize:11.5,fontWeight:700,color:template.accent,fontFamily:MONO,marginTop:5,letterSpacing:'0.8px'}}>{template.shortCode}</div>
+          </div>
         </div>
-        <div>
-          <div style={{fontSize:20,fontWeight:800,color:C.text1,lineHeight:1.2}}>{template.name}</div>
-          <div style={{fontSize:11.5,color:template.accent,fontFamily:MONO,marginTop:6,letterSpacing:'0.8px'}}>{template.shortCode}</div>
-        </div>
+        <span style={{fontSize:11,fontFamily:MONO,padding:'4px 12px',borderRadius:20,fontWeight:700,background:'#ffffff',color:template.accent,border:`1px solid ${template.border}`,boxShadow:'0 2px 6px rgba(0,0,0,0.03)'}}>
+          {template.status}
+        </span>
       </div>
-      <span style={{fontSize:10.5,fontFamily:MONO,padding:'5px 12px',borderRadius:999,fontWeight:700,background:'#ffffffaa',color:template.accent,border:`1px solid ${template.border}`}}>
-        {template.status}
-      </span>
+
+      <div style={{fontSize:14,color:C.text2,lineHeight:1.7,position:'relative',marginTop:6}}>
+        {template.description}
+      </div>
     </div>
-    <div style={{fontSize:14,color:C.text2,lineHeight:1.7,marginBottom:22,position:'relative',maxWidth:420}}>{template.description}</div>
-    <div style={{display:'inline-flex',alignItems:'center',gap:8,fontSize:12.5,fontWeight:700,color:template.accent,position:'relative',marginTop:'auto'}}>
-      Open audit category
+
+    <div style={{display:'inline-flex',alignItems:'center',gap:8,fontSize:13,fontWeight:700,color:template.accent,position:'relative',marginTop:24}}>
+      <span>Open audit category</span>
+      <span style={{fontSize:15}}>→</span>
     </div>
   </button>
 );
@@ -1188,7 +1215,12 @@ const NewProjectModal=({open,members,onClose,onCreate})=>{
             <div><label style={labelStyle}>Project Name *</label><input value={form.name} onChange={e=>set('name',e.target.value)} placeholder='e.g. HR Audit — Q1 2025' style={inputStyle}/></div>
             <div><label style={labelStyle}>Unit / Entity *</label><input value={form.unit} onChange={e=>set('unit',e.target.value)} placeholder='e.g. Lixil Window Systems Private Limited' style={inputStyle}/></div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
-              <div><label style={labelStyle}>Project Leader</label><input value={form.projectLeader} onChange={e=>set('projectLeader',e.target.value)} placeholder='e.g. Priya Sharma' style={inputStyle}/></div>
+              <div><label style={labelStyle}>Project Leader</label>
+                <select value={form.projectLeader} onChange={e=>set('projectLeader',e.target.value)} style={{...inputStyle,appearance:'none',cursor:'pointer'}}>
+                  <option value=''>Select Project Leader from HRM Team</option>
+                  {members.map(m=><option key={m.id} value={m.name}>{m.name} ({m.role || 'Employee'})</option>)}
+                </select>
+              </div>
               <div><label style={labelStyle}>Client&apos;s Name</label><input value={form.clientName} onChange={e=>set('clientName',e.target.value)} placeholder='e.g. PW Company' style={inputStyle}/></div>
             </div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
@@ -1209,12 +1241,17 @@ const NewProjectModal=({open,members,onClose,onCreate})=>{
             </div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
               <div><label style={labelStyle}>Project Length</label><input value={form.projectLength} onChange={e=>set('projectLength',e.target.value)} placeholder='e.g. 45 Days' style={inputStyle}/></div>
-              <div><label style={labelStyle}>Audit Coordinator</label><input value={form.coordinatorName} onChange={e=>set('coordinatorName',e.target.value)} placeholder='e.g. Rahul Tiwari' style={inputStyle}/></div>
+              <div><label style={labelStyle}>Audit Coordinator</label>
+                <select value={form.coordinatorName} onChange={e=>set('coordinatorName',e.target.value)} style={{...inputStyle,appearance:'none',cursor:'pointer'}}>
+                  <option value=''>Select Audit Coordinator from HRM Team</option>
+                  {members.map(m=><option key={m.id} value={m.name}>{m.name} ({m.role || 'Employee'})</option>)}
+                </select>
+              </div>
             </div>
             <div><label style={labelStyle}>Lead Auditor</label>
               <select value={form.lead} onChange={e=>set('lead',e.target.value)} style={{...inputStyle,appearance:'none',cursor:'pointer'}}>
-                <option value=''>— Select Lead —</option>
-                {members.filter(m=>m.role==='Admin'||m.role==='Reviewer').map(m=><option key={m.id} value={m.id}>{m.name} ({m.role})</option>)}
+                <option value=''>— Select Lead Auditor —</option>
+                {members.map(m=><option key={m.id} value={m.id}>{m.name} ({m.role || 'Employee'})</option>)}
               </select>
             </div>
             <div><label style={labelStyle}>Description</label>
@@ -1291,27 +1328,28 @@ const AddMemberModal=({open,onClose,onAdd})=>{
 };
 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
-export default function AuditFlow(){
-  const [view,setView]=useState('templates');
-  const [projects,setProjects]=useState(INIT_PROJECTS.slice(0,1).map(project=>({...project,templateId:'hr-auditing'})));
-  const [auditMembers,setAuditMembers]=useState([]);
-  const [membersLoading,setMembersLoading]=useState(false);
-  const [membersError,setMembersError]=useState('');
-  const [members,setMembers]=useState(INIT_MEMBERS);
-  const [selectedTemplateId,setSelectedTemplateId]=useState(null);
-  const [currentProjId,setCurrentProjId]=useState(null);
-  const [activeTab,setActiveTab]=useState('table');
-  const [drawerOpen,setDrawerOpen]=useState(false);
-  const [drawerTask,setDrawerTask]=useState(null);
-  const [drawerProcIdx,setDrawerProcIdx]=useState(null);
-  const [drawerStepIdx,setDrawerStepIdx]=useState(null);
-  const [newProjModal,setNewProjModal]=useState(false);
-  const [addMemberModal,setAddMemberModal]=useState(false);
-  const [importModal,setImportModal]=useState(false);
-  const [search,setSearch]=useState('');
-  const {toasts,show:showToast}=useToast();
+export default function AuditFlow() {
+  const [platformMode, setPlatformMode] = useState("selection"); // "selection" | "dynamic" | "classic"
+  const [view, setView] = useState('templates');
+  const [projects, setProjects] = useState(INIT_PROJECTS.slice(0, 1).map(project => ({ ...project, templateId: 'hr-auditing' })));
+  const [auditMembers, setAuditMembers] = useState([]);
+  const [membersLoading, setMembersLoading] = useState(false);
+  const [membersError, setMembersError] = useState('');
+  const [members, setMembers] = useState(INIT_MEMBERS);
+  const [selectedTemplateId, setSelectedTemplateId] = useState(null);
+  const [currentProjId, setCurrentProjId] = useState(null);
+  const [activeTab, setActiveTab] = useState('table');
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerTask, setDrawerTask] = useState(null);
+  const [drawerProcIdx, setDrawerProcIdx] = useState(null);
+  const [drawerStepIdx, setDrawerStepIdx] = useState(null);
+  const [newProjModal, setNewProjModal] = useState(false);
+  const [addMemberModal, setAddMemberModal] = useState(false);
+  const [importModal, setImportModal] = useState(false);
+  const [search, setSearch] = useState('');
+  const { toasts, show: showToast } = useToast();
 
-  useEffect(()=>{
+  useEffect(() => {
     let active = true;
     const loadAuditMembers = async () => {
       try {
@@ -1321,7 +1359,9 @@ export default function AuditFlow(){
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || 'Failed to load team members.');
         if (!active) return;
-        setAuditMembers(Array.isArray(result.members) ? result.members : []);
+        const fetchedMembers = Array.isArray(result.members) ? result.members : [];
+        setAuditMembers(fetchedMembers);
+        setMembers(fetchedMembers);
       } catch (error) {
         if (!active) return;
         setMembersError(error.message || 'Failed to load team members.');
@@ -1335,383 +1375,670 @@ export default function AuditFlow(){
     };
   }, []);
 
-  const selectedTemplate = AUDIT_TEMPLATES.find(t=>t.id===selectedTemplateId) || null;
+  const selectedTemplate = AUDIT_TEMPLATES.find(t => t.id === selectedTemplateId) || null;
   const isPdplTemplate = selectedTemplateId === 'pdpl-template';
   const isCstTemplate = selectedTemplateId === 'cst-audit-template';
   const isSaudiTemplate = selectedTemplateId === 'saudi-audit-template';
-  const templateProjects = selectedTemplateId ? projects.filter(p=>p.templateId===selectedTemplateId) : [];
-  const backToTemplateLibrary = ()=>{setSelectedTemplateId(null);setCurrentProjId(null);setView('templates');setSearch('');};
-  const currentProj=projects.find(p=>p.id===currentProjId);
+  const templateProjects = selectedTemplateId ? projects.filter(p => p.templateId === selectedTemplateId) : [];
+  const backToTemplateLibrary = () => { setSelectedTemplateId(null); setCurrentProjId(null); setView('templates'); setSearch(''); };
+  const currentProj = projects.find(p => p.id === currentProjId);
 
-  const openProject=id=>{setCurrentProjId(id);setView('project');setActiveTab('table');};
-  const openTemplate=templateId=>{setSelectedTemplateId(templateId);setCurrentProjId(null);setView('dashboard');setSearch('');};
+  const openProject = id => { setCurrentProjId(id); setView('project'); setActiveTab('table'); };
+  const openTemplate = templateId => { setSelectedTemplateId(templateId); setCurrentProjId(null); setView('dashboard'); setSearch(''); };
 
-  const openTask=(pi,si)=>{
-    const s=currentProj.procedures[pi].steps[si];
-    setDrawerProcIdx(pi);setDrawerStepIdx(si);
-    setDrawerTask({...s,docs:[...(s.docs||[])],comments:[...(s.comments||[])]});
+  const openTask = (pi, si) => {
+    const s = currentProj.procedures[pi].steps[si];
+    setDrawerProcIdx(pi); setDrawerStepIdx(si);
+    setDrawerTask({ ...s, docs: [...(s.docs || [])], comments: [...(s.comments || [])] });
     setDrawerOpen(true);
   };
 
-  const saveTask=updated=>{
-    setProjects(ps=>ps.map(p=>{
-      if(p.id!==currentProjId)return p;
-      return{...p,procedures:p.procedures.map((proc,pi)=>pi!==drawerProcIdx?proc:{...proc,steps:proc.steps.map((s,si)=>si===drawerStepIdx?{...s,...updated}:s)})};
+  const saveTask = updated => {
+    setProjects(ps => ps.map(p => {
+      if (p.id !== currentProjId) return p;
+      return { ...p, procedures: p.procedures.map((proc, pi) => pi !== drawerProcIdx ? proc : { ...proc, steps: proc.steps.map((s, si) => si === drawerStepIdx ? { ...s, ...updated } : s) }) };
     }));
     setDrawerOpen(false);
-    showToast('success','Step saved successfully');
+    showToast('success', 'Step saved successfully');
   };
 
-  const addStep=pi=>{
-    setProjects(ps=>ps.map(p=>{
-      if(p.id!==currentProjId)return p;
-      const proc=p.procedures[pi];
-      const parts=(proc.steps.length?proc.steps[proc.steps.length-1].id:pi+1+'.0').split('.');
-      const newId=parts[0]+'.'+(parseInt(parts[1]||0)+1);
-      const newStep={...mkStep(newId,'New audit step — click to edit','todo','pending','medium',null,'',''),docs:[],comments:[]};
-      return{...p,procedures:p.procedures.map((pr,i)=>i===pi?{...pr,steps:[...pr.steps,newStep]}:pr)};
+  const addStep = pi => {
+    setProjects(ps => ps.map(p => {
+      if (p.id !== currentProjId) return p;
+      const proc = p.procedures[pi];
+      const parts = (proc.steps.length ? proc.steps[proc.steps.length - 1].id : pi + 1 + '.0').split('.');
+      const newId = parts[0] + '.' + (parseInt(parts[1] || 0) + 1);
+      const newStep = { ...mkStep(newId, 'New audit step — click to edit', 'todo', 'pending', 'medium', null, '', ''), docs: [], comments: [] };
+      return { ...p, procedures: p.procedures.map((pr, i) => i === pi ? { ...pr, steps: [...pr.steps, newStep] } : pr) };
     }));
-    showToast('info','New step added — click to edit');
+    showToast('info', 'New step added — click to edit');
   };
 
-  const deleteStep=(pi,si)=>{
-    if(!window.confirm('Delete this audit step?'))return;
-    setProjects(ps=>ps.map(p=>{
-      if(p.id!==currentProjId)return p;
-      return{...p,procedures:p.procedures.map((proc,i)=>i===pi?{...proc,steps:proc.steps.filter((_,j)=>j!==si)}:proc)};
+  const deleteStep = (pi, si) => {
+    if (!window.confirm('Delete this audit step?')) return;
+    setProjects(ps => ps.map(p => {
+      if (p.id !== currentProjId) return p;
+      return { ...p, procedures: p.procedures.map((proc, i) => i === pi ? { ...proc, steps: proc.steps.filter((_, j) => j !== si) } : proc) };
     }));
-    showToast('success','Step deleted');
+    showToast('success', 'Step deleted');
   };
 
-  const createProject=(form,importedProcedures)=>{
+  const createProject = (form, importedProcedures) => {
     const projectName = form.projectName || form.name;
     const clientName = form.clientName || form.unit;
-    if(!selectedTemplateId){showToast('error','Select an audit category first');return;}
-    if(!projectName||!clientName){showToast('error','Project name and client name are required');return;}
-    const icons={hr:'👤',fin:'💰',inv:'📦',bil:'🧾',it:'💻',ops:'⚙️'};
-    const procs=importedProcedures||[];
-    setProjects(ps=>[{
-      id:Date.now(),
-      templateId:selectedTemplateId,
-      name:projectName,
-      unit:form.unit || clientName,
+    if (!selectedTemplateId) { showToast('error', 'Select an audit category first'); return; }
+    if (!projectName || !clientName) { showToast('error', 'Project name and client name are required'); return; }
+    const icons = { hr: '👤', fin: '💰', inv: '📦', bil: '🧾', it: '💻', ops: '⚙️' };
+    const procs = importedProcedures || [];
+    setProjects(ps => [{
+      id: Date.now(),
+      templateId: selectedTemplateId,
+      name: projectName,
+      unit: form.unit || clientName,
       clientName,
-      projectLeader:form.projectLeader || '',
-      projectLength:form.projectLength || '',
-      coordinatorName:form.coordinatorName || '',
-      type:form.type,
-      icon:icons[form.type]||'??',
-      status:form.status,
-      start:form.start,
-      end:form.end,
-      lead:parseInt(form.lead)||null,
-      desc:form.desc || `${selectedTemplate?.name || 'Audit'} engagement for ${clientName}`,
-      procedures:procs
-    },...ps]);
+      projectLeader: form.projectLeader || '',
+      projectLength: form.projectLength || '',
+      coordinatorName: form.coordinatorName || '',
+      type: form.type,
+      icon: icons[form.type] || '??',
+      status: form.status,
+      start: form.start,
+      end: form.end,
+      lead: parseInt(form.lead) || null,
+      desc: form.desc || `${selectedTemplate?.name || 'Audit'} engagement for ${clientName}`,
+      procedures: procs
+    }, ...ps]);
     setNewProjModal(false);
-    const msg=procs.length?`Company workspace created with ${procs.length} procedures and ${procs.reduce((a,p)=>a+p.steps.length,0)} steps from CSV`:'Company workspace created successfully';
-    showToast('success',msg);
+    const msg = procs.length ? `Company workspace created with ${procs.length} procedures and ${procs.reduce((a, p) => a + p.steps.length, 0)} steps from CSV` : 'Company workspace created successfully';
+    showToast('success', msg);
   };
 
-  const addMember=form=>{
-    if(!form.name){showToast('error','Name is required');return;}
-    const initials=form.name.split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
-    setMembers(ms=>[...ms,{id:ms.length+1,name:form.name,role:form.role,email:form.email,initials}]);
+  const addMember = form => {
+    if (!form.name) { showToast('error', 'Name is required'); return; }
+    const initials = form.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+    setMembers(ms => [...ms, { id: ms.length + 1, name: form.name, role: form.role, email: form.email, initials }]);
     setAddMemberModal(false);
-    showToast('success',`${form.name} added to team`);
+    showToast('success', `${form.name} added to team`);
   };
 
-  const importToCurrent=procs=>{
-    setProjects(ps=>ps.map(p=>{
-      if(p.id!==currentProjId)return p;
-      return{...p,procedures:[...p.procedures,...procs]};
+  const importToCurrent = procs => {
+    setProjects(ps => ps.map(p => {
+      if (p.id !== currentProjId) return p;
+      return { ...p, procedures: [...p.procedures, ...procs] };
     }));
-    showToast('success',`Imported ${procs.length} procedures (${procs.reduce((a,p)=>a+p.steps.length,0)} steps)`);
+    showToast('success', `Imported ${procs.length} procedures (${procs.reduce((a, p) => a + p.steps.length, 0)} steps)`);
   };
 
-  const exportCurrentProject=()=>{
-    if(!currentProj)return;
-    let csv='Ref,Audit Step,Status,AQC,Risk,Assigned To,Due Date,Observations,Files\n';
-    currentProj.procedures.forEach(proc=>{
-      csv+=`"PROCEDURE: ${proc.name}",,,,,,,,\n`;
-      proc.steps.forEach(s=>{
-        const m=s.assignee?members.find(t=>t.id===s.assignee):null;
-        const fileNames=(s.docs||[]).map(d=>d.name).join(' | ');
-        csv+=`"${s.id}","${s.step.replace(/"/g,'""')}","${s.status}","${s.aqc}","${s.risk}","${m?m.name:'Unassigned'}","${s.due||''}","${(s.obs||'').replace(/"/g,'""')}","${fileNames}"\n`;
+  const exportCurrentProject = () => {
+    if (!currentProj) return;
+    let csv = 'Ref,Audit Step,Status,AQC,Risk,Assigned To,Due Date,Observations,Files\n';
+    currentProj.procedures.forEach(proc => {
+      csv += `"PROCEDURE: ${proc.name}",,,,,,,,\n`;
+      proc.steps.forEach(s => {
+        const m = s.assignee ? members.find(t => t.id === s.assignee) : null;
+        const fileNames = (s.docs || []).map(d => d.name).join(' | ');
+        csv += `"${s.id}","${s.step.replace(/"/g, '""')}","${s.status}","${s.aqc}","${s.risk}","${m ? m.name : 'Unassigned'}","${s.due || ''}","${(s.obs || '').replace(/"/g, '""')}","${fileNames}"\n`;
       });
     });
-    const a=document.createElement('a');
-    a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
-    a.download=`${currentProj.name.replace(/ /g,'_')}_Audit.csv`;a.click();
-    showToast('success','Export downloaded');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    a.download = `${currentProj.name.replace(/ /g, '_')}_Audit.csv`; a.click();
+    showToast('success', 'Export downloaded');
   };
 
-  const filteredProjects=templateProjects.filter(p=>p.name.toLowerCase().includes(search.toLowerCase())||p.unit.toLowerCase().includes(search.toLowerCase())||String(p.clientName||'').toLowerCase().includes(search.toLowerCase()));
-  const allSteps=templateProjects.flatMap(p=>getProjectSteps(p));
-  const inProgress=allSteps.filter(s=>s.status==='progress').length;
-  const done=allSteps.filter(s=>s.status==='done').length;
-  const totalDocs=allSteps.reduce((a,s)=>a+(s.docs||[]).length,0);
+  const filteredProjects = templateProjects.filter(p => p.name.toLowerCase().includes(search.toLowerCase()) || p.unit.toLowerCase().includes(search.toLowerCase()) || String(p.clientName || '').toLowerCase().includes(search.toLowerCase()));
+  const allSteps = templateProjects.flatMap(p => getProjectSteps(p));
+  const inProgress = allSteps.filter(s => s.status === 'progress').length;
+  const done = allSteps.filter(s => s.status === 'done').length;
+  const totalDocs = allSteps.reduce((a, s) => a + (s.docs || []).length, 0);
 
-  const Btn=({children,onClick,primary,small,style:sx={}})=>(
-    <button onClick={onClick} style={{display:'inline-flex',alignItems:'center',gap:6,padding:small?'6px 12px':'9px 16px',borderRadius:8,fontSize:small?12:13,fontWeight:600,cursor:'pointer',border:primary?'none':`1px solid ${C.border2}`,background:primary?C.teal:'transparent',color:primary?'#fff':C.text2,fontFamily:'Sora,sans-serif',transition:'all .15s',...sx}}>{children}</button>
-  );
+  const topbarStyle = { display: 'flex', alignItems: 'center', gap: 14, padding: '14px 24px', borderBottom: `1px solid ${C.border}`, background: '#fff', flexShrink: 0, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' };
 
-  const topbarStyle={display:'flex',alignItems:'center',gap:14,padding:'14px 24px',borderBottom:`1px solid ${C.border}`,background:'#fff',flexShrink:0,boxShadow:'0 1px 3px rgba(0,0,0,0.04)'};
+  // ════════════════════════════════════════════════════════════════════════════
+  // 1. SELECTION SCREEN (EDITORIAL PREMIUM PLATFORM SELECTOR)
+  // ════════════════════════════════════════════════════════════════════════════
+  if (platformMode === "selection") {
+    return (
+      <div style={{ height: "100vh", maxHeight: "100vh", overflow: "hidden", background: "linear-gradient(180deg, #f5f6f1 0%, #ebeee7 100%)", fontFamily: "'Sora', -apple-system, sans-serif", padding: "16px 24px 20px", display: "flex", flexDirection: "column", boxSizing: "border-box", position: "relative" }}>
+        <FontLink />
+        
+        {/* Top Right Home Navigation button in the page corner */}
+        <div style={{ position: "absolute", top: 20, right: 28, zIndex: 10 }}>
+          <Link
+            href="/other-modules"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 7,
+              padding: "7px 16px",
+              borderRadius: 10,
+              backgroundColor: "#ffffff",
+              border: "1px solid #dce2d8",
+              color: "#2d473b",
+              fontSize: 12,
+              fontWeight: 600,
+              textDecoration: "none",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
+              transition: "all 0.15s ease"
+            }}
+            onMouseEnter={e => { e.currentTarget.style.backgroundColor = "#e8ede4"; e.currentTarget.style.color = "#1f3329"; }}
+            onMouseLeave={e => { e.currentTarget.style.backgroundColor = "#ffffff"; e.currentTarget.style.color = "#2d473b"; }}
+          >
+            <Home size={14} color="#2d473b" />
+            <span>Other Modules</span>
+          </Link>
+        </div>
 
-  return(
-    <div style={{display:'flex',height:'100vh',overflow:'hidden',background:C.bg,fontFamily:'Sora,sans-serif'}}>
-      <FontLink/>
+        <div style={{ maxWidth: 840, margin: "0 auto", width: "100%", flex: 1, display: "flex", flexDirection: "column", justifyContent: "flex-start" }}>
 
-      <main style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
-
-        {view==='templates'&&(
-          <div style={{display:'flex',flexDirection:'column',flex:1,overflow:'hidden'}}>
-            <div style={{...topbarStyle,padding:'18px 28px'}}>
-              <div style={{display:'flex',flexDirection:'column',gap:8,flex:1}}>
-                <div style={{fontSize:30,fontWeight:800,color:C.teal,letterSpacing:'-0.8px'}}>AuditFlow</div>
-                <div style={{fontSize:13.5,color:C.text2}}>Select types of auditing structure</div>
-              </div>
+          {/* Header with Universe One • Audit Flow badge & Editorial Serif Italic Styling */}
+          <div style={{ textAlign: "center", margin: "54px 0 0" }}>
+            <div style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 9,
+              padding: "6px 18px",
+              borderRadius: 22,
+              backgroundColor: "#ffffff",
+              border: "1px solid #dce2d8",
+              color: "#475569",
+              fontSize: 13,
+              fontWeight: 700,
+              letterSpacing: "1px",
+              textTransform: "uppercase",
+              marginBottom: 10,
+              boxShadow: "0 1px 3px rgba(0,0,0,0.03)"
+            }}>
+              <span>Universe One</span>
+              <span style={{ color: "#cbd5e1" }}>•</span>
+              <span style={{ color: "#2d473b" }}>Audit Flow</span>
             </div>
-            <div style={{flex:1,overflowY:'auto',padding:'24px 28px 34px'}}>
-              <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(320px,1fr))',gap:20}}>
-                {AUDIT_TEMPLATES.map(template=>{
-                  const templateItems = projects.filter(p=>p.templateId===template.id);
-                  const stepCount = templateItems.reduce((sum,project)=>sum+getProjectSteps(project).length,0);
-                  return <TemplateCard key={template.id} template={template} projectCount={templateItems.length} stepCount={stepCount} onClick={()=>openTemplate(template.id)}/>;
-                })}
-              </div>
-            </div>
+            
+            <h1 style={{
+              fontFamily: "'Newsreader', 'Playfair Display', Georgia, serif",
+              fontStyle: "italic",
+              fontSize: "44px",
+              fontWeight: 400,
+              color: "#1c2e26",
+              letterSpacing: "-0.8px",
+              margin: 0,
+              lineHeight: 1.15
+            }}>
+              Select Auditing Environment
+            </h1>
           </div>
-        )}
 
-        {/* ── DASHBOARD ── */}
-        {isPdplTemplate && view!=='templates' ? (
-          <PdplWorkspace
-            selectedTemplate={selectedTemplate}
-            projects={projects}
-            setProjects={setProjects}
-            auditMembers={auditMembers}
-            search={search}
-            setSearch={setSearch}
-            showToast={showToast}
-            onBackToTemplates={backToTemplateLibrary}
-          />
-        ) : isCstTemplate && view!=='templates' ? (
-          <CstAuditWorkspace
-            selectedTemplate={selectedTemplate}
-            projects={projects}
-            setProjects={setProjects}
-            auditMembers={auditMembers}
-            search={search}
-            setSearch={setSearch}
-            showToast={showToast}
-            onBackToTemplates={backToTemplateLibrary}
-          />
-        ) : isSaudiTemplate && view!=='templates' ? (
-          <SaudiAuditWorkspace
-            selectedTemplate={selectedTemplate}
-            projects={projects}
-            setProjects={setProjects}
-            auditMembers={auditMembers}
-            search={search}
-            setSearch={setSearch}
-            showToast={showToast}
-            onBackToTemplates={backToTemplateLibrary}
-          />
-        ) : (
-          <>
-        {view==='dashboard'&&selectedTemplate&&(
-          <div style={{display:'flex',flexDirection:'column',flex:1,overflow:'hidden'}}>
-            <div style={{...topbarStyle,padding:'20px 28px'}}>
-              <div style={{display:'grid',gridTemplateColumns:'minmax(260px,1fr) auto minmax(360px,1fr)',alignItems:'center',gap:22,width:'100%'}}>
-                <div style={{display:'flex',flexDirection:'column',gap:5}}>
-                  <div style={{fontSize:30,fontWeight:800,color:C.teal,letterSpacing:'-0.8px'}}>AuditFlow</div>
-                  <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}>
-                    <div style={{fontSize:16,fontWeight:700,color:C.text1}}>{selectedTemplate ? selectedTemplate.name : 'HR Audit'}</div>
-                    <span style={{width:5,height:5,borderRadius:'50%',background:C.border2}} />
-                    <div style={{fontSize:12.5,color:C.text3}}>Audit category workspace</div>
+          {/* 2 Choice Cards Grid - Shifted Further Down */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(330px, 1fr))", gap: 26, marginTop: 48, marginBottom: 16 }}>
+            
+            {/* CARD 1: DYNAMIC AUDIT PLATFORM (DARK FOREST GREEN) */}
+            <div
+              onClick={() => setPlatformMode("dynamic")}
+              style={{
+                backgroundColor: "#2d473b",
+                borderRadius: 16,
+                padding: "26px 28px 22px",
+                cursor: "pointer",
+                position: "relative",
+                display: "flex",
+                flexDirection: "column",
+                boxShadow: "0 10px 30px rgba(45,71,59,0.22)",
+                transition: "all 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
+                border: "1px solid rgba(255,255,255,0.08)"
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.transform = "translateY(-6px) scale(1.008)";
+                e.currentTarget.style.boxShadow = "0 22px 46px -10px rgba(45,71,59,0.45)";
+                const btn = e.currentTarget.querySelector(".circle-arrow-btn");
+                if (btn) btn.style.transform = "translateX(4px) scale(1.06)";
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.transform = "none";
+                e.currentTarget.style.boxShadow = "0 10px 30px rgba(45,71,59,0.22)";
+                const btn = e.currentTarget.querySelector(".circle-arrow-btn");
+                if (btn) btn.style.transform = "none";
+              }}
+            >
+              {/* Top Row: Number 01 & Center Circular Icon Ring */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                <div style={{ fontSize: 24, fontWeight: 800, color: "#f5f0db", letterSpacing: "-0.5px" }}>
+                  01
+                </div>
+                <div style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: "50%",
+                  border: "1.5px solid rgba(245, 240, 219, 0.45)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginRight: 24
+                }}>
+                  <Sparkles size={22} color="#f5f0db" />
+                </div>
+                <div style={{ width: 24 }} />
+              </div>
+
+              {/* Title: Centered */}
+              <h2 style={{ fontSize: 19, fontWeight: 700, color: "#ffffff", textAlign: "center", margin: "14px 0 14px", letterSpacing: "-0.3px" }}>
+                Dynamic Audit Platform
+              </h2>
+
+              {/* Divider Line */}
+              <div style={{ width: "100%", height: 1, backgroundColor: "rgba(255, 255, 255, 0.14)", marginBottom: 16 }} />
+
+              {/* Subpoints List */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 9, marginBottom: 18, flex: 1, paddingLeft: 12 }}>
+                {[
+                  { icon: <Calendar size={14} />, title: "Pre-Execution Schedule" },
+                  { icon: <Mail size={14} />, title: "Automated Client Email Pipeline" },
+                  { icon: <UploadCloud size={14} />, title: "Live Client IDR Portal" },
+                  { icon: <CheckSquare size={14} />, title: "Audit Testing Engine" },
+                  { icon: <MessageSquare size={14} />, title: "Resolution Tracker" },
+                ].map((item, idx) => (
+                  <div key={idx} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, fontWeight: 500, color: "rgba(255, 255, 255, 0.88)" }}>
+                    <span style={{ display: "inline-flex", color: "#f5f0db", opacity: 0.85 }}>{item.icon}</span>
+                    <span>{item.title}</span>
                   </div>
+                ))}
+              </div>
+
+              {/* Bottom Right Floating Circular Arrow Action Button */}
+              <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", marginTop: "auto" }}>
+                <div
+                  className="circle-arrow-btn"
+                  style={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: "50%",
+                    backgroundColor: "#f5f0db",
+                    color: "#2d473b",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.18)",
+                    transition: "transform 0.2s ease"
+                  }}
+                >
+                  <ArrowRight size={17} />
                 </div>
-                <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:10}}>
-                  <button onClick={()=>setView('templates')} style={{background:'transparent',border:`1px solid ${C.border2}`,borderRadius:999,padding:'8px 14px',fontSize:12.5,fontWeight:700,color:C.text2,cursor:'pointer',fontFamily:'Sora,sans-serif'}}>Audit Categories</button>
-                  <button onClick={()=>setView('dashboard')} style={{background:C.tealBg,border:`1px solid ${C.tealBorder}`,borderRadius:999,padding:'8px 14px',fontSize:12.5,fontWeight:700,color:C.teal,cursor:'pointer',fontFamily:'Sora,sans-serif'}}>Dashboard</button>
-                  <button onClick={()=>setView('team')} style={{background:'transparent',border:`1px solid ${C.border2}`,borderRadius:999,padding:'8px 14px',fontSize:12.5,fontWeight:700,color:C.text2,cursor:'pointer',fontFamily:'Sora,sans-serif'}}>Team Members</button>
+              </div>
+            </div>
+
+            {/* CARD 2: STATIC AUDIT PLATFORM (CRISP WHITE) */}
+            <div
+              onClick={() => { setPlatformMode("classic"); setView("templates"); }}
+              style={{
+                backgroundColor: "#ffffff",
+                borderRadius: 16,
+                border: "1px solid #dce2d8",
+                padding: "26px 28px 22px",
+                cursor: "pointer",
+                position: "relative",
+                display: "flex",
+                flexDirection: "column",
+                boxShadow: "0 10px 30px rgba(0,0,0,0.04)",
+                transition: "all 0.25s cubic-bezier(0.16, 1, 0.3, 1)"
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.transform = "translateY(-6px) scale(1.008)";
+                e.currentTarget.style.borderColor = "#2d473b";
+                e.currentTarget.style.boxShadow = "0 22px 46px -10px rgba(45,71,59,0.18)";
+                const btn = e.currentTarget.querySelector(".circle-arrow-btn");
+                if (btn) btn.style.transform = "translateX(4px) scale(1.06)";
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.transform = "none";
+                e.currentTarget.style.borderColor = "#dce2d8";
+                e.currentTarget.style.boxShadow = "0 10px 30px rgba(0,0,0,0.04)";
+                const btn = e.currentTarget.querySelector(".circle-arrow-btn");
+                if (btn) btn.style.transform = "none";
+              }}
+            >
+              {/* Top Row: Number 02 & Center Circular Icon Ring */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                <div style={{ fontSize: 24, fontWeight: 800, color: "#2d473b", letterSpacing: "-0.5px" }}>
+                  02
                 </div>
-                <div style={{display:'flex',alignItems:'center',justifyContent:'flex-end',gap:12}}>
-                  <div style={{display:'flex',alignItems:'center',gap:8,background:'#fff',border:`1px solid ${C.border}`,borderRadius:999,padding:'9px 14px',minWidth:300}}>
-                    <span style={{color:C.text3,fontSize:12.5,fontWeight:600}}>Find</span>
-                    <input value={search} onChange={e=>setSearch(e.target.value)} placeholder='Search companies...' style={{background:'none',border:'none',outline:'none',color:C.text1,fontSize:13,fontFamily:'Sora,sans-serif',width:'100%'}}/>
+                <div style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: "50%",
+                  border: "1.5px solid #2d473b",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginRight: 24
+                }}>
+                  <Layers size={22} color="#2d473b" />
+                </div>
+                <div style={{ width: 24 }} />
+              </div>
+
+              {/* Title: Centered */}
+              <h2 style={{ fontSize: 19, fontWeight: 700, color: "#1c2e26", textAlign: "center", margin: "14px 0 14px", letterSpacing: "-0.3px" }}>
+                Static Audit platform
+              </h2>
+
+              {/* Divider Line */}
+              <div style={{ width: "100%", height: 1, backgroundColor: "#e8ede4", marginBottom: 16 }} />
+
+              {/* Subpoints List */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 9, marginBottom: 18, flex: 1, paddingLeft: 12 }}>
+                {[
+                  { icon: <Users size={14} />, title: "HR Audit Framework" },
+                  { icon: <Shield size={14} />, title: "PDPL Compliance Matrix" },
+                  { icon: <Clock size={14} />, title: "CST Gantt Execution" },
+                  { icon: <FileText size={14} />, title: "Saudi Master RCM" },
+                  { icon: <Layers size={14} />, title: "Isolated Categories" },
+                ].map((item, idx) => (
+                  <div key={idx} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, fontWeight: 500, color: "#334155" }}>
+                    <span style={{ display: "inline-flex", color: "#2d473b", opacity: 0.85 }}>{item.icon}</span>
+                    <span>{item.title}</span>
                   </div>
-                  <Btn primary onClick={()=>setNewProjModal(true)}>+ Add Company Project</Btn>
+                ))}
+              </div>
+
+              {/* Bottom Right Floating Circular Arrow Action Button */}
+              <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", marginTop: "auto" }}>
+                <div
+                  className="circle-arrow-btn"
+                  style={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: "50%",
+                    backgroundColor: "#2d473b",
+                    color: "#f5f0db",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: "0 2px 8px rgba(45,71,59,0.22)",
+                    transition: "transform 0.2s ease"
+                  }}
+                >
+                  <ArrowRight size={17} />
                 </div>
               </div>
             </div>
-            <div style={{flex:1,overflowY:'auto',padding:'24px 28px 32px'}}>
-<div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}>
-                <div style={{display:'flex',flexDirection:'column',gap:4}}>
-                  <div style={{fontSize:15,fontWeight:700,color:C.text1}}>Company Projects</div>
-                  <div style={{fontSize:12.5,color:C.text3}}>Open a company workspace to manage audit steps, imports, and manual updates.</div>
-                </div>
-                <Btn small onClick={()=>setNewProjModal(true)}>+ Add Company Project</Btn>
+
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // 2. DYNAMIC SAAS WORKSPACE (NEW PLATFORM)
+  // ════════════════════════════════════════════════════════════════════════════
+  if (platformMode === "dynamic") {
+    return (
+      <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: C.bg, fontFamily: 'Sora,sans-serif' }}>
+        <FontLink />
+        <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <DynamicSaaSWorkspace onBackToTemplates={() => setPlatformMode('selection')} />
+        </main>
+      </div>
+    );
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // 3. CLASSIC AUDITFLOW (ORIGINAL PLATFORM & WORKSPACES WITHOUT SIDEBAR)
+  // ════════════════════════════════════════════════════════════════════════════
+  if (isPdplTemplate) {
+    return (
+      <PdplWorkspace
+        selectedTemplate={selectedTemplate}
+        projects={projects}
+        setProjects={setProjects}
+        auditMembers={auditMembers}
+        search={search}
+        setSearch={setSearch}
+        showToast={showToast}
+        onBackToTemplates={backToTemplateLibrary}
+      />
+    );
+  }
+  if (isCstTemplate) {
+    return (
+      <CstAuditWorkspace
+        selectedTemplate={selectedTemplate}
+        projects={projects}
+        setProjects={setProjects}
+        auditMembers={auditMembers}
+        search={search}
+        setSearch={setSearch}
+        showToast={showToast}
+        onBackToTemplates={backToTemplateLibrary}
+      />
+    );
+  }
+  if (isSaudiTemplate) {
+    return (
+      <SaudiAuditWorkspace
+        selectedTemplate={selectedTemplate}
+        projects={projects}
+        setProjects={setProjects}
+        auditMembers={auditMembers}
+        search={search}
+        setSearch={setSearch}
+        showToast={showToast}
+        onBackToTemplates={backToTemplateLibrary}
+      />
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: C.bg, fontFamily: 'Sora,sans-serif' }}>
+      <FontLink />
+
+      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+
+        {/* ── TOP PLATFORM SWITCHER BANNER ── */}
+        <div style={{ backgroundColor: "#ffffff", borderBottom: `1px solid ${C.border}`, padding: "12px 48px", flexShrink: 0, boxShadow: "0 1px 2px rgba(0,0,0,0.02)" }}>
+          <div style={{ maxWidth: 1240, margin: "0 auto", width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <ShieldCheck size={24} color={C.teal} />
+              <div style={{ fontSize: 20, fontWeight: 800, color: C.teal, letterSpacing: "-0.5px" }}>AuditFlow</div>
+            </div>
+            <div>
+              <button
+                onClick={() => setPlatformMode("selection")}
+                title="Switch between Dynamic SaaS & Classic Templates"
+                style={{
+                  padding: "7px 14px",
+                  borderRadius: 8,
+                  border: `1px solid ${C.border}`,
+                  backgroundColor: C.surface,
+                  color: C.text2,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  transition: "all 0.15s ease"
+                }}
+                onMouseEnter={e => { e.currentTarget.style.backgroundColor = C.bg2; e.currentTarget.style.color = C.text1; }}
+                onMouseLeave={e => { e.currentTarget.style.backgroundColor = C.surface; e.currentTarget.style.color = C.text2; }}
+              >
+                ⇄ Switch Platform / Hub
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* ── TEMPLATES GRID VIEW ── */}
+        {view === 'templates' && (
+          <div style={{ flex: 1, overflowY: 'auto', padding: '44px 48px 60px' }}>
+            <div style={{ maxWidth: 1240, margin: '0 auto' }}>
+              <div style={{ marginBottom: 32 }}>
+                <h1 style={{ fontSize: 28, fontWeight: 800, color: C.text1, letterSpacing: '-0.6px', marginBottom: 6 }}>Audit Categories</h1>
+                <div style={{ fontSize: 14, color: C.text2 }}>Select an auditing structure to launch its workspace</div>
               </div>
-              <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(320px,1fr))',gap:14}}>
-                {filteredProjects.map(p=><ProjectCard key={p.id} project={p} members={members} onClick={()=>openProject(p.id)}/>)}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 28 }}>
+                {AUDIT_TEMPLATES.map(template => (
+                  <TemplateCard key={template.id} template={template} onClick={() => openTemplate(template.id)} />
+                ))}
               </div>
             </div>
           </div>
         )}
 
-        {/* ── PROJECT DETAIL ── */}
-        {view==='project'&&currentProj&&(
-          <div style={{display:'flex',flexDirection:'column',flex:1,overflow:'hidden'}}>
-            <div style={{padding:'18px 24px',borderBottom:`1px solid ${C.border}`,background:'#fff',flexShrink:0}}>
-              <div style={{display:'flex',alignItems:'center',gap:6,fontSize:12,color:C.text3,marginBottom:10,fontFamily:MONO}}>
-                <span onClick={()=>setView('dashboard')} style={{color:C.teal,cursor:'pointer'}}>Dashboard</span>
-                <span>/</span><span>Companies</span><span>/</span>
-                <span style={{color:C.text2}}>{currentProj.name}</span>
-              </div>
-              <div style={{display:'flex',alignItems:'center',gap:14}}>
-                <div style={{width:46,height:46,borderRadius:12,display:'flex',alignItems:'center',justifyContent:'center',fontSize:22,background:(TYPE_COLORS[currentProj.type]||TYPE_COLORS.hr).bg,border:`1px solid ${(TYPE_COLORS[currentProj.type]||TYPE_COLORS.hr).border}`}}>{currentProj.icon}</div>
-                <div style={{flex:1}}>
-                  <div style={{fontSize:20,fontWeight:800,color:C.text1,letterSpacing:'-0.4px'}}>{currentProj.name}</div>
-                  <div style={{display:'flex',alignItems:'center',gap:14,marginTop:5,flexWrap:'wrap'}}>
-                    {[['📅',currentProj.start],['🏢',currentProj.projectLeader],['📊',`${calcProgress(currentProj)}% Complete`],['📎',`${getProjectSteps(currentProj).reduce((a,s)=>a+(s.docs||[]).length,0)} files`]].map(([icon,val])=>val&&(
-                      <span key={val} style={{fontSize:12,color:C.text2,display:'flex',alignItems:'center',gap:4}}>{icon} {val}</span>
-                    ))}
-                  </div>
-                </div>
-                <div style={{display:'flex',gap:8,flexWrap:'wrap',justifyContent:'flex-end'}}>
-                  <Btn small onClick={()=>{
-                    setProjects(ps=>ps.map(p=>{
-                      if(p.id!==currentProjId)return p;
-                      const num=p.procedures.length+1;
-                      return{...p,procedures:[...p.procedures,{id:'proc'+Date.now(),name:`Procedure ${num}`,desc:'New procedure',steps:[{...mkStep(`${num}.1`,'New audit step — click to edit','todo','pending','medium',null,'',''),docs:[],comments:[]}]}]};
-                    }));showToast('success','Procedure added');
-                  }}>＋ Procedure</Btn>
-                  <Btn small onClick={()=>setImportModal(true)}>⬆ Import CSV</Btn>
+        {/* ── DASHBOARD VIEW ── */}
+        {view === 'dashboard' && selectedTemplate && (
+          <div style={{ flex: 1, overflowY: 'auto', padding: '28px 32px 40px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <button onClick={backToTemplateLibrary} style={{ border: `1px solid ${C.border}`, background: '#fff', color: C.text2, borderRadius: 8, padding: '7px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                  ← Categories
+                </button>
+                <div style={{ fontSize: 20, fontWeight: 800, color: C.text1 }}>
+                  {selectedTemplate.name} Workspace
                 </div>
               </div>
+              <button onClick={() => setNewProjModal(true)} style={{ background: C.teal, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, boxShadow: `0 2px 8px ${C.teal}44` }}>
+                ＋ Add Company Workspace
+              </button>
             </div>
 
-            {/* Tabs */}
-            <div style={{display:'flex',gap:2,padding:'12px 24px 0',borderBottom:`1px solid ${C.border}`,background:'#fff',flexShrink:0}}>
-              {[['table','⊞ Table View'],['kanban','⊟ Kanban Board']].map(([k,l])=>(
-                <div key={k} onClick={()=>setActiveTab(k)} style={{padding:'8px 16px',borderRadius:'8px 8px 0 0',fontSize:13,fontWeight:600,cursor:'pointer',color:activeTab===k?C.teal:C.text3,background:activeTab===k?C.bg:'transparent',border:activeTab===k?`1px solid ${C.border}`:'1px solid transparent',borderBottom:activeTab===k?`1px solid ${C.bg}`:'1px solid transparent',position:'relative',top:1,transition:'all .15s'}}>{l}</div>
-              ))}
+            {/* Stats Row */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 28 }}>
+              <StatCard icon="📁" value={templateProjects.length} label="Active Companies" change={`${templateProjects.length} configured`} changeType="up" accent={C.teal} />
+              <StatCard icon="📋" value={allSteps.length} label="Total Audit Steps" change={`${done} completed`} changeType="up" accent={C.blue} />
+              <StatCard icon="⏳" value={inProgress} label="In Progress Steps" change={`${allSteps.length - done - inProgress} pending`} changeType="down" accent={C.amber} />
+              <StatCard icon="📎" value={totalDocs} label="Attached Evidence" change="Files tracked" changeType="up" accent={C.purple} />
             </div>
-            <div style={{flex:1,overflow:'auto',background:C.bg}}>
-              {activeTab==='table'&&<TableView project={currentProj} members={members} onOpenTask={openTask} onAddStep={addStep} onDeleteStep={deleteStep} onRenameProcedure={(pi,updates)=>{
-                setProjects(ps=>ps.map(p=>p.id!==currentProjId?p:{...p,procedures:p.procedures.map((pr,i)=>i===pi?{...pr,...updates}:pr)}));
-              }}/>}
-              {activeTab==='kanban'&&<KanbanView project={currentProj} members={members} onOpenTask={openTask}/>}
+
+            {/* Projects list */}
+            <div style={{ fontSize: 16, fontWeight: 800, color: C.text1, marginBottom: 14 }}>
+              Company Workspaces ({filteredProjects.length})
             </div>
+            {filteredProjects.length === 0 ? (
+              <div style={{ padding: 40, textAlign: 'center', background: '#fff', borderRadius: 14, border: `1px solid ${C.border}`, color: C.text3 }}>
+                <div style={{ fontSize: 36, marginBottom: 10 }}>🏢</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: C.text2 }}>No company workspaces found</div>
+                <div style={{ fontSize: 12, marginTop: 4 }}>Click "+ Add Company Workspace" to initialize your first audit project.</div>
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
+                {filteredProjects.map(p => (
+                  <ProjectCard key={p.id} project={p} members={members} onClick={() => openProject(p.id)} />
+                ))}
+              </div>
+            )}
           </div>
         )}
 
-        {/* ── TEAM ── */}
-        {view==='team'&&(
-          <div style={{display:'flex',flexDirection:'column',flex:1,overflow:'hidden'}}>
-            <div style={{...topbarStyle,padding:'18px 28px'}}>
-              <div style={{display:'flex',alignItems:'center',gap:12,flex:1}}>
-                <button onClick={()=>setView('dashboard')} style={{border:`1px solid ${C.border2}`,background:'#fff',color:C.text2,borderRadius:999,padding:'7px 12px',fontSize:12.5,fontWeight:700,cursor:'pointer',fontFamily:'Sora,sans-serif'}}>? Back</button>
-                <div style={{fontSize:19,fontWeight:700,color:C.text1}}>Team Members</div>
-              </div>
-            </div>
-            <div style={{flex:1,overflowY:'auto',padding:'24px 28px 32px'}}>
-              <div style={{fontSize:13,color:C.text2,marginBottom:18}}>Employees with auditing module access from HRM are shown automatically here.</div>
-              {membersLoading ? (
-                <div style={{padding:'28px 0',fontSize:13,color:C.text3}}>Loading auditing members...</div>
-              ) : membersError ? (
-                <div style={{padding:'18px 20px',border:`1px solid ${C.redBorder}`,background:C.redBg,borderRadius:14,color:C.red,fontSize:13}}>{membersError}</div>
-              ) : !auditMembers.length ? (
-                <div style={{padding:'24px 20px',border:`1px solid ${C.border}`,background:'#fff',borderRadius:14,color:C.text3,fontSize:13}}>No auditing members are available yet.</div>
-              ) : (
-                <div style={{background:'#fff',border:`1px solid ${C.border}`,borderRadius:18,overflow:'hidden'}}>
-                  <table style={{width:'100%',borderCollapse:'collapse'}}>
-                    <thead>
-                      <tr>
-                        {['Employee','Employee ID','Role / Designation','Status'].map((heading)=>(
-                          <th key={heading} style={{background:C.bg2,padding:'14px 16px',textAlign:'left',fontSize:10.5,fontWeight:700,fontFamily:MONO,letterSpacing:'0.5px',textTransform:'uppercase',color:C.text3,borderBottom:`1px solid ${C.border}`}}>{heading}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {auditMembers.map((member)=>{
-                        const badgeMap = {
-                          active:{label:'Active',bg:'#ecfeff',color:'#0f766e',border:'#67e8f9',dot:'#06b6d4'},
-                          inactive:{label:'Inactive',bg:'#ffffff',color:'#475569',border:'#cbd5e1',dot:'#94a3b8'},
-                          separated:{label:'Separated',bg:'#fef2f2',color:'#b91c1c',border:'#fca5a5',dot:'#ef4444'},
-                          probation:{label:'Active - Probation',bg:'#f0fdf4',color:'#15803d',border:'#86efac',dot:'#22c55e'},
-                          notice:{label:'Active - Notice',bg:'#fff7ed',color:'#b45309',border:'#fdba74',dot:'#f59e0b'},
-                        };
-                        const badgeKey = member.status === 'separated' ? 'separated' : member.status === 'inactive' ? 'inactive' : member.stage === 'probation' ? 'probation' : member.stage === 'notice_period' ? 'notice' : 'active';
-                        return (
-                          <tr key={member.id}>
-                            <td style={{padding:'14px 16px',borderBottom:`1px solid ${C.border}`}}>
-                              <div style={{display:'flex',alignItems:'center',gap:12}}>
-                                <Avatar member={{id:member.id,name:member.name,initials:member.initials}} size={36}/>
-                                <div>
-                                  <div style={{fontSize:13.5,fontWeight:700,color:C.text1}}>{member.name}</div>
-                                  <div style={{fontSize:12,color:C.text3}}>{member.email || 'No email available'}</div>
-                                </div>
-                              </div>
-                            </td>
-                            <td style={{padding:'14px 16px',borderBottom:`1px solid ${C.border}`,fontSize:12.5,color:C.text2,fontFamily:MONO}}>{member.employeeId || '?'}</td>
-                            <td style={{padding:'14px 16px',borderBottom:`1px solid ${C.border}`,fontSize:12.5,color:C.text2}}>{member.designation || member.role || 'Employee'}</td>
-                            <td style={{padding:'14px 16px',borderBottom:`1px solid ${C.border}`}}><Badge map={badgeMap} val={badgeKey} /></td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {view==='my-tasks'&&(
-          <div style={{display:'flex',flexDirection:'column',flex:1,overflow:'hidden'}}>
+        {/* ── PROJECT DETAILS / TABLE / KANBAN VIEW ── */}
+        {view === 'project' && currentProj && (
+          <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
             <div style={topbarStyle}>
-              <div style={{fontSize:19,fontWeight:700,color:C.text1,flex:1}}>Tasks <span style={{color:C.teal}}>Assigned to Me</span></div>
+              <button onClick={() => setView('dashboard')} style={{ border: `1px solid ${C.border}`, background: '#fff', color: C.text2, borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                ← Projects
+              </button>
+              <div style={{ fontSize: 17, fontWeight: 800, color: C.text1 }}>
+                {currentProj.icon} {currentProj.name}
+              </div>
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+                <button onClick={() => setActiveTab('table')} style={{ padding: '6px 12px', borderRadius: 7, border: `1px solid ${activeTab === 'table' ? C.teal : C.border}`, background: activeTab === 'table' ? C.tealBg : '#fff', color: activeTab === 'table' ? C.teal : C.text2, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                  📋 Table
+                </button>
+                <button onClick={() => setActiveTab('kanban')} style={{ padding: '6px 12px', borderRadius: 7, border: `1px solid ${activeTab === 'kanban' ? C.teal : C.border}`, background: activeTab === 'kanban' ? C.tealBg : '#fff', color: activeTab === 'kanban' ? C.teal : C.text2, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                  📊 Kanban
+                </button>
+                <button onClick={() => setImportModal(true)} style={{ padding: '6px 12px', borderRadius: 7, border: `1px solid ${C.tealBorder}`, background: C.tealBg, color: C.teal, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                  ⬆ Import CSV
+                </button>
+                <button onClick={exportCurrentProject} style={{ padding: '6px 12px', borderRadius: 7, border: `1px solid ${C.border}`, background: '#fff', color: C.text2, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                  ⬇ Export CSV
+                </button>
+              </div>
             </div>
-            <div style={{flex:1,overflowY:'auto'}}>
-              {(()=>{
-                const myTasks=[];
-                projects.forEach(p=>p.procedures.forEach((proc,pi)=>proc.steps.forEach((s,si)=>{if(s.assignee===1)myTasks.push({p,proc,s,pi,si});})));
-                if(!myTasks.length)return<div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:60,color:C.text3,gap:12}}><div style={{fontSize:48,opacity:.4}}>📭</div><div style={{fontSize:14}}>No tasks assigned to you</div></div>;
-                const th={background:C.bg2,padding:'10px 14px',textAlign:'left',fontSize:10.5,fontWeight:600,fontFamily:MONO,letterSpacing:'0.5px',textTransform:'uppercase',color:C.text3,borderBottom:`2px solid ${C.border2}`,position:'sticky',top:0,zIndex:10};
-                const td={padding:'11px 14px',borderBottom:`1px solid ${C.border}`,verticalAlign:'middle',fontSize:13};
-                return<table style={{width:'100%',borderCollapse:'collapse'}}><thead><tr>{['Project','Ref','Step','Status','AQC','Due Date','Files',''].map(h=><th key={h} style={th}>{h}</th>)}</tr></thead><tbody>{myTasks.map(({p,proc,s,pi,si})=>(
-                  <tr key={s.id} onClick={()=>{openProject(p.id);setTimeout(()=>openTask(pi,si),100);}} style={{cursor:'pointer'}} onMouseEnter={e=>e.currentTarget.style.background=C.bg2} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-                    <td style={{...td,color:C.teal,fontSize:12}}>{p.icon} {p.name}</td>
-                    <td style={{...td,fontFamily:MONO,fontSize:11.5,color:C.text3}}>{s.id}</td>
-                    <td style={{...td,maxWidth:260,color:C.text1}}>{s.step.substring(0,80)}{s.step.length>80?'…':''}</td>
-                    <td style={td}><Badge map={STATUS_MAP} val={s.status}/></td>
-                    <td style={td}><Badge map={AQC_MAP} val={s.aqc}/></td>
-                    <td style={{...td,fontFamily:MONO,fontSize:11.5,color:C.text3}}>{s.due||'—'}</td>
-                    <td style={td}>{(s.docs||[]).length>0?<span style={{fontSize:11,color:C.teal,fontFamily:MONO}}>📎{s.docs.length}</span>:<span style={{color:C.text3}}>—</span>}</td>
-                    <td style={td}><button onClick={e=>{e.stopPropagation();openProject(p.id);setTimeout(()=>openTask(pi,si),100);}} style={{width:28,height:28,borderRadius:6,border:`1px solid ${C.border}`,background:'transparent',cursor:'pointer',fontSize:13,color:C.text3}}>✏</button></td>
-                  </tr>
-                ))}</tbody></table>;
-              })()}
+
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: 20 }}>
+              {activeTab === 'table' && (
+                <TableView
+                  project={currentProj}
+                  members={members}
+                  onOpenTask={openTask}
+                  onAddStep={addStep}
+                  onDeleteStep={deleteStep}
+                  onRenameProcedure={(pi, patch) => {
+                    setProjects(ps => ps.map(p => {
+                      if (p.id !== currentProjId) return p;
+                      return { ...p, procedures: p.procedures.map((proc, i) => i === pi ? { ...proc, ...patch } : proc) };
+                    }));
+                  }}
+                />
+              )}
+              {activeTab === 'kanban' && <KanbanView project={currentProj} members={members} onOpenTask={openTask} />}
             </div>
           </div>
         )}
-          </>
+
+        {/* ── TEAM VIEW ── */}
+        {view === 'team' && (
+          <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+            <div style={{ ...topbarStyle, padding: '18px 28px' }}>
+              <button onClick={() => setView('dashboard')} style={{ border: `1px solid ${C.border}`, background: '#fff', color: C.text2, borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                ← Back
+              </button>
+              <div style={{ fontSize: 18, fontWeight: 800, color: C.text1 }}>Team Members</div>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px' }}>
+              <div style={{ background: '#fff', border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ background: C.bg2, color: C.text3, textAlign: 'left', textTransform: 'uppercase', fontSize: 11, fontFamily: MONO }}>
+                      <th style={{ padding: '12px 16px' }}>Employee</th>
+                      <th style={{ padding: '12px 16px' }}>Role</th>
+                      <th style={{ padding: '12px 16px' }}>Email</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {members.map(m => (
+                      <tr key={m.id} style={{ borderBottom: `1px solid ${C.border}` }}>
+                        <td style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <Avatar member={m} size={30} />
+                          <span style={{ fontWeight: 700, color: C.text1 }}>{m.name}</span>
+                        </td>
+                        <td style={{ padding: '12px 16px', color: C.text2 }}>{m.role || 'Auditor'}</td>
+                        <td style={{ padding: '12px 16px', color: C.text3, fontFamily: MONO }}>{m.email || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         )}
+
+        {/* ── MY TASKS VIEW ── */}
+        {view === 'my-tasks' && (
+          <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+            <div style={topbarStyle}>
+              <div style={{ fontSize: 18, fontWeight: 800, color: C.text1 }}>Tasks Assigned to Me</div>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
+              <div style={{ background: '#fff', border: `1px solid ${C.border}`, borderRadius: 14, padding: 32, textAlign: 'center', color: C.text3 }}>
+                All tasks assigned to you appear in real-time under individual project workspaces.
+              </div>
+            </div>
+          </div>
+        )}
+
       </main>
 
       {/* Task Drawer */}
-      {!isPdplTemplate && !isCstTemplate && !isSaudiTemplate && currentProj&&<TaskDrawer open={drawerOpen} task={drawerTask} procName={currentProj.procedures[drawerProcIdx]?.name||''} members={members} onClose={()=>setDrawerOpen(false)} onSave={saveTask}/>}
+      {currentProj && <TaskDrawer open={drawerOpen} task={drawerTask} procName={currentProj.procedures[drawerProcIdx]?.name || ''} members={members} onClose={() => setDrawerOpen(false)} onSave={saveTask} />}
 
-      {/* Import Modal (from project header) */}
-      {!isPdplTemplate && !isCstTemplate && !isSaudiTemplate && importModal&&<ImportModal open={importModal} onClose={()=>setImportModal(false)} onImport={importToCurrent}/>}
+      {/* Import Modal */}
+      {importModal && <ImportModal open={importModal} onClose={() => setImportModal(false)} onImport={importToCurrent} />}
 
       {/* Modals */}
-      {!isPdplTemplate && !isCstTemplate && !isSaudiTemplate && <NewProjectModal open={newProjModal} members={members} onClose={()=>setNewProjModal(false)} onCreate={createProject}/>}
-      {!isPdplTemplate && !isCstTemplate && !isSaudiTemplate && <AddMemberModal open={addMemberModal} onClose={()=>setAddMemberModal(false)} onAdd={addMember}/>}
-      <ToastContainer toasts={toasts}/>
+      <NewProjectModal open={newProjModal} members={members} onClose={() => setNewProjModal(false)} onCreate={createProject} />
+      <AddMemberModal open={addMemberModal} onClose={() => setAddMemberModal(false)} onAdd={addMember} />
+      <ToastContainer toasts={toasts} />
     </div>
   );
 }

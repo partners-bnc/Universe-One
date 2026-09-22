@@ -5,12 +5,13 @@ import { getAppUrl } from '@/utils/app-url';
 export const ONBOARDING_FILES_BUCKET = 'hrm-onboarding-files';
 export const DEFAULT_ONBOARDING_TOKEN_EXPIRY_HOURS = 24;
 export const ONBOARDING_DOCUMENT_TYPES = [
-  { key: 'aadhaar_card', label: 'Aadhaar Card' },
-  { key: 'pan_card', label: 'PAN Card' },
-  { key: 'passport', label: 'Passport' },
-  { key: 'appointment_letter', label: 'Appointment Letter (Previous Organisation)' },
-  { key: 'experience_letter', label: 'Experience Letter' },
-  { key: 'salary_slip', label: 'Salary Slip' },
+  { key: 'aadhaar_card', label: 'Aadhaar Card', required: true },
+  { key: 'pan_card', label: 'PAN Card', required: true },
+  { key: 'bank_passbook_cancel_cheque', label: 'Bank Passbook / Cancel Cheque', required: true },
+  { key: 'passport', label: 'Passport', required: false },
+  { key: 'appointment_letter', label: 'Appointment Letter (Previous Organisation)', required: false },
+  { key: 'experience_letter', label: 'Experience Letter', required: false },
+  { key: 'salary_slip', label: 'Salary Slip', required: false },
 ];
 export const ONBOARDING_DOCUMENT_TYPE_KEYS = ONBOARDING_DOCUMENT_TYPES.map((item) => item.key);
 export const ONBOARDING_EDUCATION_LEVELS = ['10th', '12th', 'graduation', 'post_graduation'];

@@ -2390,13 +2390,13 @@ function renderGridRows(rows) {
 }
 
 export default function PdplWorkspace({
-  selectedTemplate,
-  projects,
-  setProjects,
-  auditMembers,
-  search,
-  setSearch,
-  showToast,
+  selectedTemplate = null,
+  projects = [],
+  setProjects = () => {},
+  auditMembers = [],
+  search = "",
+  setSearch = () => {},
+  showToast = () => {},
   onBackToTemplates,
 }) {
   const emptyProjectForm = {

@@ -321,6 +321,7 @@ export default function AdminAttendance() {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
   const [employeeDropdownOpen, setEmployeeDropdownOpen] = useState(false);
+  const [employeeFilterSearch, setEmployeeFilterSearch] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
   const [response, setResponse] = useState<AttendanceResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -447,6 +448,20 @@ export default function AdminAttendance() {
   const filteredEmployeeOptions = useMemo(() => {
     return response?.employeeOptions || [];
   }, [response?.employeeOptions]);
+
+  const searchedEmployeeOptions = useMemo(() => {
+    if (!employeeFilterSearch.trim()) {
+      return filteredEmployeeOptions;
+    }
+    const query = employeeFilterSearch.trim().toLowerCase();
+    return filteredEmployeeOptions.filter((emp) => {
+      const name = (emp.name || '').toLowerCase();
+      const code = (emp.employeeId || '').toLowerCase();
+      const dept = (emp.department || '').toLowerCase();
+      const desig = (emp.designation || '').toLowerCase();
+      return name.includes(query) || code.includes(query) || dept.includes(query) || desig.includes(query);
+    });
+  }, [filteredEmployeeOptions, employeeFilterSearch]);
 
   async function exportExcelFile(rows: Array<Record<string, any>>, fileName: string, sheetName: string) {
     if (!rows.length) {
@@ -929,11 +944,14 @@ export default function AdminAttendance() {
                   <button
                     type="button"
                     aria-label="Close employee filter"
-                    onClick={() => setEmployeeDropdownOpen(false)}
+                    onClick={() => {
+                      setEmployeeDropdownOpen(false);
+                      setEmployeeFilterSearch('');
+                    }}
                     className="fixed inset-0 z-30"
                   />
-                  <div className="absolute left-0 top-full z-40 mt-1 w-full min-w-[260px] overflow-hidden rounded-2xl border border-outline-variant/15 bg-white shadow-[0_8px_32px_rgba(15,23,42,0.12)]">
-                    <div className="border-b border-outline-variant/10 px-3 py-2 flex items-center justify-between gap-2">
+                  <div className="absolute left-0 top-full z-40 mt-1 w-full min-w-[280px] overflow-hidden rounded-2xl border border-outline-variant/15 bg-white shadow-[0_8px_32px_rgba(15,23,42,0.12)]">
+                    <div className="border-b border-outline-variant/10 px-3 py-2 flex items-center justify-between gap-2 bg-surface-container-lowest">
                       <span className="text-xs font-semibold text-on-surface-variant">Filter Employees</span>
                       {selectedEmployeeIds.length > 0 && (
                         <button
@@ -941,44 +959,112 @@ export default function AdminAttendance() {
                           onClick={() => setSelectedEmployeeIds([])}
                           className="text-xs font-semibold text-violet-700 hover:underline"
                         >
-                          Clear all
+                          Clear all ({selectedEmployeeIds.length})
                         </button>
                       )}
                     </div>
-                    <div className="max-h-64 overflow-y-auto py-1">
-                      {filteredEmployeeOptions.map((employee) => {
-                        const checked = selectedEmployeeIds.includes(employee.id);
-                        return (
+                    {/* Search Input Bar */}
+                    <div className="border-b border-outline-variant/10 p-2 bg-white">
+                      <div className="relative flex items-center">
+                        <span className="material-symbols-outlined pointer-events-none absolute left-2.5 text-[16px] text-on-surface-variant/60">
+                          search
+                        </span>
+                        <input
+                          type="text"
+                          value={employeeFilterSearch}
+                          onChange={(e) => setEmployeeFilterSearch(e.target.value)}
+                          placeholder="Search employee or ID..."
+                          autoFocus
+                          className="w-full rounded-xl border border-outline-variant/20 bg-slate-50 py-1.5 pl-8 pr-7 text-xs text-on-surface placeholder:text-on-surface-variant/50 outline-none transition focus:border-violet-500 focus:bg-white focus:ring-1 focus:ring-violet-500"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        {employeeFilterSearch && (
                           <button
-                            key={employee.id}
                             type="button"
-                            onClick={() =>
-                              setSelectedEmployeeIds((prev) =>
-                                checked ? prev.filter((id) => id !== employee.id) : [...prev, employee.id]
-                              )
-                            }
-                            className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm hover:bg-surface-container-low"
+                            onClick={() => setEmployeeFilterSearch('')}
+                            className="absolute right-2 flex h-4 w-4 items-center justify-center rounded-full text-on-surface-variant/60 hover:bg-slate-200 hover:text-on-surface"
+                            title="Clear search"
                           >
-                            <span
-                              className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
-                                checked
-                                  ? 'border-violet-600 bg-violet-600 text-white'
-                                  : 'border-outline-variant/40 bg-white'
-                              }`}
-                            >
-                              {checked && (
-                                <span className="material-symbols-outlined text-[12px]">check</span>
-                              )}
-                            </span>
-                            <span className="truncate text-on-surface">
-                              {employee.name}
-                              {employee.employeeId ? (
-                                <span className="ml-1 text-on-surface-variant">[{employee.employeeId}]</span>
-                              ) : null}
-                            </span>
+                            <span className="material-symbols-outlined text-[13px]">close</span>
                           </button>
-                        );
-                      })}
+                        )}
+                      </div>
+                    </div>
+                    {/* Quick selection action when searching */}
+                    {employeeFilterSearch.trim() && searchedEmployeeOptions.length > 0 && (
+                      <div className="flex items-center justify-between border-b border-outline-variant/10 px-3 py-1.5 bg-slate-50 text-[11px]">
+                        <span className="text-on-surface-variant font-medium">
+                          {searchedEmployeeOptions.length} found
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const visibleIds = searchedEmployeeOptions.map((e) => e.id);
+                            const allVisibleSelected = visibleIds.every((id) =>
+                              selectedEmployeeIds.includes(id)
+                            );
+                            if (allVisibleSelected) {
+                              setSelectedEmployeeIds((prev) =>
+                                prev.filter((id) => !visibleIds.includes(id))
+                              );
+                            } else {
+                              setSelectedEmployeeIds((prev) =>
+                                Array.from(new Set([...prev, ...visibleIds]))
+                              );
+                            }
+                          }}
+                          className="font-semibold text-violet-700 hover:underline"
+                        >
+                          {searchedEmployeeOptions.every((e) => selectedEmployeeIds.includes(e.id))
+                            ? 'Deselect matching'
+                            : 'Select all matching'}
+                        </button>
+                      </div>
+                    )}
+                    <div className="max-h-64 overflow-y-auto py-1">
+                      {searchedEmployeeOptions.length === 0 ? (
+                        <div className="px-4 py-6 text-center text-xs text-on-surface-variant">
+                          No employees match &quot;{employeeFilterSearch}&quot;
+                        </div>
+                      ) : (
+                        searchedEmployeeOptions.map((employee) => {
+                          const checked = selectedEmployeeIds.includes(employee.id);
+                          return (
+                            <button
+                              key={employee.id}
+                              type="button"
+                              onClick={() =>
+                                setSelectedEmployeeIds((prev) =>
+                                  checked
+                                    ? prev.filter((id) => id !== employee.id)
+                                    : [...prev, employee.id]
+                                )
+                              }
+                              className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm hover:bg-surface-container-low"
+                            >
+                              <span
+                                className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                                  checked
+                                    ? 'border-violet-600 bg-violet-600 text-white'
+                                    : 'border-outline-variant/40 bg-white'
+                                }`}
+                              >
+                                {checked && (
+                                  <span className="material-symbols-outlined text-[12px]">check</span>
+                                )}
+                              </span>
+                              <span className="truncate text-on-surface">
+                                {employee.name}
+                                {employee.employeeId ? (
+                                  <span className="ml-1 text-on-surface-variant">
+                                    [{employee.employeeId}]
+                                  </span>
+                                ) : null}
+                              </span>
+                            </button>
+                          );
+                        })
+                      )}
                     </div>
                   </div>
                 </>

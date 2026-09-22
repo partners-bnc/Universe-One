@@ -326,13 +326,13 @@ const renderBulletPoints = (text, isDataRequirement = false) => {
 };
 
 export default function SaudiAuditWorkspace({
-  selectedTemplate,
-  projects,
-  setProjects,
-  auditMembers,
-  search,
-  setSearch,
-  showToast,
+  selectedTemplate = null,
+  projects = [],
+  setProjects = () => {},
+  auditMembers = [],
+  search = "",
+  setSearch = () => {},
+  showToast = () => {},
   onBackToTemplates,
 }) {
   const [nav, setNav] = useState("dashboard"); // "dashboard" | "project"
@@ -576,30 +576,33 @@ export default function SaudiAuditWorkspace({
   };
 
   // Planning Attachments Upload
-  const handleAttachmentUpload = (e) => {
+  const handleAttachmentUpload = async (e) => {
     const files = Array.from(e.target.files);
     if (!files.length) return;
 
-    const nextAttachments = [...(planning.attachments || [])];
-    files.forEach(f => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        nextAttachments.push({
-          id: "att-" + Date.now() + Math.random().toString(36).substr(2, 5),
-          name: f.name,
-          size: (f.size / 1024).toFixed(1) + " KB",
-          type: f.name.split(".").pop().toLowerCase(),
-          dataUrl: reader.result,
-          uploadedAt: new Date().toLocaleDateString()
-        });
+    try {
+      const formData = new FormData();
+      formData.append("projectId", activeProjectId || "general");
+      formData.append("folder", "planning");
+      files.forEach(f => formData.append("files", f));
+
+      const res = await fetch("/Auditing/api/dynamic/upload", {
+        method: "POST",
+        body: formData
+      });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.files)) {
+        const nextAttachments = [...(planning.attachments || []), ...data.files];
         const nextPlan = { ...planning, attachments: nextAttachments };
         setPlanning(nextPlan);
         saveWorkspaceData(nextPlan, null, null, null);
-      };
-      reader.readAsDataURL(f);
-    });
-
-    showToast("success", `${files.length} attachment(s) uploaded.`);
+        showToast("success", `${data.files.length} attachment(s) uploaded to Supabase Storage.`);
+      } else {
+        showToast("error", data.error || "Upload to Supabase Storage failed.");
+      }
+    } catch (err) {
+      showToast("error", "Upload error: " + err.message);
+    }
   };
 
   const removeAttachment = (id) => {
@@ -727,39 +730,37 @@ export default function SaudiAuditWorkspace({
   };
 
   // ─── DATA TRACKER CRUD ───
-  const handleTrackerAttachmentUpload = (e) => {
+  const handleTrackerAttachmentUpload = async (e) => {
     const files = Array.from(e.target.files);
     if (!files.length) return;
 
-    const currentAttachments = [...(trackerModal.data?.attachments || [])];
-    
-    let loadedCount = 0;
-    files.forEach(f => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        currentAttachments.push({
-          id: "att-" + Date.now() + Math.random().toString(36).substr(2, 5),
-          name: f.name,
-          size: (f.size / 1024).toFixed(1) + " KB",
-          type: f.name.split(".").pop().toLowerCase(),
-          dataUrl: reader.result,
-          uploadedAt: new Date().toLocaleDateString()
-        });
-        
-        loadedCount++;
-        if (loadedCount === files.length) {
-          setTrackerModal(prev => ({
-            ...prev,
-            data: {
-              ...(prev.data || {}),
-              attachments: currentAttachments
-            }
-          }));
-          showToast("success", `Attached ${files.length} document(s). Save changes to persist.`);
-        }
-      };
-      reader.readAsDataURL(f);
-    });
+    try {
+      const formData = new FormData();
+      formData.append("projectId", activeProjectId || "general");
+      formData.append("folder", "data-tracker");
+      files.forEach(f => formData.append("files", f));
+
+      const res = await fetch("/Auditing/api/dynamic/upload", {
+        method: "POST",
+        body: formData
+      });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.files)) {
+        const currentAttachments = [...(trackerModal.data?.attachments || []), ...data.files];
+        setTrackerModal(prev => ({
+          ...prev,
+          data: {
+            ...(prev.data || {}),
+            attachments: currentAttachments
+          }
+        }));
+        showToast("success", `Attached ${data.files.length} document(s) uploaded to Supabase Storage.`);
+      } else {
+        showToast("error", data.error || "Storage upload failed.");
+      }
+    } catch (err) {
+      showToast("error", "Storage upload error: " + err.message);
+    }
   };
 
   const removeTrackerAttachment = (attId) => {

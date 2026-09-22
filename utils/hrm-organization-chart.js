@@ -188,38 +188,67 @@ function wouldCreateCycle(nodes, parentId, childId) {
 }
 
 function buildOrganizationTree(superAdmins, employees) {
-  const visibleManagerIds = new Set(
-    employees
-      .map((employee) => employee.reporting_manager_id)
-      .filter(Boolean)
-  );
-  const scopedEmployees = employees.filter((employee) => {
+  // Only include active (non-separated, non-inactive) employees in the org chart
+  const activeEmployees = employees.filter((employee) => {
     const lifecycleStatus = deriveEmploymentFields(employee).employmentLifecycleStatus;
-    return lifecycleStatus !== 'separated' || visibleManagerIds.has(employee.id);
+    return lifecycleStatus === 'active';
   });
-  const nodes = createNodeMap(superAdmins, employees);
+
+  const employeeMap = new Map(employees.map((emp) => [emp.id, emp]));
+  const nodes = createNodeMap(superAdmins, activeEmployees);
   const superAdminNodeIds = new Set(superAdmins.map((item) => buildSuperAdminNodeId(item.id)));
   const primarySuperAdminId = superAdmins.length > 0 ? buildSuperAdminNodeId(superAdmins[0].id) : null;
 
-  scopedEmployees.forEach((employee) => {
+  activeEmployees.forEach((employee) => {
     const childNodeId = buildEmployeeNodeId(employee.id);
-    const managerNodeId = employee.reporting_manager_id ? buildEmployeeNodeId(employee.reporting_manager_id) : null;
-    const superAdminNodeId = employee.reporting_super_admin_id
+
+    // Resolve reporting manager up the chain in case the direct manager is separated or missing
+    let targetManagerNodeId = null;
+    let fallbackSuperAdminNodeId = employee.reporting_super_admin_id
       ? buildSuperAdminNodeId(employee.reporting_super_admin_id)
       : null;
 
-    if (
-      managerNodeId &&
-      nodes.has(managerNodeId) &&
-      managerNodeId !== childNodeId &&
-      !wouldCreateCycle(nodes, managerNodeId, childNodeId)
-    ) {
-      attachChild(nodes, managerNodeId, childNodeId);
+    if (employee.reporting_manager_id) {
+      let currentManagerId = employee.reporting_manager_id;
+      const visited = new Set([employee.id]);
+
+      while (currentManagerId && !visited.has(currentManagerId)) {
+        visited.add(currentManagerId);
+        const managerNodeId = buildEmployeeNodeId(currentManagerId);
+        if (
+          nodes.has(managerNodeId) &&
+          managerNodeId !== childNodeId &&
+          !wouldCreateCycle(nodes, managerNodeId, childNodeId)
+        ) {
+          targetManagerNodeId = managerNodeId;
+          break;
+        }
+
+        // Manager is not in active nodes (e.g. separated or inactive). Walk up to their manager or reporting super admin
+        const managerRow = employeeMap.get(currentManagerId);
+        if (!managerRow) break;
+
+        if (managerRow.reporting_manager_id) {
+          currentManagerId = managerRow.reporting_manager_id;
+        } else if (managerRow.reporting_super_admin_id) {
+          const candidateSuperAdminId = buildSuperAdminNodeId(managerRow.reporting_super_admin_id);
+          if (superAdminNodeIds.has(candidateSuperAdminId)) {
+            fallbackSuperAdminNodeId = candidateSuperAdminId;
+          }
+          break;
+        } else {
+          break;
+        }
+      }
+    }
+
+    if (targetManagerNodeId) {
+      attachChild(nodes, targetManagerNodeId, childNodeId);
       return;
     }
 
-    if (superAdminNodeId && superAdminNodeIds.has(superAdminNodeId)) {
-      attachChild(nodes, superAdminNodeId, childNodeId);
+    if (fallbackSuperAdminNodeId && superAdminNodeIds.has(fallbackSuperAdminNodeId)) {
+      attachChild(nodes, fallbackSuperAdminNodeId, childNodeId);
       return;
     }
 
@@ -233,12 +262,6 @@ function buildOrganizationTree(superAdmins, employees) {
   nodes.forEach((node) => {
     node.childIds.sort((leftId, rightId) => compareByName(nodes.get(leftId), nodes.get(rightId)));
     node.directReportCount = node.childIds.length;
-  });
-
-  Array.from(nodes.values()).forEach((node) => {
-    if (node.kind === 'employee' && !scopedEmployees.some((employee) => buildEmployeeNodeId(employee.id) === node.id)) {
-      nodes.delete(node.id);
-    }
   });
 
   const roots = superAdmins

@@ -126,7 +126,7 @@ export default function EmployeeOnboarding({
   onboardingRequestId?: string | null;
   setOnboardingRequestId?: (requestId: string | null) => void;
 }) {
-  const { showFeedback } = useHrmFeedback();
+  const { showFeedback, confirmFeedback } = useHrmFeedback();
   const [requests, setRequests] = useState<any[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<any>(null);
@@ -280,6 +280,59 @@ export default function EmployeeOnboarding({
       }
     } catch (error: any) {
       showFeedback({ type: 'error', title: 'Action Failed', message: error.message || 'Failed to update onboarding request' });
+    } finally {
+      setBusyAction('');
+    }
+  }
+
+  function canDeleteRequest(item?: any) {
+    if (!item) return false;
+    return (
+      !item.submitted_at &&
+      item.status !== 'submitted' &&
+      item.status !== 'approved' &&
+      item.status !== 'converted'
+    );
+  }
+
+  async function handleDeleteRequest(id: string, name: string) {
+    if (!id) return;
+    const confirmed = await confirmFeedback({
+      type: 'warning',
+      title: 'Delete Onboarding Request',
+      message: `Are you sure you want to delete the onboarding invite for "${name || 'this candidate'}"? This action cannot be undone.`,
+      confirmLabel: 'Delete Invite',
+      cancelLabel: 'Cancel',
+    });
+
+    if (!confirmed) return;
+
+    setBusyAction('delete');
+    try {
+      const response = await fetch(`/HRM/api/admin/onboarding/${id}`, {
+        method: 'DELETE',
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result?.error || 'Failed to delete onboarding request');
+      }
+      showFeedback({
+        type: 'success',
+        title: 'Invite Deleted',
+        message: 'Onboarding invite has been removed successfully.',
+      });
+      if (selectedId === id) {
+        setSelectedId(null);
+        setDetail(null);
+      }
+      await loadRequests();
+      window.dispatchEvent(new CustomEvent('hrm-admin-sidebar-counts-refresh'));
+    } catch (error: any) {
+      showFeedback({
+        type: 'error',
+        title: 'Delete Failed',
+        message: error.message || 'Failed to delete onboarding request',
+      });
     } finally {
       setBusyAction('');
     }
@@ -441,13 +494,29 @@ export default function EmployeeOnboarding({
                               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 md:hidden">Submitted</p>
                               <p className="text-sm text-slate-600">{formatDateTime(item.submitted_at)}</p>
                             </div>
-                            <div className="md:text-right">
+                            <div className="flex items-center justify-between md:justify-end gap-2">
                               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 md:hidden">Status</p>
-                              <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                                active ? 'bg-white text-violet-700' : 'bg-slate-100 text-slate-700'
-                              }`}>
-                                {statusLabel(item.status)}
-                              </span>
+                              <div className="flex items-center gap-1.5">
+                                <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                                  active ? 'bg-white text-violet-700' : 'bg-slate-100 text-slate-700'
+                                }`}>
+                                  {statusLabel(item.status)}
+                                </span>
+                                {canDeleteRequest(item) && (
+                                  <button
+                                    type="button"
+                                    title="Delete unsubmitted request"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteRequest(item.id, item.candidate_name);
+                                    }}
+                                    disabled={busyAction === 'delete'}
+                                    className="flex h-7 w-7 items-center justify-center rounded-full text-slate-400 hover:bg-rose-100 hover:text-rose-700 transition"
+                                  >
+                                    <span className="material-symbols-outlined text-[16px]">delete</span>
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </button>
@@ -673,6 +742,18 @@ export default function EmployeeOnboarding({
                     >
                       Request Changes
                     </button>
+                    {canDeleteRequest(detail?.request) && (
+                      <button
+                        type="button"
+                        disabled={busyAction === 'delete'}
+                        onClick={() =>
+                          handleDeleteRequest(detail.request.id, detail.request.candidate_name)
+                        }
+                        className="whitespace-nowrap rounded-full border border-rose-200 bg-rose-50 px-5 py-3 text-sm font-bold text-rose-700 transition hover:bg-rose-100 disabled:opacity-70"
+                      >
+                        Delete Request
+                      </button>
+                    )}
                     <button
                       type="button"
                       disabled={busyAction === 'regenerate_link'}

@@ -42,8 +42,15 @@ const EMPLOYEE_FILE_MAX_SIZE_BYTES = 10 * 1024 * 1024;
 const PROFILE_PICTURE_ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp'];
 const PROFILE_PICTURE_ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const EMPLOYEE_FILE_ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'pdf'];
-const EMPLOYEE_FILE_ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
-const DOCUMENT_TYPES = ['aadhaar_card', 'pan_card', 'passport', 'appointment_letter', 'experience_letter', 'salary_slip'];
+const DOCUMENT_TYPES = [
+  'aadhaar_card',
+  'pan_card',
+  'bank_passbook_cancel_cheque',
+  'passport',
+  'appointment_letter',
+  'experience_letter',
+  'salary_slip',
+];
 
 const hrmEmployeeColumnSupportPromises = new Map();
 

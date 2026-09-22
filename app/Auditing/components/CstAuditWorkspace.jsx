@@ -1395,13 +1395,13 @@ function ProjectModal({ open, members, initialValues, mode, submitting, onClose,
 }
 
 export default function CstAuditWorkspace({
-  selectedTemplate,
-  projects,
-  setProjects,
-  auditMembers,
-  search,
-  setSearch,
-  showToast,
+  selectedTemplate = null,
+  projects = [],
+  setProjects = () => {},
+  auditMembers = [],
+  search = "",
+  setSearch = () => {},
+  showToast = () => {},
   onBackToTemplates,
 }) {
   const [nav, setNav] = useState("dashboard");

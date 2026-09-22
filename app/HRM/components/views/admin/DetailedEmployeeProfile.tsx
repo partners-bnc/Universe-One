@@ -36,6 +36,7 @@ const DEPARTMENT_DESIGNATION_SUGGESTIONS: Record<string, string[]> = {
 const DOCUMENT_TYPES = [
   { key: 'aadhaar_card', label: 'Aadhaar Card' },
   { key: 'pan_card', label: 'PAN Card' },
+  { key: 'bank_passbook_cancel_cheque', label: 'Bank Passbook / Cancel Cheque' },
   { key: 'passport', label: 'Passport' },
   { key: 'appointment_letter', label: 'Appointment Letter (Previous Organisation)' },
   { key: 'experience_letter', label: 'Experience Letter' },
@@ -754,12 +755,15 @@ export default function DetailedEmployeeProfile({
         throw new Error(result.error || 'Failed to update employee status');
       }
 
-      setEmployee(result.employee || employee);
-      setForm((current) => ({
-        ...current,
-        lifecycleStatus: nextStatus,
-        ...(nextStatus === 'separated' ? { currentStage: 'none' } : {}),
-      }));
+      const nextEmployee = result.employee || {
+        ...employee,
+        employment_lifecycle_status: nextStatus,
+        resolved_employment_lifecycle_status: nextStatus,
+      };
+      setEmployee(nextEmployee);
+      const nextForm = normalizeEmployeeToForm(nextEmployee);
+      setForm(nextForm);
+      setSameAsCurrentAddress(isPermanentAddressSameAsCurrent(nextForm));
       setMessage(`Employee marked as ${formatStatus(nextStatus)}.`);
     } catch (requestError: any) {
       setError(requestError?.message || 'Failed to update employee status');
@@ -1876,10 +1880,19 @@ export default function DetailedEmployeeProfile({
                     Edit Employee
                   </button>
                 )}
-                <button type="button" onClick={() => handleStatusUpdate('inactive')} disabled={saving} className="inline-flex items-center justify-center gap-1.5 rounded-md border border-black bg-white px-3 py-1.5 text-[11px] font-semibold text-black transition hover:bg-slate-50 disabled:opacity-60">
-                  <span className="material-symbols-outlined text-[14px]">pause_circle</span>
-                  Mark Inactive
-                </button>
+                {lifecycleStatus !== 'separated' ? (
+                  <button
+                    type="button"
+                    onClick={() => handleStatusUpdate(lifecycleStatus === 'inactive' ? 'active' : 'inactive')}
+                    disabled={saving}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-md border border-black bg-white px-3 py-1.5 text-[11px] font-semibold text-black transition hover:bg-slate-50 disabled:opacity-60"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">
+                      {lifecycleStatus === 'inactive' ? 'play_circle' : 'pause_circle'}
+                    </span>
+                    {lifecycleStatus === 'inactive' ? 'Mark Active' : 'Mark Inactive'}
+                  </button>
+                ) : null}
               </div>
             </div>
           </div>

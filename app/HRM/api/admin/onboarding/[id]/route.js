@@ -12,6 +12,7 @@ import {
   hashOnboardingToken,
   logOnboardingEvent,
   ONBOARDING_STATUSES,
+  removeOnboardingFiles,
 } from '@/utils/onboarding';
 import { enqueueOnboardingInviteEmail } from '@/utils/email-outbox';
 
@@ -156,5 +157,75 @@ export async function PATCH(request, { params }) {
     );
   } catch (error) {
     return NextResponse.json({ error: error.message || 'Failed to update onboarding request' }, { status: 500 });
+  }
+}
+
+export async function DELETE(_request, { params }) {
+  try {
+    const auth = await requireHrAdminAccess();
+    if (auth.error) return auth.error;
+
+    const resolvedParams = await params;
+    const id = cleanText(resolvedParams?.id);
+    if (!id) {
+      return NextResponse.json({ error: 'Onboarding request id is required.' }, { status: 400 });
+    }
+
+    const bundle = await fetchOnboardingBundleById(id);
+    if (!bundle?.request) {
+      return NextResponse.json({ error: 'Onboarding request not found' }, { status: 404 });
+    }
+
+    const current = bundle.request;
+    // Only allow deleting if candidate has not submitted
+    if (
+      current.submitted_at ||
+      current.status === ONBOARDING_STATUSES.submitted ||
+      current.status === ONBOARDING_STATUSES.approved ||
+      current.status === ONBOARDING_STATUSES.converted
+    ) {
+      return NextResponse.json(
+        { error: 'Cannot delete an onboarding request that has already been submitted or converted.' },
+        { status: 400 }
+      );
+    }
+
+    // Clean up any uploaded onboarding files if present
+    const filePaths = [];
+    if (current.profile_picture_path) filePaths.push(current.profile_picture_path);
+    (bundle.education || []).forEach((item) => {
+      if (item.degree_file_path) filePaths.push(item.degree_file_path);
+    });
+    (bundle.certifications || []).forEach((item) => {
+      if (item.certificate_file_path) filePaths.push(item.certificate_file_path);
+    });
+    (bundle.documents || []).forEach((item) => {
+      if (item.file_path) filePaths.push(item.file_path);
+    });
+
+    if (filePaths.length > 0) {
+      try {
+        await removeOnboardingFiles(filePaths);
+      } catch (storageErr) {
+        console.error('Failed to remove onboarding files from storage on delete:', storageErr);
+      }
+    }
+
+    // Delete from database (foreign keys on cascade will clean up child tables)
+    const { error: deleteError } = await adminClient
+      .from('hrm_onboarding_requests')
+      .delete()
+      .eq('id', current.id);
+
+    if (deleteError) {
+      return NextResponse.json({ error: deleteError.message || 'Failed to delete onboarding request' }, { status: 500 });
+    }
+
+    return NextResponse.json(
+      { success: true, message: 'Onboarding request deleted successfully.' },
+      { status: 200 }
+    );
+  } catch (error) {
+    return NextResponse.json({ error: error.message || 'Failed to delete onboarding request' }, { status: 500 });
   }
 }
