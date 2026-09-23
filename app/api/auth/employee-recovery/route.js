@@ -3,11 +3,16 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { adminClient } from '@/utils/supabase/admin';
 import { isHrAdminRole } from '@/utils/auth/roles';
+import { verifyTurnstileToken } from '@/utils/turnstile';
 
 export async function POST(request) {
   try {
     const body = await request.json();
     const newPassword = String(body?.newPassword ?? '');
+
+    if (!(await verifyTurnstileToken(request, body?.turnstileToken, 'password_recovery'))) {
+      return NextResponse.json({ error: 'Security verification failed. Please try again.' }, { status: 403 });
+    }
 
     if (newPassword.length < 8) {
       return NextResponse.json(

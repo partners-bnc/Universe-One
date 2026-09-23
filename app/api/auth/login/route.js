@@ -25,6 +25,7 @@ import {
   syncSupportPasswordToAuth,
   verifySupportPassword,
 } from '@/utils/support-auth';
+import { verifyTurnstileToken } from '@/utils/turnstile';
 
 const EMPLOYEE_AUTH_SELECT_BASE =
   'id, employee_id, name, email, role, password_hash, must_change_password, auth_user_id, employee_status';
@@ -415,11 +416,15 @@ async function tryEmployeeLogin(identifier, password, loginAs) {
 
 export async function POST(request) {
   try {
-    const { email, password, loginAs } = await request.json();
+    const { email, password, loginAs, turnstileToken } = await request.json();
     const selectedPortal = normalizeLoginPortal(loginAs);
 
     if (!email || !password) {
       return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
+    }
+
+    if (!(await verifyTurnstileToken(request, turnstileToken, 'login'))) {
+      return NextResponse.json({ error: 'Security verification failed. Please try again.' }, { status: 403 });
     }
 
     const privilegedResult = await tryPrivilegedLogin(email, password, selectedPortal);

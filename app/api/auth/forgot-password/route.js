@@ -3,11 +3,16 @@ import {
   getResetRedirectUrl,
   sendPasswordResetEmailForIdentifier,
 } from '@/utils/employee-auth';
+import { verifyTurnstileToken } from '@/utils/turnstile';
 
 export async function POST(request) {
   try {
     const body = await request.json();
     const identifier = String(body?.identifier ?? '').trim();
+
+    if (!(await verifyTurnstileToken(request, body?.turnstileToken, 'forgot_password'))) {
+      return NextResponse.json({ error: 'Security verification failed. Please try again.' }, { status: 403 });
+    }
 
     if (!identifier) {
       return NextResponse.json({ error: 'Email or username is required' }, { status: 400 });

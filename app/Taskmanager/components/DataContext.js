@@ -347,12 +347,12 @@ export function DataProvider({ children, initialUser = null, mode = 'employee', 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bootstrap, isAdminMode]);
 
-  const login = async ({ identifier, password, loginAs }) => {
+  const login = async ({ identifier, password, loginAs, turnstileToken }) => {
     setError('');
     const response = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: identifier, password, loginAs }),
+      body: JSON.stringify({ email: identifier, password, loginAs, turnstileToken }),
     });
 
     const result = await response.json();
