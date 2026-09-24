@@ -47,7 +47,11 @@ import {
   HelpCircle,
   Check,
   CheckSquare,
-  Paperclip
+  Paperclip,
+  RefreshCw,
+  GitBranch,
+  History,
+  Copy
 } from "lucide-react";
 
 // ─── STYLES & FONTS ──────────────────────────────────────────────────────────
@@ -76,6 +80,21 @@ const C = {
   green: "#16a34a", greenBg: "#f0fdf4", greenBorder: "#bbf7d0",
   purple: "#7c3aed", purpleBg: "#f5f3ff", purpleBorder: "#ddd6fe",
   text1: "#0f172a", text2: "#475569", text3: "#94a3b8",
+};
+
+export const STATUS_CONFIG = {
+  "Pending": { bg: "#fef3c7", color: "#d97706", border: "#fde68a", label: "Pending" },
+  "Under Review": { bg: "#ede9fe", color: "#6d28d9", border: "#ddd6fe", label: "Under Review" },
+  "Partially Received": { bg: "#fffbeb", color: "#b45309", border: "#fef3c7", label: "Partially Received" },
+  "Received Wrong": { bg: "#fef2f2", color: "#dc2626", border: "#fecaca", label: "Received Wrong" },
+  "Received": { bg: "#f0fdf4", color: "#16a34a", border: "#bbf7d0", label: "Received" }
+};
+
+export const EMAIL_STATUS_CONFIG = {
+  "Not Sent": { bg: "#f1f5f9", color: "#64748b", border: "#cbd5e1", label: "Not Sent" },
+  "Email Sent": { bg: "#e0f2fe", color: "#0369a1", border: "#bae6fd", label: "Email Sent" },
+  "Resent": { bg: "#f0fdfa", color: "#0d9488", border: "#99f6e4", label: "Resent" },
+  "Failed": { bg: "#fef2f2", color: "#dc2626", border: "#fecaca", label: "Failed" }
 };
 
 const MONO = "'JetBrains Mono', monospace";
@@ -114,10 +133,12 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
   const [stage2SubTab, setStage2SubTab] = useState("programme"); // programme | tracker | mom | testing
   const [programmeRows, setProgrammeRows] = useState([]);
   const [dataTrackerRows, setDataTrackerRows] = useState([]);
+  const [loadingStage2, setLoadingStage2] = useState(false);
 
   // Data Tracker IDR Advanced Workflow States
-  const [trackerViewMode, setTrackerViewMode] = useState("table"); // "table" | "pipeline"
   const [selectedTrackerRowIds, setSelectedTrackerRowIds] = useState([]);
+  const [selectedTrackerDrawerItem, setSelectedTrackerDrawerItem] = useState(null);
+  const [uploadingTrackerRowId, setUploadingTrackerRowId] = useState(null);
   const [showAddTrackerModal, setShowAddTrackerModal] = useState(false);
   const [newTrackerItem, setNewTrackerItem] = useState({
     data_requirement: "",
@@ -140,6 +161,8 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
   });
   const [showUploadedFilesModal, setShowUploadedFilesModal] = useState(false);
   const [viewingFileItem, setViewingFileItem] = useState(null);
+  const [showEmailPipelineModal, setShowEmailPipelineModal] = useState(false);
+  const [pipelineItem, setPipelineItem] = useState(null);
 
   // Dynamic Column Customizer State
   const DEFAULT_PROGRAMME_COLUMNS = useMemo(() => [
@@ -155,7 +178,38 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
     { key: "status", label: "Status", type: "select", options: ["Not Started", "In Progress", "Under Review", "Completed"], width: 115, isFixed: true }
   ], []);
 
-  const [colTargetTab, setColTargetTab] = useState("programme"); // "programme" | "mom" | "testing"
+  const DEFAULT_MOM_COLUMNS = useMemo(() => [
+    { key: "meeting_date", label: "Meeting Date", type: "date", width: 140 },
+    { key: "topic", label: "Meeting Topic / Purpose", type: "text", width: 220 },
+    { key: "attendees", label: "Attendees (Client & Audit Team)", type: "text", width: 220 },
+    { key: "key_discussion", label: "Key Discussion Points", type: "textarea", width: 280 },
+    { key: "action_items", label: "Agreed Action Items", type: "textarea", width: 280 },
+    { key: "target_date", label: "Target Date", type: "date", width: 130 },
+    { key: "owner", label: "Action Owner", type: "text", width: 150 },
+    { key: "status", label: "Status", type: "select", options: ["Open", "In Progress", "Completed", "Deferred"], width: 130 }
+  ], []);
+
+  const DEFAULT_TESTING_COLUMNS = useMemo(() => [
+    { key: "data_requirement", label: "Data Requirement & Evidence", type: "text", width: 220 },
+    { key: "procedure", label: "Audit Procedure / Steps", type: "textarea", width: 300 },
+    { key: "objective", label: "Audit Objective", type: "textarea", width: 220 },
+    { key: "key_risk", label: "Key Risk", type: "textarea", width: 260 },
+    { key: "testing_status", label: "Testing Status", type: "select", options: ["Pending Review", "In Progress", "Satisfactory / Pass", "Failed", "Exception / Query Raised", "Closed"], width: 180 },
+    { key: "observations_findings", label: "OBSERVATIONS / FINDINGS", type: "textarea", width: 280 },
+    { key: "comments", label: "COMMENTS / AUDIT TRAIL", type: "textarea", width: 240 },
+    { key: "annexures", label: "Annexures", type: "file", width: 240 }
+  ], []);
+
+  const DEFAULT_QUERIES_COLUMNS = useMemo(() => [
+    { key: "query_title", label: "Query Reference & Evidence", type: "text", width: 220 },
+    { key: "procedure", label: "Linked Audit Procedure", type: "textarea", width: 260 },
+    { key: "query_description", label: "Observation / Exception Raised", type: "textarea", width: 280 },
+    { key: "client_response", label: "Client Response / Explanation", type: "textarea", width: 280 },
+    { key: "query_status", label: "Query Status", type: "select", options: ["Query Raised", "Sent to Client", "Response Received", "Resolved / Closed", "Accepted into Report"], width: 180 },
+    { key: "resolution_remarks", label: "Auditor Conclusion / Working Notes", type: "textarea", width: 240 }
+  ], []);
+
+  const [colTargetTab, setColTargetTab] = useState("programme"); // "programme" | "mom" | "testing" | "queries"
   const [customColumns, setCustomColumns] = useState([
     { key: "serial_no", label: "Sr. No.", type: "text", width: 60, isFixed: true },
     { key: "sub_process", label: "Sub-Process / Area", type: "text", width: 140, isFixed: true },
@@ -169,6 +223,11 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
     { key: "status", label: "Status", type: "select", options: ["Not Started", "In Progress", "Under Review", "Completed"], width: 115, isFixed: true }
   ]);
   const [detectedNewColumns, setDetectedNewColumns] = useState([]);
+
+  // Two-Step Verification Column Deletion State
+  const [colToDelete, setColToDelete] = useState(null); // { key, label, targetTab }
+  const [deleteColInput, setDeleteColInput] = useState("");
+  const [isDeletingCol, setIsDeletingCol] = useState(false);
 
   // Sub-Tab 3: Minutes of Meeting (MOM) State
   const [momData, setMomData] = useState({}); // { [processCategory]: [ { id, meeting_date, topic, attendees, key_discussion, action_items, target_date, owner, status, ...customCols } ] }
@@ -254,6 +313,7 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
   const [showCreateTemplateModal, setShowCreateTemplateModal] = useState(false);
   const [showAddColModal, setShowAddColModal] = useState(false);
   const [showAddOrgModal, setShowAddOrgModal] = useState(false);
+  const [editingOrgId, setEditingOrgId] = useState(null);
   const [showAddCalModal, setShowAddCalModal] = useState(false);
   const [showAddStepModal, setShowAddStepModal] = useState(false);
 
@@ -379,31 +439,172 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
     if (!projectId) return;
     try {
       localStorage.setItem(`custom_columns_${projectId}`, JSON.stringify(cols));
-      await fetch('/Auditing/api/dynamic/projects', {
+      // Sync to project table custom_columns
+      fetch('/Auditing/api/dynamic/projects', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectId, custom_columns: cols })
-      });
+      }).catch(e => console.error("Error saving custom columns PATCH:", e));
+
+      // Sync to stage2 meta_json
+      fetch(`/Auditing/api/dynamic/projects/${projectId}/stage2`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'save_custom_columns', custom_columns: cols })
+      }).catch(e => console.error("Error saving custom columns POST:", e));
     } catch (err) {
       console.error("Error saving custom columns:", err);
     }
   };
 
-  const ensureFixedProgrammeColumns = (savedCols) => {
-    if (!Array.isArray(savedCols) || savedCols.length === 0) {
-      return DEFAULT_PROGRAMME_COLUMNS;
-    }
+  const ensureFixedProgrammeColumns = (savedCols, rows = []) => {
     const fixedKeys = new Set(DEFAULT_PROGRAMME_COLUMNS.map(c => c.key));
-    const result = DEFAULT_PROGRAMME_COLUMNS.map(fixedCol => {
-      const saved = savedCols.find(c => c.key === fixedCol.key);
-      return saved ? { ...fixedCol, ...saved, isFixed: true, width: fixedCol.width } : fixedCol;
+    const ignoredKeys = new Set([
+      'id', 'project_id', 'created_at', 'updated_at', 'sort_order', 'is_header', 'row_type',
+      'observations_findings', 'comments', '_comments_feed', 'title', 'step', 'annexures'
+    ]);
+
+    const existingCols = Array.isArray(savedCols) && savedCols.length > 0 ? savedCols : DEFAULT_PROGRAMME_COLUMNS;
+    const map = new Map();
+
+    // Preserve core fixed columns in order
+    DEFAULT_PROGRAMME_COLUMNS.forEach(fixedCol => {
+      const saved = existingCols.find(c => c.key === fixedCol.key);
+      map.set(fixedCol.key, saved ? { ...fixedCol, ...saved, isFixed: true, width: fixedCol.width } : fixedCol);
     });
-    savedCols.forEach(c => {
-      if (!fixedKeys.has(c.key) && c.key !== 'observations_findings' && c.key !== 'comments') {
-        result.push(c);
+
+    // Add saved custom columns
+    existingCols.forEach(c => {
+      if (c && c.key && !fixedKeys.has(c.key) && !ignoredKeys.has(c.key)) {
+        map.set(c.key, { ...c, isFixed: false, width: c.width || 180 });
       }
     });
-    return result;
+
+    // Auto-discover dynamically any unmapped keys present in row data
+    if (Array.isArray(rows)) {
+      rows.forEach(r => {
+        const obj = r?.row_data && typeof r.row_data === 'object' ? r.row_data : r;
+        if (obj && typeof obj === 'object') {
+          Object.keys(obj).forEach(k => {
+            if (!fixedKeys.has(k) && !ignoredKeys.has(k) && !map.has(k)) {
+              const formattedLabel = k.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+              map.set(k, {
+                key: k,
+                label: formattedLabel,
+                type: typeof obj[k] === 'number' ? 'number' : 'text',
+                width: 180,
+                isFixed: false
+              });
+            }
+          });
+        }
+      });
+    }
+
+    return Array.from(map.values());
+  };
+
+  const ensureMomColumns = (savedCols, momDataObj = {}) => {
+    const fixedKeys = new Set(DEFAULT_MOM_COLUMNS.map(c => c.key));
+    const ignoredKeys = new Set(['id', 'created_at', 'updated_at', 'project_id']);
+    const baseCols = Array.isArray(savedCols) && savedCols.length > 0 ? savedCols : DEFAULT_MOM_COLUMNS;
+    const map = new Map();
+
+    DEFAULT_MOM_COLUMNS.forEach(fixedCol => {
+      const saved = baseCols.find(c => c.key === fixedCol.key);
+      map.set(fixedCol.key, saved ? { ...fixedCol, ...saved } : fixedCol);
+    });
+
+    baseCols.forEach(c => {
+      if (c && c.key && !fixedKeys.has(c.key) && !ignoredKeys.has(c.key)) {
+        map.set(c.key, { ...c, width: c.width || 180 });
+      }
+    });
+
+    if (momDataObj && typeof momDataObj === 'object') {
+      Object.values(momDataObj).forEach(rowList => {
+        if (Array.isArray(rowList)) {
+          rowList.forEach(r => {
+            if (r && typeof r === 'object') {
+              Object.keys(r).forEach(k => {
+                if (!fixedKeys.has(k) && !ignoredKeys.has(k) && !map.has(k)) {
+                  const formattedLabel = k.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                  map.set(k, { key: k, label: formattedLabel, type: typeof r[k] === 'number' ? 'number' : 'text', width: 180 });
+                }
+              });
+            }
+          });
+        }
+      });
+    }
+
+    return Array.from(map.values());
+  };
+
+  const ensureTestingColumns = (savedCols, testingDataObj = {}) => {
+    const fixedKeys = new Set(DEFAULT_TESTING_COLUMNS.map(c => c.key));
+    const ignoredKeys = new Set(['id', 'created_at', 'updated_at', 'project_id', '__manual_rows']);
+    const baseCols = Array.isArray(savedCols) && savedCols.length > 0 ? savedCols : DEFAULT_TESTING_COLUMNS;
+    const map = new Map();
+
+    DEFAULT_TESTING_COLUMNS.forEach(fixedCol => {
+      const saved = baseCols.find(c => c.key === fixedCol.key);
+      map.set(fixedCol.key, saved ? { ...fixedCol, ...saved } : fixedCol);
+    });
+
+    baseCols.forEach(c => {
+      if (c && c.key && !fixedKeys.has(c.key) && !ignoredKeys.has(c.key)) {
+        map.set(c.key, { ...c, width: c.width || 200 });
+      }
+    });
+
+    if (testingDataObj && typeof testingDataObj === 'object') {
+      Object.entries(testingDataObj).forEach(([key, val]) => {
+        if (key !== '__manual_rows' && val && typeof val === 'object') {
+          Object.keys(val).forEach(k => {
+            if (!fixedKeys.has(k) && !ignoredKeys.has(k) && !map.has(k)) {
+              const formattedLabel = k.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+              map.set(k, { key: k, label: formattedLabel, type: typeof val[k] === 'number' ? 'number' : 'text', width: 180 });
+            }
+          });
+        }
+      });
+    }
+
+    return Array.from(map.values());
+  };
+
+  const ensureQueriesColumns = (savedCols, queriesDataObj = {}) => {
+    const fixedKeys = new Set(DEFAULT_QUERIES_COLUMNS.map(c => c.key));
+    const ignoredKeys = new Set(['id', 'created_at', 'updated_at', 'project_id', '__manual_rows']);
+    const baseCols = Array.isArray(savedCols) && savedCols.length > 0 ? savedCols : DEFAULT_QUERIES_COLUMNS;
+    const map = new Map();
+
+    DEFAULT_QUERIES_COLUMNS.forEach(fixedCol => {
+      const saved = baseCols.find(c => c.key === fixedCol.key);
+      map.set(fixedCol.key, saved ? { ...fixedCol, ...saved } : fixedCol);
+    });
+
+    baseCols.forEach(c => {
+      if (c && c.key && !fixedKeys.has(c.key) && !ignoredKeys.has(c.key)) {
+        map.set(c.key, { ...c, width: c.width || 220 });
+      }
+    });
+
+    if (queriesDataObj && typeof queriesDataObj === 'object') {
+      Object.entries(queriesDataObj).forEach(([key, val]) => {
+        if (key !== '__manual_rows' && val && typeof val === 'object') {
+          Object.keys(val).forEach(k => {
+            if (!fixedKeys.has(k) && !ignoredKeys.has(k) && !map.has(k)) {
+              const formattedLabel = k.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+              map.set(k, { key: k, label: formattedLabel, type: typeof val[k] === 'number' ? 'number' : 'text', width: 180 });
+            }
+          });
+        }
+      });
+    }
+
+    return Array.from(map.values());
   };
 
   const saveMomToProject = async (projectId, procCategory, updatedMomData, updatedMomCols) => {
@@ -572,11 +773,7 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
           try { savedCols = JSON.parse(localStr); } catch (e) { }
         }
       }
-      if (savedCols && Array.isArray(savedCols) && savedCols.length > 0) {
-        setCustomColumns(ensureFixedProgrammeColumns(savedCols));
-      } else {
-        setCustomColumns(DEFAULT_PROGRAMME_COLUMNS);
-      }
+      setCustomColumns(ensureFixedProgrammeColumns(savedCols, programmeRows));
     }
   }, [selectedProject?.id]);
 
@@ -1043,19 +1240,39 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
       if (data.success) {
         setProgrammeRows(data.programme || []);
 
-        let trackerItems = data.data_tracker || [];
-        const existingProgIds = new Set(trackerItems.map(t => String(t.programme_id || t.id)));
+        let trackerItems = Array.isArray(data.data_tracker) ? [...data.data_tracker] : [];
+        const existingDocs = new Set(trackerItems.map(t => String(t.data_requirement || '').trim().toLowerCase()));
 
         (data.programme || []).forEach(p => {
-          if (p.row_data?.data_requirement && !existingProgIds.has(String(p.id))) {
-            trackerItems.push({
-              id: p.id,
-              programme_id: p.id,
-              data_requirement: p.row_data.data_requirement,
-              procedure: p.row_data.procedure || '',
-              sub_process: p.row_data.sub_process || '',
-              status_json: { document_status: 'Pending' },
-              attachments: []
+          const rawReq = p.row_data?.data_requirement || '';
+          if (rawReq) {
+            const rawParts = rawReq.split(/,|\n/).map(s => s.trim()).filter(Boolean);
+            const cleanSubs = rawParts.map(part => {
+              return part
+                .replace(/^(\d+[\.\)]\s*)+/g, '')
+                .replace(/^[a-zA-Z][\.\)]\s*/g, '')
+                .replace(/^[-•*]\s*/, '')
+                .trim();
+            }).filter(Boolean);
+
+            const finalDocs = cleanSubs.length > 0 ? cleanSubs : [rawReq.trim()];
+            finalDocs.forEach((docTitle, docIdx) => {
+              const docLower = docTitle.toLowerCase();
+              if (!existingDocs.has(docLower)) {
+                existingDocs.add(docLower);
+                trackerItems.push({
+                  id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `tracker_${p.id}_${docIdx}`,
+                  programme_id: p.id,
+                  data_requirement: docTitle,
+                  procedure: p.row_data?.procedure || '',
+                  sub_process: p.row_data?.sub_process || '',
+                  client_person_id: '',
+                  status_json: { document_status: 'Pending' },
+                  plants_status: {},
+                  remarks: '',
+                  attachments: []
+                });
+              }
             });
           }
         });
@@ -1066,62 +1283,66 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
         }
 
         // Hydrate Minutes of Meeting (MOM) Data & Columns
+        let currentMomData = {};
         if (data.mom_data && typeof data.mom_data === 'object') {
+          currentMomData = data.mom_data;
           setMomData(data.mom_data);
           try { localStorage.setItem(`mom_data_${projId}`, JSON.stringify(data.mom_data)); } catch (e) {}
         } else {
           const localMom = localStorage.getItem(`mom_data_${projId}`);
           if (localMom) {
-            try { setMomData(JSON.parse(localMom)); } catch (e) {}
+            try {
+              currentMomData = JSON.parse(localMom);
+              setMomData(currentMomData);
+            } catch (e) {}
           }
         }
-        if (Array.isArray(data.mom_columns) && data.mom_columns.length > 0) {
-          setMomColumns(data.mom_columns);
-        }
+        const resolvedMomCols = ensureMomColumns(data.mom_columns, currentMomData);
+        setMomColumns(resolvedMomCols);
+        try { localStorage.setItem(`mom_columns_${projId}`, JSON.stringify(resolvedMomCols)); } catch (e) {}
 
         // Hydrate Testing & Queries Data & Columns
+        let currentTestingData = {};
         if (data.testing_data && typeof data.testing_data === 'object') {
+          currentTestingData = data.testing_data;
           setTestingData(data.testing_data);
           try { localStorage.setItem(`testing_data_${projId}`, JSON.stringify(data.testing_data)); } catch (e) {}
         } else {
           const localTesting = localStorage.getItem(`testing_data_${projId}`);
           if (localTesting) {
-            try { setTestingData(JSON.parse(localTesting)); } catch (e) {}
+            try {
+              currentTestingData = JSON.parse(localTesting);
+              setTestingData(currentTestingData);
+            } catch (e) {}
           }
         }
-        if (Array.isArray(data.testing_columns) && data.testing_columns.length > 0) {
-          let migratedTestingCols = data.testing_columns.map(c => {
-            if (c.key === "risk_rating") {
-              return { key: "key_risk", label: "Key Risk", type: "textarea", width: 260 };
-            }
-            return c;
-          });
-          if (!migratedTestingCols.some(c => c.key === "annexures")) {
-            migratedTestingCols.push({ key: "annexures", label: "Annexures", type: "file", width: 240 });
-          }
-          setTestingColumns(migratedTestingCols);
-        }
+        const resolvedTestingCols = ensureTestingColumns(data.testing_columns, currentTestingData);
+        setTestingColumns(resolvedTestingCols);
+        try { localStorage.setItem(`testing_columns_${projId}`, JSON.stringify(resolvedTestingCols)); } catch (e) {}
 
         // Hydrate Queries Data & Columns
+        let currentQueriesData = {};
         if (data.queries_data && typeof data.queries_data === 'object') {
+          currentQueriesData = data.queries_data;
           setQueriesData(data.queries_data);
           try { localStorage.setItem(`queries_data_${projId}`, JSON.stringify(data.queries_data)); } catch (e) {}
         } else {
           const localQueries = localStorage.getItem(`queries_data_${projId}`);
           if (localQueries) {
-            try { setQueriesData(JSON.parse(localQueries)); } catch (e) {}
+            try {
+              currentQueriesData = JSON.parse(localQueries);
+              setQueriesData(currentQueriesData);
+            } catch (e) {}
           }
         }
-        if (Array.isArray(data.queries_columns) && data.queries_columns.length > 0) {
-          setQueriesColumns(data.queries_columns);
-        }
+        const resolvedQueriesCols = ensureQueriesColumns(data.queries_columns, currentQueriesData);
+        setQueriesColumns(resolvedQueriesCols);
+        try { localStorage.setItem(`queries_columns_${projId}`, JSON.stringify(resolvedQueriesCols)); } catch (e) {}
 
-        // Hydrate Custom Columns (Audit Programme)
-        if (Array.isArray(data.custom_columns) && data.custom_columns.length > 0) {
-          setCustomColumns(ensureFixedProgrammeColumns(data.custom_columns));
-        } else {
-          setCustomColumns(DEFAULT_PROGRAMME_COLUMNS);
-        }
+        // Hydrate Custom Columns (Audit Programme) with automatic row data discovery
+        const resolvedProgrammeCols = ensureFixedProgrammeColumns(data.custom_columns, data.programme || []);
+        setCustomColumns(resolvedProgrammeCols);
+        try { localStorage.setItem(`custom_columns_${projId}`, JSON.stringify(resolvedProgrammeCols)); } catch (e) {}
       }
     } catch (e) {
       console.log(e);
@@ -1420,35 +1641,152 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
     setNewChoiceInput("");
   };
 
-  const handleDeleteColumn = (colKey) => {
-    if (colTargetTab === "mom") {
-      if (momColumns.length <= 1) return showToast("You must keep at least one column.", "warning", "Action Restricted");
-      const updatedCols = momColumns.filter(c => c.key !== colKey);
-      setMomColumns(updatedCols);
-      if (selectedProject?.id) {
-        saveMomToProject(selectedProject.id, processCategory, momData, updatedCols);
+  const handleRequestDeleteColumn = (colKey, colLabel, targetTab = "programme") => {
+    setColToDelete({
+      key: colKey,
+      label: colLabel || colKey,
+      targetTab
+    });
+    setDeleteColInput("");
+  };
+
+  const handleDeleteColumn = (colKey, colLabel) => {
+    handleRequestDeleteColumn(colKey, colLabel, colTargetTab || "programme");
+  };
+
+  const handleConfirmDeleteColumn = async () => {
+    if (!colToDelete || deleteColInput.trim() !== "DELETE") return;
+    setIsDeletingCol(true);
+    const { key: colKey, label: colLabel, targetTab } = colToDelete;
+
+    try {
+      if (targetTab === "mom") {
+        if (momColumns.length <= 1) {
+          showToast("You must keep at least one column.", "warning", "Action Restricted");
+          setIsDeletingCol(false);
+          return;
+        }
+        const updatedCols = momColumns.filter(c => c.key !== colKey);
+        const updatedMomData = { ...momData };
+        Object.keys(updatedMomData).forEach(cat => {
+          if (Array.isArray(updatedMomData[cat])) {
+            updatedMomData[cat] = updatedMomData[cat].map(row => {
+              const newRow = { ...row };
+              delete newRow[colKey];
+              return newRow;
+            });
+          }
+        });
+        setMomData(updatedMomData);
+        setMomColumns(updatedCols);
+        if (selectedProject?.id) {
+          await saveMomToProject(selectedProject.id, processCategory, updatedMomData, updatedCols);
+        }
+        showToast(`Column "${colLabel}" and associated data deleted.`, "success", "Column Deleted");
+      } else if (targetTab === "testing") {
+        if (testingColumns.length <= 1) {
+          showToast("You must keep at least one column.", "warning", "Action Restricted");
+          setIsDeletingCol(false);
+          return;
+        }
+        const updatedCols = testingColumns.filter(c => c.key !== colKey);
+        const updatedTestingData = { ...testingData };
+        Object.keys(updatedTestingData).forEach(rowId => {
+          if (rowId === '__manual_rows' && typeof updatedTestingData[rowId] === 'object') {
+            Object.keys(updatedTestingData[rowId]).forEach(cat => {
+              if (Array.isArray(updatedTestingData[rowId][cat])) {
+                updatedTestingData[rowId][cat] = updatedTestingData[rowId][cat].map(r => {
+                  const newR = { ...r };
+                  delete newR[colKey];
+                  return newR;
+                });
+              }
+            });
+          } else if (typeof updatedTestingData[rowId] === 'object' && updatedTestingData[rowId] !== null) {
+            const newRow = { ...updatedTestingData[rowId] };
+            delete newRow[colKey];
+            updatedTestingData[rowId] = newRow;
+          }
+        });
+        setTestingData(updatedTestingData);
+        setTestingColumns(updatedCols);
+        if (selectedProject?.id) {
+          await saveTestingToProject(selectedProject.id, updatedTestingData, updatedCols);
+        }
+        showToast(`Column "${colLabel}" and associated data deleted.`, "success", "Column Deleted");
+      } else if (targetTab === "queries") {
+        if (queriesColumns.length <= 1) {
+          showToast("You must keep at least one column.", "warning", "Action Restricted");
+          setIsDeletingCol(false);
+          return;
+        }
+        const updatedCols = queriesColumns.filter(c => c.key !== colKey);
+        const updatedQueriesData = { ...queriesData };
+        Object.keys(updatedQueriesData).forEach(rowId => {
+          if (rowId === '__manual_rows' && typeof updatedQueriesData[rowId] === 'object') {
+            Object.keys(updatedQueriesData[rowId]).forEach(cat => {
+              if (Array.isArray(updatedQueriesData[rowId][cat])) {
+                updatedQueriesData[rowId][cat] = updatedQueriesData[rowId][cat].map(r => {
+                  const newR = { ...r };
+                  delete newR[colKey];
+                  return newR;
+                });
+              }
+            });
+          } else if (typeof updatedQueriesData[rowId] === 'object' && updatedQueriesData[rowId] !== null) {
+            const newRow = { ...updatedQueriesData[rowId] };
+            delete newRow[colKey];
+            updatedQueriesData[rowId] = newRow;
+          }
+        });
+        setQueriesData(updatedQueriesData);
+        setQueriesColumns(updatedCols);
+        if (selectedProject?.id) {
+          await saveQueriesToProject(selectedProject.id, updatedQueriesData, updatedCols);
+        }
+        showToast(`Column "${colLabel}" and associated data deleted.`, "success", "Column Deleted");
+      } else {
+        // Audit Programme Table
+        if (customColumns.length <= 1) {
+          showToast("You must keep at least one column.", "warning", "Action Restricted");
+          setIsDeletingCol(false);
+          return;
+        }
+        const updatedCols = customColumns.filter(c => c.key !== colKey);
+        const updatedRows = programmeRows.map(r => {
+          if (r.row_data && typeof r.row_data === 'object') {
+            const newRowData = { ...r.row_data };
+            delete newRowData[colKey];
+            return { ...r, row_data: newRowData };
+          }
+          return r;
+        });
+        setProgrammeRows(updatedRows);
+        setCustomColumns(updatedCols);
+        if (selectedProject?.id) {
+          await saveCustomColumnsToProject(selectedProject.id, updatedCols);
+          try {
+            await fetch(`/Auditing/api/dynamic/projects/${selectedProject.id}/stage2`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                action: 'delete_custom_column',
+                column_key: colKey
+              })
+            });
+          } catch (e) {
+            console.error("Error calling delete_custom_column API:", e);
+          }
+        }
+        showToast(`Column "${colLabel}" and its row data deleted permanently.`, "success", "Column Deleted");
       }
-    } else if (colTargetTab === "testing") {
-      if (testingColumns.length <= 1) return showToast("You must keep at least one column.", "warning", "Action Restricted");
-      const updatedCols = testingColumns.filter(c => c.key !== colKey);
-      setTestingColumns(updatedCols);
-      if (selectedProject?.id) {
-        saveTestingToProject(selectedProject.id, testingData, updatedCols);
-      }
-    } else if (colTargetTab === "queries") {
-      if (queriesColumns.length <= 1) return showToast("You must keep at least one column.", "warning", "Action Restricted");
-      const updatedCols = queriesColumns.filter(c => c.key !== colKey);
-      setQueriesColumns(updatedCols);
-      if (selectedProject?.id) {
-        saveQueriesToProject(selectedProject.id, queriesData, updatedCols);
-      }
-    } else {
-      if (customColumns.length <= 1) return showToast("You must keep at least one column.", "warning", "Action Restricted");
-      const updatedCols = customColumns.filter(c => c.key !== colKey);
-      setCustomColumns(updatedCols);
-      if (selectedProject?.id) {
-        saveCustomColumnsToProject(selectedProject.id, updatedCols);
-      }
+    } catch (err) {
+      console.error("Error deleting column:", err);
+      showToast("An error occurred while deleting the column.", "error", "Delete Failed");
+    } finally {
+      setIsDeletingCol(false);
+      setColToDelete(null);
+      setDeleteColInput("");
     }
   };
 
@@ -1458,6 +1796,7 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
       id: null,
       week_name: selectedWeekFilter !== "ALL" ? selectedWeekFilter : "Week 1",
       week_description: "Planning & Data Collection",
+      activity_date: "",
       activity: "",
       detailed_audit_work: "",
       status: "Pending",
@@ -1482,6 +1821,7 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
       id: item.id,
       week_name: item.week_name || '',
       week_description: item.week_description || '',
+      activity_date: item.activity_date || item.date || '',
       activity: item.activity || '',
       detailed_audit_work: item.detailed_audit_work || '',
       status: statusVal,
@@ -1509,9 +1849,12 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
       statusVal = "Pending";
     }
 
+    const actDate = (calDrawerItem.activity_date || calDrawerItem.date || "").trim();
+
     const payloadData = {
       week_name: calDrawerItem.week_name || "Week 1",
       week_description: calDrawerItem.week_description || "",
+      activity_date: actDate || null,
       activity: calDrawerItem.activity,
       detailed_audit_work: calDrawerItem.detailed_audit_work || "",
       status: statusVal,
@@ -1533,14 +1876,14 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
         });
         const json = await res.json();
         if (json.success) {
-          setCalendarItems(prev => prev.map(item => item.id === calDrawerItem.id ? { ...item, ...payloadData } : item));
+          setCalendarItems(prev => prev.map(item => item.id === calDrawerItem.id ? { ...item, ...payloadData, activity_date: actDate } : item));
           setIsCalDrawerOpen(false);
           showToast("Activity updated successfully!", "success", "Activity Saved");
         } else {
           showToast("Failed to update: " + (json.error || "Unknown error"), "error", "Update Error");
         }
       } catch (e) {
-        setCalendarItems(prev => prev.map(item => item.id === calDrawerItem.id ? { ...item, ...payloadData } : item));
+        setCalendarItems(prev => prev.map(item => item.id === calDrawerItem.id ? { ...item, ...payloadData, activity_date: actDate } : item));
         setIsCalDrawerOpen(false);
         showToast("Activity updated locally.", "success", "Activity Saved");
       }
@@ -1557,14 +1900,14 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
         });
         const json = await res.json();
         if (json.success && json.item) {
-          setCalendarItems(prev => [...prev, json.item]);
+          setCalendarItems(prev => [...prev, { ...json.item, activity_date: actDate }]);
           setIsCalDrawerOpen(false);
           showToast("Weekly activity added successfully!", "success", "Activity Created");
         } else {
           showToast("Failed to create: " + (json.error || "Unknown error"), "error", "Creation Error");
         }
       } catch (e) {
-        const fallback = { id: `cal-${Date.now()}`, ...payloadData };
+        const fallback = { id: `cal-${Date.now()}`, ...payloadData, activity_date: actDate };
         setCalendarItems(prev => [...prev, fallback]);
         setIsCalDrawerOpen(false);
         showToast("Activity added locally.", "success", "Activity Created");
@@ -1683,9 +2026,56 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
     }
   };
 
-  // Add Single Contact Person to Org Structure
-  const handleAddOrgMember = async () => {
-    if (!selectedProject || !newOrgMember.member_name) return showToast("Please fill contact member name.", "warning", "Required Field Missing");
+  // Open Org Member Add / Edit Modal
+  const handleOpenAddOrgModal = () => {
+    setEditingOrgId(null);
+    setNewOrgMember({ member_name: "", designation: "", department: "", email: "", phone: "" });
+    setShowAddOrgModal(true);
+  };
+
+  const handleOpenEditOrgModal = (m) => {
+    setEditingOrgId(m.id);
+    setNewOrgMember({
+      member_name: m.member_name || "",
+      designation: m.designation || "",
+      department: m.department || "",
+      email: m.email || "",
+      phone: m.phone || ""
+    });
+    setShowAddOrgModal(true);
+  };
+
+  // Add / Update Contact Person in Org Structure (Persists to Database)
+  const handleSaveOrgMember = async () => {
+    if (!selectedProject || !newOrgMember.member_name?.trim()) {
+      return showToast("Please fill contact member name.", "warning", "Required Field Missing");
+    }
+
+    if (editingOrgId) {
+      try {
+        const res = await fetch(`/Auditing/api/dynamic/projects/${selectedProject.id}/stage1`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: "org", itemId: editingOrgId, data: newOrgMember })
+        });
+        const data = await res.json();
+        if (data.success && data.item) {
+          setOrgMembers(prev => prev.map(m => m.id === editingOrgId ? data.item : m));
+          showToast("Contact member updated successfully!", "success", "Contact Updated");
+        } else {
+          setOrgMembers(prev => prev.map(m => m.id === editingOrgId ? { ...m, ...newOrgMember } : m));
+          showToast(data.error ? "Updated locally (Server message: " + data.error + ")" : "Contact updated", "info", "Contact Updated");
+        }
+      } catch (e) {
+        setOrgMembers(prev => prev.map(m => m.id === editingOrgId ? { ...m, ...newOrgMember } : m));
+        showToast("Contact updated locally", "info", "Contact Updated");
+      }
+      setShowAddOrgModal(false);
+      setEditingOrgId(null);
+      setNewOrgMember({ member_name: "", designation: "", department: "", email: "", phone: "" });
+      return;
+    }
+
     try {
       const res = await fetch(`/Auditing/api/dynamic/projects/${selectedProject.id}/stage1`, {
         method: "POST",
@@ -1695,6 +2085,7 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
       const data = await res.json();
       if (data.success && data.item) {
         setOrgMembers([...orgMembers, data.item]);
+        showToast("Contact member added successfully!", "success", "Contact Added");
       } else {
         showToast("Error adding member: " + (data.error || "Unknown error"), "error", "Save Failed");
       }
@@ -1703,8 +2094,10 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
       setOrgMembers([...orgMembers, fallback]);
     }
     setShowAddOrgModal(false);
+    setEditingOrgId(null);
     setNewOrgMember({ member_name: "", designation: "", department: "", email: "", phone: "" });
   };
+  const handleAddOrgMember = handleSaveOrgMember;
 
   // Delete Stage 1 Items
   const handleDeleteCalItem = async (itemId) => {
@@ -2326,12 +2719,16 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
       } else {
         itemLines.push(`${rowNum}. ${finalSubs[0]}`);
       }
+
+      if (it.remarks && it.remarks.trim()) {
+        itemLines.push(`   ↳ Note: ${it.remarks.trim()}`);
+      }
     });
 
     const itemNames = itemLines.join("\n");
 
     const prefilledSubject = `[Information Document Request] Data Requirements for ${selectedProject.client_name}`;
-    const prefilledBody = `Dear ${recipient.member_name},\n\nAs part of our audit engagement (${selectedProject.project_name} - ${selectedProject.financial_year || 'FY 2026-27'}), please upload the requested document(s) listed below:\n\n${itemNames}\n\nSECURE UPLOAD LINK:\n${portalUrl}\n\nNote: This link is secured with encryption for confidential document uploads.\n\nBest regards,\nUniverseOne Audit Team`;
+    const prefilledBody = `As part of our audit engagement (${selectedProject.project_name} - ${selectedProject.financial_year || 'FY 2026-27'}), please upload the requested audit document(s) listed below through our secure client portal:`;
 
     setEmailDraftData({
       recipientId: clientPersonId,
@@ -2354,17 +2751,62 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
     if (!selectedProject || !emailDraftData) return;
 
     const targetItemIds = emailDraftData.items.map(i => i.id);
+    const nowIso = new Date().toISOString();
 
     const updatedTracker = dataTrackerRows.map(r => {
       if (targetItemIds.includes(r.id)) {
+        const prevTrail = Array.isArray(r.communication_trail)
+          ? [...r.communication_trail]
+          : (Array.isArray(r.status_json?.communication_trail) ? [...r.status_json.communication_trail] : []);
+
+        const isResend = r.email_status === "Email Sent" || r.email_status === "Resent" || !!r.email_sent_at || prevTrail.length > 0;
+        const newEmailStatus = isResend ? "Resent" : "Email Sent";
+        const preservedDocStatus = r.document_status || r.status_json?.document_status || "Pending";
+
+        if (prevTrail.length === 0 && (r.email_sent_at || r.status_json?.sent_at)) {
+          prevTrail.push({
+            id: `email_prior_${Date.now()}`,
+            type: 'INITIAL_DISPATCH',
+            title: 'Initial IDR Email Sent',
+            timestamp: r.email_sent_at || r.status_json?.sent_at,
+            recipient_name: emailDraftData.recipientName || '',
+            recipient_email: emailDraftData.recipientEmail || '',
+            subject: 'Information Document Request (IDR)',
+            remarks: r.remarks || r.status_json?.remarks || '',
+            status: 'Delivered'
+          });
+        }
+
+        const emailEvent = {
+          id: `email_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+          type: isResend ? 'RESENT' : 'INITIAL_DISPATCH',
+          title: isResend ? 'IDR Follow-up Email Resent' : 'Initial IDR Email Sent',
+          timestamp: nowIso,
+          recipient_name: emailDraftData.recipientName || '',
+          recipient_email: emailDraftData.recipientEmail || '',
+          cc_emails: emailDraftData.ccEmails || '',
+          subject: emailDraftData.subject || '',
+          remarks: (r.remarks || r.status_json?.remarks || '').trim(),
+          portal_url: emailDraftData.portalUrl || '',
+          status: 'Delivered'
+        };
+
+        const updatedTrail = [...prevTrail, emailEvent];
+
         return {
           ...r,
           client_person_id: emailDraftData.recipientId,
+          email_status: newEmailStatus,
+          email_sent_at: nowIso,
+          document_status: preservedDocStatus,
+          communication_trail: updatedTrail,
           status_json: {
             ...r.status_json,
-            document_status: "Email Sent",
-            sent_at: new Date().toISOString(),
-            portal_token: emailDraftData.portalToken
+            document_status: preservedDocStatus,
+            email_status: newEmailStatus,
+            sent_at: nowIso,
+            portal_token: emailDraftData.portalToken,
+            communication_trail: updatedTrail
           }
         };
       }
@@ -2468,10 +2910,234 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'save_data_tracker', data_tracker: updatedTracker })
         });
-        showToast("Item removed from tracker.", "success", "Item Removed");
       } catch (err) {
         showToast("Item removed from tracker.", "success", "Item Removed");
       }
+    }
+  };
+
+  // Update Data Tracker Item Status (Document Status) directly from Table
+  const handleUpdateTrackerStatus = async (trId, newStatus) => {
+    const nowIso = new Date().toISOString();
+    const updated = dataTrackerRows.map(r => {
+      if (r.id === trId) {
+        const prevTrail = Array.isArray(r.communication_trail)
+          ? [...r.communication_trail]
+          : (Array.isArray(r.status_json?.communication_trail) ? [...r.status_json.communication_trail] : []);
+
+        const statusEvent = {
+          id: `status_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+          type: 'AUDITOR_STATUS_CHANGE',
+          title: `Auditor Marked Status: ${newStatus}`,
+          timestamp: nowIso,
+          status: newStatus,
+          remarks: (r.remarks || r.status_json?.remarks || '').trim()
+        };
+
+        const updatedTrail = [...prevTrail, statusEvent];
+
+        return {
+          ...r,
+          document_status: newStatus,
+          communication_trail: updatedTrail,
+          status_json: {
+            ...(r.status_json || {}),
+            document_status: newStatus,
+            communication_trail: updatedTrail
+          }
+        };
+      }
+      return r;
+    });
+
+    setDataTrackerRows(updated);
+    if (selectedProject?.id) {
+      try {
+        await fetch(`/Auditing/api/dynamic/projects/${selectedProject.id}/stage2`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'save_data_tracker', data_tracker: updated })
+        });
+        showToast(`Document status changed to "${newStatus}"`, "success", "Status Saved");
+      } catch (err) {
+        showToast("Status updated locally", "info", "Updated");
+      }
+    }
+  };
+
+  // Update Data Tracker Remarks directly from Table
+  const handleUpdateTrackerRemarks = async (trId, newRemarks) => {
+    const cleanVal = (newRemarks || "").trim();
+    const updated = dataTrackerRows.map(r => r.id === trId ? {
+      ...r,
+      remarks: cleanVal,
+      status_json: { ...(r.status_json || {}), remarks: cleanVal }
+    } : r);
+    setDataTrackerRows(updated);
+    if (selectedProject?.id) {
+      try {
+        await fetch(`/Auditing/api/dynamic/projects/${selectedProject.id}/stage2`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'save_data_tracker', data_tracker: updated })
+        });
+        if (cleanVal) {
+          showToast("Remark note saved to database", "success", "Note Saved");
+        }
+      } catch (err) {}
+    }
+  };
+
+  // Refetch and re-sync all document requirements from audit_programme
+  const handleRefetchTrackerFromProgramme = async () => {
+    if (!selectedProject?.id) return;
+    setLoadingStage2(true);
+    try {
+      const res = await fetch(`/Auditing/api/dynamic/projects/${selectedProject.id}/stage2`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'refetch_from_programme' })
+      });
+      const resData = await res.json();
+      if (resData.success) {
+        await fetchStage2Data(selectedProject.id, selectedProcess);
+        showToast(`Successfully refetched ${resData.count || 0} unique document requirements from Audit Programme!`, "success", "Tracker Synced");
+      } else {
+        showToast(resData.error || "Failed to refetch requirements", "error", "Sync Error");
+      }
+    } catch (err) {
+      showToast(err.message, "error", "Sync Error");
+    } finally {
+      setLoadingStage2(false);
+    }
+  };
+
+  // Save / Update Data Tracker item from Right Slide-over Drawer
+  const handleSaveTrackerDrawerItem = async () => {
+    if (!selectedTrackerDrawerItem || !selectedProject?.id) return;
+
+    const docTitle = (selectedTrackerDrawerItem.data_requirement || "").trim();
+    if (!docTitle) {
+      showToast("Document / Data Requirement name is required.", "warning", "Validation Missing");
+      return;
+    }
+
+    const currentStatus = selectedTrackerDrawerItem.document_status || selectedTrackerDrawerItem.status_json?.document_status || 'Pending';
+    const currentRemarks = selectedTrackerDrawerItem.remarks || selectedTrackerDrawerItem.status_json?.remarks || '';
+    const currentPlants = selectedTrackerDrawerItem.plants_status || {};
+    const currentClientPerson = selectedTrackerDrawerItem.client_person_id || '';
+    const currentSubProcess = selectedTrackerDrawerItem.sub_process || '';
+    const currentAttachments = selectedTrackerDrawerItem.attachments || [];
+
+    const updated = dataTrackerRows.map(r => r.id === selectedTrackerDrawerItem.id ? {
+      ...r,
+      data_requirement: docTitle,
+      sub_process: currentSubProcess,
+      client_person_id: currentClientPerson,
+      remarks: currentRemarks,
+      plants_status: currentPlants,
+      attachments: currentAttachments,
+      status_json: {
+        ...(r.status_json || {}),
+        document_name: docTitle,
+        sub_process: currentSubProcess,
+        document_status: currentStatus,
+        remarks: currentRemarks,
+        plants_status: currentPlants
+      }
+    } : r);
+
+    setDataTrackerRows(updated);
+    setSelectedTrackerDrawerItem(null);
+    showToast("Requirement updated successfully!", "success", "Tracker Saved");
+
+    try {
+      await fetch(`/Auditing/api/dynamic/projects/${selectedProject.id}/stage2`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'save_data_tracker', data_tracker: updated })
+      });
+    } catch (err) {}
+  };
+
+  // Toggle Operating Plant Checkbox directly from Table
+  const handleToggleTrackerPlant = async (trId, plantName) => {
+    let toggledState = false;
+    const updated = dataTrackerRows.map(r => {
+      if (r.id === trId) {
+        const currPlants = { ...(r.plants_status || {}) };
+        currPlants[plantName] = !currPlants[plantName];
+        toggledState = currPlants[plantName];
+        return {
+          ...r,
+          plants_status: currPlants,
+          status_json: { ...(r.status_json || {}), plants_status: currPlants }
+        };
+      }
+      return r;
+    });
+    setDataTrackerRows(updated);
+    if (selectedProject?.id) {
+      try {
+        await fetch(`/Auditing/api/dynamic/projects/${selectedProject.id}/stage2`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'save_data_tracker', data_tracker: updated })
+        });
+        showToast(`${plantName}: marked ${toggledState ? 'Received' : 'Pending'}`, "success", "Plant Saved");
+      } catch (err) {}
+    }
+  };
+
+  // Direct File Upload from Front-End to Supabase Storage Bucket (No Base64)
+  const handleDirectUploadTrackerFile = async (trId, files) => {
+    if (!files || files.length === 0 || !selectedProject?.id) return;
+    setUploadingTrackerRowId(trId);
+    try {
+      const formData = new FormData();
+      formData.append('projectId', selectedProject.id);
+      formData.append('folder', 'data-tracker');
+      formData.append('rowId', trId);
+      Array.from(files).forEach(f => formData.append('files', f));
+
+      const res = await fetch('/Auditing/api/dynamic/upload', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (!data.success || !Array.isArray(data.files)) {
+        throw new Error(data.error || 'Failed to upload document to Supabase storage');
+      }
+
+      const updated = dataTrackerRows.map(r => {
+        if (r.id === trId) {
+          const existing = r.attachments || [];
+          return {
+            ...r,
+            document_status: 'Under Review',
+            status_json: {
+              ...(r.status_json || {}),
+              document_status: 'Under Review',
+              received_at: new Date().toISOString()
+            },
+            attachments: [...existing, ...data.files]
+          };
+        }
+        return r;
+      });
+
+      setDataTrackerRows(updated);
+      await fetch(`/Auditing/api/dynamic/projects/${selectedProject.id}/stage2`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'save_data_tracker', data_tracker: updated })
+      });
+      showToast("Document(s) successfully uploaded to Supabase storage bucket!", "success", "Upload Complete");
+    } catch (err) {
+      console.error(err);
+      showToast(err.message || "Upload failed", "error", "Upload Error");
+    } finally {
+      setUploadingTrackerRowId(null);
     }
   };
 
@@ -3550,6 +4216,7 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
                                 <tr style={{ backgroundColor: C.bg2, color: C.text2, textAlign: "left" }}>
                                   <th style={{ padding: "12px 14px", border: `1px solid ${C.border}`, width: 110 }}>Week</th>
                                   <th style={{ padding: "12px 14px", border: `1px solid ${C.border}`, width: 190 }}>Week Description</th>
+                                  <th style={{ padding: "12px 14px", border: `1px solid ${C.border}`, width: 125, whiteSpace: "nowrap" }}>Date</th>
                                   <th style={{ padding: "12px 14px", border: `1px solid ${C.border}`, width: 220 }}>Activity</th>
                                   <th style={{ padding: "12px 14px", border: `1px solid ${C.border}` }}>Detailed Audit Work</th>
                                   <th style={{ padding: "12px 14px", border: `1px solid ${C.border}`, width: 135 }}>Progress</th>
@@ -3595,6 +4262,11 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
                                             {item.week_description || "—"}
                                           </td>
                                         )}
+
+                                        {/* Date Column */}
+                                        <td style={{ padding: "12px 14px", border: `1px solid ${C.border}`, whiteSpace: "nowrap", fontSize: 12, fontWeight: 700, color: C.text2 }}>
+                                          {item.activity_date || item.date || "—"}
+                                        </td>
 
                                         {/* Activity Name */}
                                         <td style={{ padding: "12px 14px", border: `1px solid ${C.border}`, fontWeight: 600, color: C.text1 }}>
@@ -3736,7 +4408,7 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
                               <input type="file" accept=".csv, .xlsx, .xls" onChange={e => handleFileUpload(e, "org")} style={{ display: "none" }} />
                             </label>
 
-                            <button onClick={() => setShowAddOrgModal(true)} style={{ height: 36, padding: "0 14px", borderRadius: 8, border: "none", backgroundColor: C.teal, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 700, boxShadow: "0 2px 6px rgba(13,148,136,0.25)" }}>
+                            <button onClick={handleOpenAddOrgModal} style={{ height: 36, padding: "0 14px", borderRadius: 8, border: "none", backgroundColor: C.teal, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 700, boxShadow: "0 2px 6px rgba(13,148,136,0.25)" }}>
                               <Plus size={16} /> Add Client Contact
                             </button>
                           </div>
@@ -3750,26 +4422,78 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
                               <th style={{ padding: 12, border: `1px solid ${C.border}` }}>Department</th>
                               <th style={{ padding: 12, border: `1px solid ${C.border}`, fontFamily: MONO, color: C.teal }}>Email Address</th>
                               <th style={{ padding: 12, border: `1px solid ${C.border}` }}>Phone</th>
-                              <th style={{ padding: 12, border: `1px solid ${C.border}`, width: 60, textAlign: "center" }}>Action</th>
+                              <th style={{ padding: 12, border: `1px solid ${C.border}`, width: 84, textAlign: "center" }}>Action</th>
                             </tr>
                           </thead>
                           <tbody>
                             {orgMembers.length > 0 ? (
                               orgMembers.map(m => (
-                                <tr key={m.id}>
-                                  <td style={{ padding: 12, border: `1px solid ${C.border}`, fontWeight: 700 }}>{m.member_name}</td>
+                                <tr key={m.id} style={{ transition: "background-color 0.15s" }}>
+                                  <td
+                                    onClick={() => handleOpenEditOrgModal(m)}
+                                    title="Click to edit contact"
+                                    style={{
+                                      padding: 12,
+                                      border: `1px solid ${C.border}`,
+                                      fontWeight: 700,
+                                      cursor: "pointer",
+                                      color: C.text1
+                                    }}
+                                    onMouseEnter={e => e.currentTarget.style.color = C.teal}
+                                    onMouseLeave={e => e.currentTarget.style.color = C.text1}
+                                  >
+                                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                      <span>{m.member_name}</span>
+                                      <Edit2 size={12} style={{ opacity: 0.4 }} />
+                                    </div>
+                                  </td>
                                   <td style={{ padding: 12, border: `1px solid ${C.border}` }}>{m.designation || "—"}</td>
                                   <td style={{ padding: 12, border: `1px solid ${C.border}` }}>{m.department || "—"}</td>
                                   <td style={{ padding: 12, border: `1px solid ${C.border}`, fontFamily: MONO, color: C.teal }}>{m.email || "—"}</td>
                                   <td style={{ padding: 12, border: `1px solid ${C.border}` }}>{m.phone || "—"}</td>
                                   <td style={{ padding: 12, border: `1px solid ${C.border}`, textAlign: "center" }}>
-                                    <button
-                                      onClick={() => handleDeleteOrgMember(m.id)}
-                                      title="Delete Contact"
-                                      style={{ border: "none", background: "transparent", color: C.red, cursor: "pointer", fontSize: 14 }}
-                                    >
-                                      <Trash2 size={15} />
-                                    </button>
+                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                                      <button
+                                        onClick={() => handleOpenEditOrgModal(m)}
+                                        title="Edit Contact"
+                                        style={{
+                                          border: "none",
+                                          background: "transparent",
+                                          color: C.teal,
+                                          cursor: "pointer",
+                                          display: "inline-flex",
+                                          alignItems: "center",
+                                          justifyContent: "center",
+                                          padding: 4,
+                                          borderRadius: 4,
+                                          transition: "all 0.15s ease"
+                                        }}
+                                        onMouseEnter={e => e.currentTarget.style.backgroundColor = C.tealBg}
+                                        onMouseLeave={e => e.currentTarget.style.backgroundColor = "transparent"}
+                                      >
+                                        <Edit2 size={15} />
+                                      </button>
+                                      <button
+                                        onClick={() => handleDeleteOrgMember(m.id)}
+                                        title="Delete Contact"
+                                        style={{
+                                          border: "none",
+                                          background: "transparent",
+                                          color: C.red,
+                                          cursor: "pointer",
+                                          display: "inline-flex",
+                                          alignItems: "center",
+                                          justifyContent: "center",
+                                          padding: 4,
+                                          borderRadius: 4,
+                                          transition: "all 0.15s ease"
+                                        }}
+                                        onMouseEnter={e => e.currentTarget.style.backgroundColor = "rgba(239, 68, 68, 0.1)"}
+                                        onMouseLeave={e => e.currentTarget.style.backgroundColor = "transparent"}
+                                      >
+                                        <Trash2 size={15} />
+                                      </button>
+                                    </div>
                                   </td>
                                 </tr>
                               ))
@@ -4217,7 +4941,7 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
                                       {col.label}
                                     </span>
                                     {!['serial_no', 'procedure', 'sub_process'].includes(col.key) && (
-                                      <button onClick={() => handleDeleteColumn(col.key)} title="Remove Column" style={{ background: "transparent", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: 11, paddingLeft: 3 }}>
+                                      <button onClick={() => handleRequestDeleteColumn(col.key, col.label, "programme")} title="Remove Column" style={{ background: "transparent", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: 11, paddingLeft: 3 }}>
                                         ✕
                                       </button>
                                     )}
@@ -4381,102 +5105,113 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
                   )}
 
                   {/* Sub-Tab 2: Data Tracker / IDR */}
-                  {stage2SubTab === "tracker" && (
-                    <div style={{ padding: 24 }}>
-                      {/* Control Bar & View Mode Toggle */}
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
-                        <div>
-                          <div style={{ fontSize: 16, fontWeight: 800, color: C.text1 }}>Information Document Request (IDR) Data Tracker</div>
-                        </div>
+                  {stage2SubTab === "tracker" && (() => {
+                    const projectPlants = Array.isArray(selectedProject?.plants) && selectedProject.plants.length > 0
+                      ? selectedProject.plants.filter(Boolean)
+                      : (Array.isArray(selectedProject?.meta_json?.plants) && selectedProject.meta_json.plants.length > 0
+                          ? selectedProject.meta_json.plants.filter(Boolean)
+                          : []);
 
-                        {/* Actions: + Add Data Requirement & View Switcher */}
-                        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                          <button
-                            onClick={() => {
-                              setNewTrackerItem({ data_requirement: "", sub_process: "", client_person_id: "", remarks: "" });
-                              setShowAddTrackerModal(true);
-                            }}
-                            style={{
-                              padding: "7px 16px", borderRadius: 8, fontSize: 12.5, fontWeight: 700, cursor: "pointer",
-                              backgroundColor: C.teal, color: "#fff", border: "none", display: "flex", alignItems: "center", gap: 6,
-                              boxShadow: "0 2px 6px rgba(13,148,136,0.3)"
-                            }}
-                          >
-                            <Plus size={15} /> + Add Data Requirement
-                          </button>
+                    // Compute ordered list matching the exact sequence of the Audit Programme Table
+                    const progOrderMap = new Map();
+                    (programmeRows || []).forEach((p, pIdx) => {
+                      if (p && p.id) progOrderMap.set(String(p.id), p.sort_order !== undefined ? p.sort_order : pIdx);
+                    });
 
-                          {/* View Switcher: Table View vs Pipeline Kanban View */}
-                          <div style={{ display: "flex", gap: 6, backgroundColor: C.bg2, padding: 4, borderRadius: 10, border: `1px solid ${C.border}` }}>
-                            <button
-                              onClick={() => setTrackerViewMode("table")}
-                              style={{
-                                padding: "6px 14px", borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: "pointer", border: "none",
-                                backgroundColor: trackerViewMode === "table" ? C.surface : "transparent",
-                                color: trackerViewMode === "table" ? C.teal : C.text2,
-                                boxShadow: trackerViewMode === "table" ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
-                                display: "flex", alignItems: "center", gap: 6
-                              }}
-                            >
-                              <FileText size={14} /> 📋 Table View
-                            </button>
-                            <button
-                              onClick={() => setTrackerViewMode("pipeline")}
-                              style={{
-                                padding: "6px 14px", borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: "pointer", border: "none",
-                                backgroundColor: trackerViewMode === "pipeline" ? C.surface : "transparent",
-                                color: trackerViewMode === "pipeline" ? C.teal : C.text2,
-                                boxShadow: trackerViewMode === "pipeline" ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
-                                display: "flex", alignItems: "center", gap: 6
-                              }}
-                            >
-                              <Layers size={14} /> 🔀 Pipeline View
-                            </button>
+                    const orderedTrackerRows = [...dataTrackerRows].sort((a, b) => {
+                      const orderA = a.programme_id && progOrderMap.has(String(a.programme_id)) 
+                        ? progOrderMap.get(String(a.programme_id)) 
+                        : (a._sort_order ?? 9999);
+                      const orderB = b.programme_id && progOrderMap.has(String(b.programme_id)) 
+                        ? progOrderMap.get(String(b.programme_id)) 
+                        : (b._sort_order ?? 9999);
+                      if (orderA !== orderB) return orderA - orderB;
+                      return (a._sort_order ?? 0) - (b._sort_order ?? 0);
+                    });
+
+                    return (
+                      <div style={{ padding: 24 }}>
+                        {/* Control Bar */}
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+                          <div>
+                            <div style={{ fontSize: 16, fontWeight: 800, color: C.text1 }}>Information Document Request (IDR) Data Tracker</div>
+                            <div style={{ fontSize: 12, color: C.text3, marginTop: 2 }}>
+                              Track unique requested documents, plant receipts, direct evidence uploads, and client transmissions ({dataTrackerRows.length} items)
+                            </div>
                           </div>
-                        </div>
-                      </div>
 
-                      {/* Multi-Selection Action Toolbar (When rows are checked) */}
-                      {selectedTrackerRowIds.length > 0 && (
-                        <div style={{
-                          backgroundColor: C.tealBg, border: `1px solid ${C.tealBorder}`, padding: "12px 18px", borderRadius: 12,
-                          marginBottom: 18, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12
-                        }}>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: C.teal }}>
-                            ✓ Selected {selectedTrackerRowIds.length} Document Request(s)
-                          </div>
+                          {/* Actions: Re-sync from Programme & + Add Data Requirement */}
                           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                             <button
+                              onClick={handleRefetchTrackerFromProgramme}
+                              disabled={loadingStage2}
+                              title="Refetch and extract all unique document requirements from Audit Programme table"
+                              style={{
+                                padding: "8px 15px", borderRadius: 8, fontSize: 12.5, fontWeight: 700, cursor: loadingStage2 ? "not-allowed" : "pointer",
+                                backgroundColor: C.surface, color: C.teal, border: `1.5px solid ${C.tealBorder}`, display: "flex", alignItems: "center", gap: 6,
+                                transition: "all 0.15s ease"
+                              }}
+                            >
+                              <RefreshCw size={13} className={loadingStage2 ? "animate-spin" : ""} /> Re-sync from Programme
+                            </button>
+
+                            <button
                               onClick={() => {
-                                const selectedItems = dataTrackerRows.filter(r => selectedTrackerRowIds.includes(r.id));
-                                const recipientId = selectedItems[0]?.client_person_id || "";
-                                if (!recipientId) return showToast("Please select a Client Person Recipient for at least one selected document first.", "warning", "Recipient Required");
-                                handleOpenEmailDraft(selectedItems, recipientId);
+                                setNewTrackerItem({ data_requirement: "", sub_process: "", client_person_id: "", remarks: "" });
+                                setShowAddTrackerModal(true);
                               }}
                               style={{
-                                padding: "7px 16px", backgroundColor: C.teal, color: "#fff", border: "none", borderRadius: 8,
-                                fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
+                                padding: "8px 18px", borderRadius: 8, fontSize: 12.5, fontWeight: 700, cursor: "pointer",
+                                backgroundColor: C.teal, color: "#fff", border: "none", display: "flex", alignItems: "center", gap: 6,
                                 boxShadow: "0 2px 6px rgba(13,148,136,0.3)"
                               }}
                             >
-                              <Send size={13} /> Draft Consolidated Email ({selectedTrackerRowIds.length} items)
-                            </button>
-                            <button
-                              onClick={() => setSelectedTrackerRowIds([])}
-                              style={{ padding: "7px 12px", border: `1px solid ${C.border}`, borderRadius: 8, background: C.surface, color: C.text2, fontSize: 12, fontWeight: 600, cursor: "pointer" }}
-                            >
-                              Clear Selection
+                              <Plus size={15} /> + Add Data Requirement
                             </button>
                           </div>
                         </div>
-                      )}
 
-                      {/* 1. TABLE VIEW */}
-                      {trackerViewMode === "table" && (
-                        <div style={{ borderRadius: 10, border: `1px solid ${C.border}`, overflow: "hidden" }}>
-                          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                        {/* Multi-Selection Action Toolbar (When rows are checked) */}
+                        {selectedTrackerRowIds.length > 0 && (
+                          <div style={{
+                            backgroundColor: C.tealBg, border: `1px solid ${C.tealBorder}`, padding: "12px 18px", borderRadius: 12,
+                            marginBottom: 18, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12
+                          }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: C.teal }}>
+                              ✓ Selected {selectedTrackerRowIds.length} Document Request(s)
+                            </div>
+                            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                              <button
+                                onClick={() => {
+                                  const selectedItems = dataTrackerRows.filter(r => selectedTrackerRowIds.includes(r.id));
+                                  const recipientId = selectedItems[0]?.client_person_id || "";
+                                  if (!recipientId) return showToast("Please select a Client Person Recipient for at least one selected document first.", "warning", "Recipient Required");
+                                  handleOpenEmailDraft(selectedItems, recipientId);
+                                }}
+                                style={{
+                                  padding: "7px 16px", backgroundColor: C.teal, color: "#fff", border: "none", borderRadius: 8,
+                                  fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
+                                  boxShadow: "0 2px 6px rgba(13,148,136,0.3)"
+                                }}
+                              >
+                                <Send size={13} /> Draft Consolidated Email ({selectedTrackerRowIds.length} items)
+                              </button>
+                              <button
+                                onClick={() => setSelectedTrackerRowIds([])}
+                                style={{ padding: "7px 12px", border: `1px solid ${C.border}`, borderRadius: 8, background: C.surface, color: C.text2, fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+                              >
+                                Clear Selection
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* HIGH-DENSITY IDR DATA TRACKER TABLE */}
+                        <div style={{ borderRadius: 10, border: `1px solid ${C.border}`, overflowX: "auto", backgroundColor: C.surface, boxShadow: "0 2px 8px rgba(0,0,0,0.02)" }}>
+                          <table style={{ width: "max-content", minWidth: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
                             <thead>
-                              <tr style={{ backgroundColor: C.bg2, color: C.text2, textAlign: "left" }}>
-                                <th style={{ padding: 12, border: `1px solid ${C.border}`, width: 40, textAlign: "center" }}>
+                              <tr style={{ backgroundColor: "#1e293b", color: "#ffffff", textAlign: "left" }}>
+                                <th style={{ padding: "12px 10px", width: 40, textAlign: "center", border: "1px solid #334155", whiteSpace: "nowrap" }}>
                                   <input
                                     type="checkbox"
                                     checked={selectedTrackerRowIds.length > 0 && selectedTrackerRowIds.length === dataTrackerRows.length}
@@ -4486,31 +5221,85 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
                                     }}
                                   />
                                 </th>
-                                <th style={{ padding: 12, border: `1px solid ${C.border}` }}>Data Requirement / Document Requested</th>
-                                <th style={{ padding: 12, border: `1px solid ${C.border}`, width: 140 }}>Status</th>
-                                <th style={{ padding: 12, border: `1px solid ${C.border}`, width: 250 }}>Client Person Recipient</th>
-                                <th style={{ padding: 12, border: `1px solid ${C.border}`, width: 130 }}>Uploaded Files</th>
-                                <th style={{ padding: 12, border: `1px solid ${C.border}`, width: 190 }}>Actions</th>
+                                <th style={{ padding: "12px 10px", width: 45, textAlign: "center", border: "1px solid #334155", fontSize: 11, fontWeight: 800, whiteSpace: "nowrap" }}>#</th>
+                                <th style={{ padding: "12px 14px", minWidth: 240, border: "1px solid #334155", fontSize: 11.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, whiteSpace: "nowrap" }}>
+                                  Document / Data Requirement
+                                </th>
+                                <th style={{ padding: "12px 12px", width: 160, border: "1px solid #334155", fontSize: 11.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, whiteSpace: "nowrap" }}>
+                                  Document Status
+                                </th>
+                                <th style={{ padding: "12px 12px", width: 130, textAlign: "center", border: "1px solid #334155", fontSize: 11.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, whiteSpace: "nowrap" }}>
+                                  Email Status
+                                </th>
+                                <th style={{ padding: "12px 14px", width: 210, border: "1px solid #334155", fontSize: 11.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, whiteSpace: "nowrap" }}>
+                                  Client Person Recipient
+                                </th>
+                                <th style={{ padding: "12px 14px", width: 210, border: "1px solid #334155", fontSize: 11.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, whiteSpace: "nowrap" }}>
+                                  Remarks / Notes
+                                </th>
+
+                                {/* Dynamic Operating Plants / Locations Columns */}
+                                {projectPlants.map((plant, pIdx) => (
+                                  <th
+                                    key={pIdx}
+                                    style={{
+                                      padding: "12px 12px", minWidth: 110, textAlign: "center", border: "1px solid #334155",
+                                      fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5,
+                                      backgroundColor: "#0f172a", whiteSpace: "nowrap"
+                                    }}
+                                    title={`Plant / Location: ${plant}`}
+                                  >
+                                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, justifyContent: "center" }}>
+                                      <Building2 size={12} color="#38bdf8" />
+                                      {plant}
+                                    </span>
+                                  </th>
+                                ))}
+
+                                <th style={{ padding: "12px 14px", width: 130, textAlign: "center", border: "1px solid #334155", fontSize: 11.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, whiteSpace: "nowrap" }}>
+                                  Uploaded Files
+                                </th>
+                                <th style={{ padding: "12px 14px", width: 130, textAlign: "center", border: "1px solid #334155", fontSize: 11.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, whiteSpace: "nowrap" }}>
+                                  Upload
+                                </th>
+                                <th style={{ padding: "12px 14px", width: 190, textAlign: "center", border: "1px solid #334155", fontSize: 11.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, whiteSpace: "nowrap" }}>
+                                  Actions
+                                </th>
                               </tr>
                             </thead>
                             <tbody>
-                              {dataTrackerRows.length === 0 ? (
+                              {orderedTrackerRows.length === 0 ? (
                                 <tr>
-                                  <td colSpan={6} style={{ padding: 32, textAlign: "center", color: C.text3 }}>
+                                  <td colSpan={9 + projectPlants.length} style={{ padding: 36, textAlign: "center", color: C.text3, fontSize: 13 }}>
                                     No data requirements requested yet. Click "+ Add Data Requirement" above or define data requirements in Stage 2 Audit Programme Table to auto-populate the tracker.
                                   </td>
                                 </tr>
                               ) : (
-                                dataTrackerRows.map(tr => {
+                                orderedTrackerRows.map((tr, idx) => {
                                   const linkedProg = programmeRows.find(p => p.id === tr.programme_id);
-                                  const dataReqText = linkedProg?.row_data?.data_requirement || tr.data_requirement || "Requested Audit Document";
-                                  const docStatus = tr.status_json?.document_status || "Pending";
+                                  const dataReqText = tr.data_requirement || linkedProg?.row_data?.data_requirement || "Requested Audit Document";
+                                  const subProcessText = tr.sub_process || linkedProg?.row_data?.sub_process || "";
+
+                                  const rawDocStatus = tr.document_status || tr.status_json?.document_status || "Pending";
+                                  const currentDocStatus = STATUS_CONFIG[rawDocStatus] ? (rawDocStatus === "Email Sent" ? "Pending" : rawDocStatus) : "Pending";
+                                  const statusStyle = STATUS_CONFIG[currentDocStatus];
+
+                                  const rawEmailStatus = tr.email_status || tr.status_json?.email_status || (tr.email_sent_at || tr.status_json?.sent_at || tr.status_json?.document_status === "Email Sent" ? "Email Sent" : "Not Sent");
+                                  const currentEmailStatus = EMAIL_STATUS_CONFIG[rawEmailStatus] ? rawEmailStatus : "Not Sent";
+                                  const emailStatusStyle = EMAIL_STATUS_CONFIG[currentEmailStatus];
+                                  const rawEmailSentAt = tr.email_sent_at || tr.status_json?.sent_at || null;
+
                                   const attachments = tr.attachments || [];
                                   const isChecked = selectedTrackerRowIds.includes(tr.id);
+                                  const isUploadingThis = uploadingTrackerRowId === tr.id;
 
                                   return (
-                                    <tr key={tr.id} style={{ backgroundColor: isChecked ? C.tealBg + "30" : "transparent" }}>
-                                      <td style={{ padding: 12, border: `1px solid ${C.border}`, textAlign: "center" }}>
+                                    <tr 
+                                      key={tr.id} 
+                                      style={{ borderBottom: `1px solid ${C.border}`, backgroundColor: isChecked ? C.tealBg + "30" : "transparent" }}
+                                    >
+                                      {/* Checkbox */}
+                                      <td style={{ padding: "10px 8px", border: `1px solid ${C.border}`, textAlign: "center" }}>
                                         <input
                                           type="checkbox"
                                           checked={isChecked}
@@ -4520,105 +5309,247 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
                                           }}
                                         />
                                       </td>
-                                      <td style={{ padding: 12, border: `1px solid ${C.border}` }}>
-                                        <div style={{ fontWeight: 700, color: C.text1 }}>{dataReqText}</div>
-                                        {(tr.sub_process || linkedProg?.row_data?.sub_process) && (
-                                          <div style={{ fontSize: 11, color: C.text3, marginTop: 2 }}>{tr.sub_process || linkedProg.row_data.sub_process}</div>
+
+                                      {/* Row # */}
+                                      <td style={{ padding: "10px 8px", border: `1px solid ${C.border}`, textAlign: "center", fontSize: 11.5, fontWeight: 700, color: C.text3 }}>
+                                        {idx + 1}
+                                      </td>
+
+                                      {/* Document Name / Requirement (Click to Open Drawer) */}
+                                      <td 
+                                        onClick={() => setSelectedTrackerDrawerItem(tr)}
+                                        style={{ padding: "10px 14px", border: `1px solid ${C.border}`, verticalAlign: "middle", cursor: "pointer" }}
+                                        title="Click to view & edit details in right slide-over panel"
+                                      >
+                                        <div style={{ fontWeight: 700, color: C.text1, fontSize: 13, lineHeight: 1.4, textDecoration: "none" }} className="hover:text-teal-600 transition-colors">
+                                          {dataReqText}
+                                        </div>
+                                        {subProcessText && (
+                                          <div style={{ fontSize: 11, color: C.teal, fontWeight: 600, marginTop: 3, display: "inline-block", backgroundColor: C.tealBg, padding: "1px 6px", borderRadius: 4, border: `1px solid ${C.tealBorder}` }}>
+                                            {subProcessText}
+                                          </div>
                                         )}
                                       </td>
-                                      <td style={{ padding: 12, border: `1px solid ${C.border}` }}>
-                                        <span style={{
-                                          padding: "4px 10px", borderRadius: 12, fontSize: 11, fontWeight: 700, display: "inline-block",
-                                          backgroundColor: docStatus === "Received" ? C.greenBg : docStatus === "Reviewed" ? C.purpleBg : docStatus === "Email Sent" ? C.tealBg : C.amberBg,
-                                          color: docStatus === "Received" ? C.green : docStatus === "Reviewed" ? C.purple : docStatus === "Email Sent" ? C.teal : C.amber,
-                                          border: `1px solid ${docStatus === "Received" ? C.greenBorder : docStatus === "Reviewed" ? C.purpleBorder : docStatus === "Email Sent" ? C.tealBorder : C.amberBorder}`
-                                        }}>
-                                          {docStatus === "Email Sent" ? "✉️ Email Sent" : docStatus === "Received" ? "📤 Received" : docStatus === "Reviewed" ? "✅ Verified" : "📌 Pending"}
-                                        </span>
+
+                                      {/* Document Status Dropdown (Pending, Under Review, Partially Received, Received Wrong, Received) */}
+                                      <td style={{ padding: "10px 12px", border: `1px solid ${C.border}`, verticalAlign: "middle" }}>
+                                        <select
+                                          value={currentDocStatus}
+                                          onChange={e => handleUpdateTrackerStatus(tr.id, e.target.value)}
+                                          style={{
+                                            width: "100%", padding: "5px 10px", borderRadius: 8, fontSize: 11.5, fontWeight: 700,
+                                            backgroundColor: statusStyle.bg, color: statusStyle.color, border: `1px solid ${statusStyle.border}`,
+                                            cursor: "pointer", outline: "none"
+                                          }}
+                                        >
+                                          <option value="Pending">Pending</option>
+                                          <option value="Under Review">Under Review</option>
+                                          <option value="Partially Received">Partially Received</option>
+                                          <option value="Received Wrong">Received Wrong</option>
+                                          <option value="Received">Received</option>
+                                        </select>
                                       </td>
-                                      <td style={{ padding: 12, border: `1px solid ${C.border}` }}>
+
+                                      {/* Dedicated Email Status Badge Column with Interactive Pipeline Dot */}
+                                      <td style={{ padding: "10px 10px", border: `1px solid ${C.border}`, verticalAlign: "middle", textAlign: "center" }}>
+                                        <button
+                                          onClick={() => { setPipelineItem(tr); setShowEmailPipelineModal(true); }}
+                                          title="Click to view complete Email & Communication Pipeline history"
+                                          style={{
+                                            display: "inline-flex",
+                                            alignItems: "center",
+                                            gap: 6,
+                                            padding: "4px 9px",
+                                            borderRadius: 20,
+                                            fontSize: 11,
+                                            fontWeight: 700,
+                                            backgroundColor: emailStatusStyle.bg,
+                                            color: emailStatusStyle.color,
+                                            border: `1px solid ${emailStatusStyle.border}`,
+                                            cursor: "pointer",
+                                            whiteSpace: "nowrap",
+                                            transition: "all 0.15s ease",
+                                            boxShadow: "0 1px 2px rgba(0,0,0,0.03)"
+                                          }}
+                                          onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.04)"; }}
+                                          onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; }}
+                                        >
+                                          <span style={{
+                                            width: 7, height: 7, borderRadius: "50%",
+                                            backgroundColor: currentEmailStatus === "Not Sent" ? "#94a3b8" : (currentEmailStatus === "Resent" ? "#7c3aed" : "#2563eb"),
+                                            boxShadow: currentEmailStatus !== "Not Sent" ? `0 0 6px ${emailStatusStyle.color}` : "none",
+                                            display: "inline-block"
+                                          }} />
+                                          <span>{currentEmailStatus}</span>
+                                          <History size={11} style={{ opacity: 0.75, marginLeft: 2 }} />
+                                        </button>
+                                      </td>
+
+                                      {/* Client Person Recipient */}
+                                      <td style={{ padding: "10px 12px", border: `1px solid ${C.border}`, verticalAlign: "middle" }}>
                                         <select
                                           value={tr.client_person_id || ""}
                                           onChange={async e => {
                                             const val = e.target.value;
-                                            const updated = dataTrackerRows.map(r => r.id === tr.id ? { ...r, client_person_id: val } : r);
+                                            const updated = dataTrackerRows.map(r => r.id === tr.id ? { ...r, client_person_id: val, status_json: { ...(r.status_json || {}), client_person_id: val } } : r);
                                             setDataTrackerRows(updated);
                                             if (selectedProject?.id) {
-                                              try {
+                                               try {
                                                 await fetch(`/Auditing/api/dynamic/projects/${selectedProject.id}/stage2`, {
                                                   method: 'POST',
                                                   headers: { 'Content-Type': 'application/json' },
                                                   body: JSON.stringify({ action: 'save_data_tracker', data_tracker: updated })
                                                 });
+                                                showToast("Recipient assigned and saved", "success", "Saved");
                                               } catch (err) { }
                                             }
                                           }}
-                                          style={{ width: "100%", padding: "6px 10px", borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 12 }}
+                                          style={{ width: "100%", padding: "6px 10px", borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 12, backgroundColor: C.surface, color: C.text1 }}
                                         >
-                                          <option value="">Select Client Person Email...</option>
+                                          <option value="">Select Recipient...</option>
                                           {orgMembers.map(m => (
                                             <option key={m.id} value={m.id}>{m.member_name} ({m.email})</option>
                                           ))}
                                         </select>
                                       </td>
-                                      <td style={{ padding: 12, border: `1px solid ${C.border}` }}>
+
+                                      {/* Remarks / Notes Column (Clean for auditor feedback & follow-ups) */}
+                                      <td style={{ padding: "10px 12px", border: `1px solid ${C.border}`, verticalAlign: "middle" }}>
+                                        <input
+                                          type="text"
+                                          placeholder="Add follow-up notes for client..."
+                                          value={tr.remarks !== undefined ? tr.remarks : (tr.status_json?.remarks || "")}
+                                          onChange={e => {
+                                            const val = e.target.value;
+                                            setDataTrackerRows(prev => prev.map(r => r.id === tr.id ? {
+                                              ...r,
+                                              remarks: val,
+                                              status_json: { ...(r.status_json || {}), remarks: val }
+                                            } : r));
+                                          }}
+                                          onBlur={e => handleUpdateTrackerRemarks(tr.id, e.target.value)}
+                                          onKeyDown={e => {
+                                            if (e.key === 'Enter') {
+                                              e.target.blur();
+                                            }
+                                          }}
+                                          style={{ width: "100%", padding: "6px 10px", borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 12, backgroundColor: C.surface, color: C.text1 }}
+                                        />
+                                      </td>
+
+                                      {/* Dynamic Plant Checkbox Cells */}
+                                      {projectPlants.map((plant, pIdx) => {
+                                        const isPlantReceived = !!(tr.plants_status && tr.plants_status[plant]);
+                                        return (
+                                          <td
+                                            key={pIdx}
+                                            style={{
+                                              padding: "10px 8px", textAlign: "center", border: `1px solid ${C.border}`,
+                                              verticalAlign: "middle", backgroundColor: isPlantReceived ? C.greenBg + "40" : "transparent"
+                                            }}
+                                          >
+                                            <input
+                                              type="checkbox"
+                                              checked={isPlantReceived}
+                                              onChange={() => handleToggleTrackerPlant(tr.id, plant)}
+                                              title={`Toggle received status for ${plant}`}
+                                              style={{ width: 16, height: 16, cursor: "pointer", accentColor: C.teal }}
+                                            />
+                                          </td>
+                                        );
+                                      })}
+
+                                      {/* Uploaded Files Count Only (Clean, no bulky background/icon) */}
+                                      <td style={{ padding: "10px 12px", border: `1px solid ${C.border}`, textAlign: "center", verticalAlign: "middle" }}>
                                         {attachments.length > 0 ? (
                                           <button
                                             onClick={() => { setViewingFileItem(tr); setShowUploadedFilesModal(true); }}
                                             style={{
-                                              padding: "4px 10px", borderRadius: 8, backgroundColor: C.greenBg, color: C.green,
-                                              border: `1px solid ${C.greenBorder}`, fontSize: 11.5, fontWeight: 700, cursor: "pointer",
-                                              display: "flex", alignItems: "center", gap: 5
+                                              background: "none", border: "none", padding: "2px 4px",
+                                              fontSize: 12, fontWeight: 700, color: C.teal, cursor: "pointer",
+                                              textDecoration: "underline", textUnderlineOffset: 3
                                             }}
+                                            title="Click to view and download attached documents"
                                           >
-                                            <FileSpreadsheet size={13} /> {attachments.length} file(s)
+                                            {attachments.length} file{attachments.length > 1 ? 's' : ''}
                                           </button>
                                         ) : (
-                                          <span style={{ fontSize: 12, color: C.text3 }}>No files uploaded</span>
+                                          <span style={{ fontSize: 12, color: C.text3 }}>0 files</span>
                                         )}
                                       </td>
-                                      <td style={{ padding: 12, border: `1px solid ${C.border}` }}>
-                                        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+
+                                      {/* Front-End Direct Upload Button (To Supabase Bucket) */}
+                                      <td style={{ padding: "10px 12px", border: `1px solid ${C.border}`, textAlign: "center", verticalAlign: "middle" }}>
+                                        <input
+                                          type="file"
+                                          multiple
+                                          id={`tracker_upload_${tr.id}`}
+                                          style={{ display: "none" }}
+                                          onChange={e => handleDirectUploadTrackerFile(tr.id, e.target.files)}
+                                        />
+                                        <label
+                                          htmlFor={`tracker_upload_${tr.id}`}
+                                          style={{
+                                            padding: "5px 10px", borderRadius: 6, border: `1px solid ${C.tealBorder}`,
+                                            backgroundColor: C.tealBg, color: C.teal, fontSize: 11.5, fontWeight: 700,
+                                            cursor: isUploadingThis ? "not-allowed" : "pointer",
+                                            display: "inline-flex", alignItems: "center", gap: 4
+                                          }}
+                                        >
+                                          {isUploadingThis ? (
+                                            <span>Uploading...</span>
+                                          ) : (
+                                            <>
+                                              <Upload size={12} /> Upload
+                                            </>
+                                          )}
+                                        </label>
+                                      </td>
+
+                                      {/* Actions */}
+                                      <td style={{ padding: "10px 12px", border: `1px solid ${C.border}`, textAlign: "center", verticalAlign: "middle" }}>
+                                        <div style={{ display: "flex", gap: 5, alignItems: "center", justifyContent: "center" }}>
+                                          <button
+                                            onClick={() => setSelectedTrackerDrawerItem(tr)}
+                                            style={{
+                                              padding: "5px 9px", backgroundColor: C.surface, color: C.teal, border: `1.5px solid ${C.tealBorder}`, borderRadius: 6,
+                                              fontSize: 11, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 3
+                                            }}
+                                            title="Edit details in right slide-over panel"
+                                          >
+                                            <Edit2 size={11} /> Edit
+                                          </button>
+
                                           <button
                                             onClick={() => handleOpenEmailDraft([tr], tr.client_person_id)}
                                             style={{
-                                              padding: "6px 10px", backgroundColor: C.teal, color: "#fff", border: "none", borderRadius: 6,
-                                              fontSize: 11.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4
+                                              padding: "5px 9px", backgroundColor: C.teal, color: "#fff", border: "none", borderRadius: 6,
+                                              fontSize: 11, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4
                                             }}
                                             title="Draft & Send Email to Client"
                                           >
-                                            <Send size={12} /> Draft Email
+                                            <Send size={11} /> Email
                                           </button>
 
                                           {tr.status_json?.portal_token && (
                                             <button
                                               onClick={() => window.open(`/Auditing/client-portal/${tr.status_json.portal_token}`, '_blank')}
                                               style={{
-                                                padding: "6px 10px", backgroundColor: C.tealBg, color: C.teal, border: `1px solid ${C.tealBorder}`, borderRadius: 6,
-                                                fontSize: 11.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4
+                                                padding: "5px 9px", backgroundColor: C.tealBg, color: C.teal, border: `1px solid ${C.tealBorder}`, borderRadius: 6,
+                                                fontSize: 11, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 3
                                               }}
                                               title="Open Secure Upload Portal"
                                             >
-                                              <ExternalLink size={12} /> Portal
-                                            </button>
-                                          )}
-
-                                          {attachments.length > 0 && (
-                                            <button
-                                              onClick={() => { setViewingFileItem(tr); setShowUploadedFilesModal(true); }}
-                                              style={{ padding: "6px 10px", backgroundColor: C.surface, color: C.text2, border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}
-                                              title="View uploaded files"
-                                            >
-                                              View
+                                              <ExternalLink size={11} /> Portal
                                             </button>
                                           )}
 
                                           <button
                                             onClick={() => handleDeleteTrackerItem(tr)}
-                                            style={{ padding: "6px 8px", backgroundColor: C.surface, color: C.red, border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 11.5, cursor: "pointer" }}
+                                            style={{ padding: "5px 7px", backgroundColor: C.surface, color: C.red, border: `1px solid ${C.redBorder}`, borderRadius: 6, fontSize: 11, cursor: "pointer" }}
                                             title="Remove requirement from tracker"
                                           >
-                                            <Trash2 size={13} />
+                                            <Trash2 size={12} />
                                           </button>
                                         </div>
                                       </td>
@@ -4629,130 +5560,9 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
                             </tbody>
                           </table>
                         </div>
-                      )}
-
-                      {/* 2. PIPELINE KANBAN BOARD VIEW */}
-                      {trackerViewMode === "pipeline" && (
-                        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, alignItems: "start" }}>
-
-                          {/* Column 1: Draft / Pending */}
-                          <div style={{ backgroundColor: C.bg2, borderRadius: 12, padding: 16, border: `1px solid ${C.border}` }}>
-                            <div style={{ fontSize: 13, fontWeight: 800, color: C.text2, marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                              <span>📌 1. Draft / Pending ({dataTrackerRows.filter(r => !r.status_json?.document_status || r.status_json?.document_status === "Pending" || r.status_json?.document_status === "Not Received").length})</span>
-                            </div>
-                            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                              {dataTrackerRows.filter(r => !r.status_json?.document_status || r.status_json?.document_status === "Pending" || r.status_json?.document_status === "Not Received").map(tr => {
-                                const linkedProg = programmeRows.find(p => p.id === tr.programme_id);
-                                const dataReqText = linkedProg?.row_data?.data_requirement || tr.data_requirement || "Audit Document";
-                                const recipientObj = orgMembers.find(m => String(m.id) === String(tr.client_person_id));
-
-                                return (
-                                  <div key={tr.id} style={{ backgroundColor: C.surface, borderRadius: 10, padding: 14, border: `1px solid ${C.border}`, boxShadow: "0 2px 4px rgba(0,0,0,0.03)" }}>
-                                    <div style={{ fontSize: 12.5, fontWeight: 700, color: C.text1, marginBottom: 6 }}>{dataReqText}</div>
-                                    <div style={{ fontSize: 11, color: C.text3, marginBottom: 10 }}>
-                                      Recipient: {recipientObj ? <strong>{recipientObj.member_name}</strong> : <span style={{ color: C.amber }}>Not assigned</span>}
-                                    </div>
-                                    <button
-                                      onClick={() => handleOpenEmailDraft([tr], tr.client_person_id)}
-                                      style={{ width: "100%", padding: "6px", backgroundColor: C.tealBg, color: C.teal, border: `1px solid ${C.tealBorder}`, borderRadius: 6, fontSize: 11.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
-                                    >
-                                      <Send size={12} /> Draft Email Request
-                                    </button>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-
-                          {/* Column 2: Email Sent / Awaiting Upload */}
-                          <div style={{ backgroundColor: C.tealBg + "40", borderRadius: 12, padding: 16, border: `1px solid ${C.tealBorder}` }}>
-                            <div style={{ fontSize: 13, fontWeight: 800, color: C.teal, marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                              <span>✉️ 2. Email Sent ({dataTrackerRows.filter(r => r.status_json?.document_status === "Email Sent").length})</span>
-                            </div>
-                            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                              {dataTrackerRows.filter(r => r.status_json?.document_status === "Email Sent").map(tr => {
-                                const linkedProg = programmeRows.find(p => p.id === tr.programme_id);
-                                const dataReqText = linkedProg?.row_data?.data_requirement || tr.data_requirement || "Audit Document";
-                                const recipientObj = orgMembers.find(m => String(m.id) === String(tr.client_person_id));
-
-                                return (
-                                  <div key={tr.id} style={{ backgroundColor: C.surface, borderRadius: 10, padding: 14, border: `1px solid ${C.tealBorder}`, boxShadow: "0 2px 4px rgba(0,0,0,0.03)" }}>
-                                    <div style={{ fontSize: 12.5, fontWeight: 700, color: C.text1, marginBottom: 6 }}>{dataReqText}</div>
-                                    <div style={{ fontSize: 11, color: C.text3, marginBottom: 8 }}>
-                                      To: <strong>{recipientObj?.member_name || "Client Person"}</strong>
-                                    </div>
-                                    <div style={{ fontSize: 10.5, fontWeight: 700, color: C.teal, backgroundColor: C.tealBg, padding: "3px 8px", borderRadius: 6, border: `1px solid ${C.tealBorder}`, marginBottom: 8, display: "inline-block" }}>
-                                      🔒 Secure Link Active
-                                    </div>
-                                    {tr.status_json?.portal_token && (
-                                      <button
-                                        onClick={() => window.open(`/Auditing/client-portal/${tr.status_json.portal_token}`, '_blank')}
-                                        style={{ width: "100%", padding: "5px", backgroundColor: C.surface, color: C.teal, border: `1px solid ${C.tealBorder}`, borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
-                                      >
-                                        <ExternalLink size={11} /> Open Public Portal Link
-                                      </button>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-
-                          {/* Column 3: Document Received / Uploaded */}
-                          <div style={{ backgroundColor: C.greenBg + "40", borderRadius: 12, padding: 16, border: `1px solid ${C.greenBorder}` }}>
-                            <div style={{ fontSize: 13, fontWeight: 800, color: C.green, marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                              <span>📤 3. Received ({dataTrackerRows.filter(r => r.status_json?.document_status === "Received").length})</span>
-                            </div>
-                            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                              {dataTrackerRows.filter(r => r.status_json?.document_status === "Received").map(tr => {
-                                const linkedProg = programmeRows.find(p => p.id === tr.programme_id);
-                                const dataReqText = linkedProg?.row_data?.data_requirement || tr.data_requirement || "Audit Document";
-                                const files = tr.attachments || [];
-
-                                return (
-                                  <div key={tr.id} style={{ backgroundColor: C.surface, borderRadius: 10, padding: 14, border: `1px solid ${C.greenBorder}`, boxShadow: "0 2px 4px rgba(0,0,0,0.03)" }}>
-                                    <div style={{ fontSize: 12.5, fontWeight: 700, color: C.text1, marginBottom: 6 }}>{dataReqText}</div>
-                                    <div style={{ fontSize: 11, fontWeight: 700, color: C.green, marginBottom: 8 }}>
-                                      📁 {files.length} File(s) Uploaded
-                                    </div>
-                                    <button
-                                      onClick={() => { setViewingFileItem(tr); setShowUploadedFilesModal(true); }}
-                                      style={{ width: "100%", padding: "6px", backgroundColor: C.green, color: "#fff", border: "none", borderRadius: 6, fontSize: 11.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
-                                    >
-                                      <FileSpreadsheet size={12} /> View Files & Verify
-                                    </button>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-
-                          {/* Column 4: Reviewed & Verified */}
-                          <div style={{ backgroundColor: C.purpleBg, borderRadius: 12, padding: 16, border: `1px solid ${C.purpleBorder}` }}>
-                            <div style={{ fontSize: 13, fontWeight: 800, color: C.purple, marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                              <span>✅ 4. Reviewed ({dataTrackerRows.filter(r => r.status_json?.document_status === "Reviewed").length})</span>
-                            </div>
-                            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                              {dataTrackerRows.filter(r => r.status_json?.document_status === "Reviewed").map(tr => {
-                                const linkedProg = programmeRows.find(p => p.id === tr.programme_id);
-                                const dataReqText = linkedProg?.row_data?.data_requirement || tr.data_requirement || "Audit Document";
-
-                                return (
-                                  <div key={tr.id} style={{ backgroundColor: C.surface, borderRadius: 10, padding: 14, border: `1px solid ${C.purpleBorder}`, boxShadow: "0 2px 4px rgba(0,0,0,0.03)" }}>
-                                    <div style={{ fontSize: 12.5, fontWeight: 700, color: C.text1, marginBottom: 6 }}>{dataReqText}</div>
-                                    <div style={{ fontSize: 11, fontWeight: 700, color: C.purple, display: "flex", alignItems: "center", gap: 4 }}>
-                                      <CheckCircle2 size={13} /> Verified by Auditor
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-
-                        </div>
-                      )}
-                    </div>
-                  )}
+                      </div>
+                    );
+                  })()}
 
                   {/* Sub-Tab 3: Minutes of Meeting (MOM) */}
                   {stage2SubTab === "mom" && (() => {
@@ -4884,7 +5694,14 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
                                   <th style={{ padding: "12px 14px", width: 50, textAlign: "center", fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5 }}>#</th>
                                   {momColumns.map(col => (
                                     <th key={col.key} style={{ padding: "12px 14px", width: col.width || 180, fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5 }}>
-                                      {col.label}
+                                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 5 }}>
+                                        <span>{col.label}</span>
+                                        {!['meeting_date', 'topic', 'status'].includes(col.key) && (
+                                          <button onClick={() => handleRequestDeleteColumn(col.key, col.label, "mom")} title="Remove Column" style={{ background: "transparent", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: 11, paddingLeft: 3 }}>
+                                            ✕
+                                          </button>
+                                        )}
+                                      </div>
                                     </th>
                                   ))}
                                   <th style={{ padding: "12px 14px", width: 90, textAlign: "center", fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5 }}>Actions</th>
@@ -5264,7 +6081,14 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
                                     <th style={{ padding: "12px 10px", width: 45, textAlign: "center", border: "1px solid #334155", fontSize: 11.5, fontWeight: 800 }}>#</th>
                                     {testingColumns.map(col => (
                                       <th key={col.key} style={{ padding: "12px 14px", width: col.width || 200, border: "1px solid #334155", fontSize: 11.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5 }}>
-                                        {col.label}
+                                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 5 }}>
+                                          <span>{col.label}</span>
+                                          {!['data_requirement', 'procedure', 'testing_status'].includes(col.key) && (
+                                            <button onClick={() => handleRequestDeleteColumn(col.key, col.label, "testing")} title="Remove Column" style={{ background: "transparent", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: 11, paddingLeft: 3 }}>
+                                              ✕
+                                            </button>
+                                          )}
+                                        </div>
                                       </th>
                                     ))}
                                     <th style={{ padding: "12px 14px", width: 95, textAlign: "center", border: "1px solid #334155", fontSize: 11.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5 }}>Actions</th>
@@ -5816,7 +6640,14 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
                                     <th style={{ padding: "12px 10px", width: 45, textAlign: "center", border: "1px solid #334155", fontSize: 11.5, fontWeight: 800 }}>#</th>
                                     {queriesColumns.map(col => (
                                       <th key={col.key} style={{ padding: "12px 14px", width: col.width || 220, border: "1px solid #334155", fontSize: 11.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5 }}>
-                                        {col.label}
+                                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 5 }}>
+                                          <span>{col.label}</span>
+                                          {!['query_title', 'procedure', 'query_status'].includes(col.key) && (
+                                            <button onClick={() => handleRequestDeleteColumn(col.key, col.label, "queries")} title="Remove Column" style={{ background: "transparent", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: 11, paddingLeft: 3 }}>
+                                              ✕
+                                            </button>
+                                          )}
+                                        </div>
                                       </th>
                                     ))}
                                     <th style={{ padding: "12px 14px", width: 95, textAlign: "center", border: "1px solid #334155", fontSize: 11.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5 }}>Actions</th>
@@ -6953,6 +7784,100 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
         </div>
       )}
 
+      {/* Two-Step Verification Column Deletion Modal */}
+      {colToDelete && (
+        <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(15,23,42,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1200, backdropFilter: "blur(5px)", padding: 20 }}>
+          <div style={{ backgroundColor: C.surface, borderRadius: 16, width: 500, maxWidth: "95vw", display: "flex", flexDirection: "column", border: `1px solid ${C.redBorder}`, boxShadow: "0 25px 50px -12px rgba(239,68,68,0.25)", overflow: "hidden" }}>
+            
+            {/* Header */}
+            <div style={{ background: "linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%)", padding: "18px 24px", color: "#ffffff", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 22 }}>⚠️</span>
+                <div>
+                  <h3 style={{ fontSize: 16, fontWeight: 800, color: "#ffffff", margin: 0 }}>Delete Column Verification</h3>
+                  <div style={{ fontSize: 11, color: "#fca5a5", marginTop: 2 }}>Two-Step Permanent Column Removal</div>
+                </div>
+              </div>
+              <button
+                onClick={() => { setColToDelete(null); setDeleteColInput(""); }}
+                style={{ border: "none", background: "rgba(255,255,255,0.15)", fontSize: 16, cursor: "pointer", color: "#fef2f2", width: 28, height: 28, borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center" }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Content */}
+            <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
+              <div style={{ fontSize: 13, color: C.text1, lineHeight: 1.6 }}>
+                You are about to permanently delete the column <strong style={{ color: C.red, backgroundColor: C.redBg, padding: "2px 6px", borderRadius: 4, border: `1px solid ${C.redBorder}` }}>{colToDelete.label}</strong> ({colToDelete.key}) from the <strong>{colToDelete.targetTab === 'mom' ? 'Minutes of Meeting' : colToDelete.targetTab === 'testing' ? 'Testing' : colToDelete.targetTab === 'queries' ? 'Queries / Resolution' : 'Audit Programme'}</strong> table.
+              </div>
+
+              <div style={{ backgroundColor: C.bg2, border: `1px solid ${C.border}`, borderRadius: 8, padding: 12, fontSize: 12, color: C.text2, lineHeight: 1.5 }}>
+                ⚠️ <strong>Warning:</strong> All data and values saved under this column across all rows will be permanently removed from the database and front end.
+              </div>
+
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, color: C.text1, display: "block", marginBottom: 6 }}>
+                  To confirm deletion, please type <span style={{ color: C.red, fontWeight: 800, letterSpacing: 0.5 }}>DELETE</span> below:
+                </label>
+                <input
+                  type="text"
+                  placeholder="Type DELETE to confirm"
+                  value={deleteColInput}
+                  onChange={e => setDeleteColInput(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && deleteColInput.trim() === 'DELETE' && !isDeletingCol) {
+                      e.preventDefault();
+                      handleConfirmDeleteColumn();
+                    }
+                  }}
+                  autoFocus
+                  style={{
+                    width: "100%", padding: "10px 14px", borderRadius: 8,
+                    border: `2px solid ${deleteColInput.trim() === 'DELETE' ? C.red : C.border}`,
+                    fontSize: 14, fontWeight: 700, color: C.text1, outline: "none",
+                    backgroundColor: C.surface, letterSpacing: 1
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div style={{ padding: "16px 24px", borderTop: `1px solid ${C.border}`, backgroundColor: C.surface, display: "flex", justifyContent: "flex-end", gap: 12 }}>
+              <button
+                type="button"
+                onClick={() => { setColToDelete(null); setDeleteColInput(""); }}
+                style={{ padding: "8px 18px", border: `1px solid ${C.border}`, borderRadius: 6, background: "transparent", cursor: "pointer", fontSize: 13, fontWeight: 600, color: C.text1 }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={deleteColInput.trim() !== "DELETE" || isDeletingCol}
+                onClick={handleConfirmDeleteColumn}
+                style={{
+                  padding: "8px 20px",
+                  backgroundColor: deleteColInput.trim() === "DELETE" && !isDeletingCol ? C.red : "#94a3b8",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 6,
+                  cursor: deleteColInput.trim() === "DELETE" && !isDeletingCol ? "pointer" : "not-allowed",
+                  fontWeight: 700,
+                  fontSize: 13,
+                  boxShadow: deleteColInput.trim() === "DELETE" ? "0 4px 12px rgba(239,68,68,0.3)" : "none",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6
+                }}
+              >
+                {isDeletingCol ? "Deleting..." : "Permanently Delete Column"}
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
       {/* 5. RIGHT SLIDE-OVER AUDIT STEP DETAIL DRAWER PANEL */}
       {selectedDrawerRow && (() => {
         const matchingTrackerItem = dataTrackerRows.find(tr =>
@@ -7813,6 +8738,17 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
                 </div>
               </div>
 
+              {/* Scheduled Date */}
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, color: C.text2 }}>Scheduled Activity Date</label>
+                <input
+                  type="date"
+                  value={calDrawerItem.activity_date || calDrawerItem.date || ""}
+                  onChange={e => setCalDrawerItem({ ...calDrawerItem, activity_date: e.target.value })}
+                  style={{ width: "100%", padding: 10, borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 13, marginTop: 4, backgroundColor: C.surface, color: C.text1 }}
+                />
+              </div>
+
               {/* Activity Name */}
               <div>
                 <label style={{ fontSize: 12, fontWeight: 700, color: C.text2 }}>Activity Name *</label>
@@ -8457,9 +9393,25 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
         </div>
       )}
       {showAddOrgModal && (
-        <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(15,23,42,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-          <div style={{ backgroundColor: C.surface, borderRadius: 12, padding: 28, width: 450, border: `1px solid ${C.border}` }}>
-            <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 16 }}>+ Add Client Contact Member</h3>
+        <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(15,23,42,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, backdropFilter: "blur(2px)" }}>
+          <div style={{ backgroundColor: C.surface, borderRadius: 14, padding: 28, width: 480, border: `1px solid ${C.border}`, boxShadow: "0 20px 50px rgba(0,0,0,0.2)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <div>
+                <h3 style={{ fontSize: 18, fontWeight: 800, margin: 0, color: C.text1 }}>
+                  {editingOrgId ? "✏️ Edit Client Contact Member" : "+ Add Client Contact Member"}
+                </h3>
+                <div style={{ fontSize: 12, color: C.text3, marginTop: 3 }}>
+                  {editingOrgId ? "Update contact details and save directly to database." : "Add a new stakeholder or coordinator to the project directory."}
+                </div>
+              </div>
+              <button
+                onClick={() => { setShowAddOrgModal(false); setEditingOrgId(null); }}
+                style={{ border: "none", background: "transparent", fontSize: 18, cursor: "pointer", color: C.text3 }}
+              >
+                ✕
+              </button>
+            </div>
+
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <div>
                 <label style={{ fontSize: 12, fontWeight: 600, color: C.text2 }}>Member Full Name *</label>
@@ -8468,7 +9420,7 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
                   placeholder="e.g. Rajesh Kumar"
                   value={newOrgMember.member_name}
                   onChange={e => setNewOrgMember({ ...newOrgMember, member_name: e.target.value })}
-                  style={{ width: "100%", padding: 10, borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 13, marginTop: 4 }}
+                  style={{ width: "100%", padding: 10, borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 13, marginTop: 4, backgroundColor: C.surface, color: C.text1 }}
                 />
               </div>
 
@@ -8480,7 +9432,7 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
                     placeholder="e.g. General Manager"
                     value={newOrgMember.designation}
                     onChange={e => setNewOrgMember({ ...newOrgMember, designation: e.target.value })}
-                    style={{ width: "100%", padding: 10, borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 13, marginTop: 4 }}
+                    style={{ width: "100%", padding: 10, borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 13, marginTop: 4, backgroundColor: C.surface, color: C.text1 }}
                   />
                 </div>
                 <div>
@@ -8490,7 +9442,7 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
                     placeholder="e.g. Procurement"
                     value={newOrgMember.department}
                     onChange={e => setNewOrgMember({ ...newOrgMember, department: e.target.value })}
-                    style={{ width: "100%", padding: 10, borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 13, marginTop: 4 }}
+                    style={{ width: "100%", padding: 10, borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 13, marginTop: 4, backgroundColor: C.surface, color: C.text1 }}
                   />
                 </div>
               </div>
@@ -8503,7 +9455,7 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
                     placeholder="e.g. rajesh.k@company.com"
                     value={newOrgMember.email}
                     onChange={e => setNewOrgMember({ ...newOrgMember, email: e.target.value })}
-                    style={{ width: "100%", padding: 10, borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 13, marginTop: 4 }}
+                    style={{ width: "100%", padding: 10, borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 13, marginTop: 4, backgroundColor: C.surface, color: C.text1 }}
                   />
                 </div>
                 <div>
@@ -8513,14 +9465,26 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
                     placeholder="e.g. +91 9876543210"
                     value={newOrgMember.phone}
                     onChange={e => setNewOrgMember({ ...newOrgMember, phone: e.target.value })}
-                    style={{ width: "100%", padding: 10, borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 13, marginTop: 4 }}
+                    style={{ width: "100%", padding: 10, borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 13, marginTop: 4, backgroundColor: C.surface, color: C.text1 }}
                   />
                 </div>
               </div>
 
               <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 12 }}>
-                <button onClick={() => setShowAddOrgModal(false)} style={{ padding: "8px 16px", border: `1px solid ${C.border}`, borderRadius: 6, background: "transparent", cursor: "pointer" }}>Cancel</button>
-                <button onClick={handleAddOrgMember} style={{ padding: "8px 16px", backgroundColor: C.teal, color: "#fff", border: "none", borderRadius: 6, cursor: "pointer", fontWeight: 600 }}>Save Contact Member</button>
+                <button
+                  type="button"
+                  onClick={() => { setShowAddOrgModal(false); setEditingOrgId(null); }}
+                  style={{ padding: "8px 16px", border: `1px solid ${C.border}`, borderRadius: 6, background: "transparent", cursor: "pointer", color: C.text2 }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveOrgMember}
+                  style={{ padding: "8px 18px", backgroundColor: C.teal, color: "#fff", border: "none", borderRadius: 6, cursor: "pointer", fontWeight: 700, boxShadow: "0 2px 6px rgba(13,148,136,0.25)" }}
+                >
+                  {editingOrgId ? "Save Changes" : "Save Contact Member"}
+                </button>
               </div>
             </div>
           </div>
@@ -9002,17 +9966,38 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
                         <div style={{ fontSize: 11, color: C.text3 }}>{(f.size / 1024).toFixed(1)} KB • Uploaded {new Date(f.uploadedAt).toLocaleString()}</div>
                       </div>
                     </div>
-                    {f.dataUrl && (
-                      <a
-                        href={f.dataUrl}
-                        download={f.name}
-                        target="_blank"
-                        rel="noreferrer"
-                        style={{ padding: "6px 14px", backgroundColor: C.surface, color: C.teal, border: `1px solid ${C.tealBorder}`, borderRadius: 8, fontSize: 12, fontWeight: 700, textDecoration: "none" }}
-                      >
-                        Download / View
-                      </a>
-                    )}
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      {(f.url || f.dataUrl) && (
+                        <>
+                          <button
+                            onClick={() => window.open(f.url || f.dataUrl, '_blank', 'noopener,noreferrer')}
+                            style={{
+                              padding: "6px 12px", backgroundColor: C.tealBg, color: C.teal,
+                              border: `1px solid ${C.tealBorder}`, borderRadius: 8, fontSize: 11.5,
+                              fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5
+                            }}
+                            title="Open document in a new window/tab"
+                          >
+                            <Eye size={13} /> View
+                          </button>
+
+                          <a
+                            href={f.url || f.dataUrl}
+                            download={f.name || 'document'}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{
+                              padding: "6px 12px", backgroundColor: C.teal, color: "#fff",
+                              border: "none", borderRadius: 8, fontSize: 11.5,
+                              fontWeight: 700, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 5
+                            }}
+                            title="Download document file"
+                          >
+                            <Download size={13} /> Download
+                          </a>
+                        </>
+                      )}
+                    </div>
                   </div>
                 ))
               )}
@@ -9044,6 +10029,320 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
           </div>
         </div>
       )}
+
+      {/* ── 10. EMAIL & COMMUNICATION PIPELINE TIMELINE MODAL ── */}
+      {showEmailPipelineModal && pipelineItem && (() => {
+        const linkedProg = programmeRows.find(p => String(p.id) === String(pipelineItem.programme_id) || String(p.id) === String(pipelineItem.id));
+        const docTitle = pipelineItem.data_requirement || linkedProg?.row_data?.data_requirement || linkedProg?.row_data?.document_name || "Requested Audit Document";
+        const subProc = pipelineItem.sub_process || linkedProg?.row_data?.sub_process || "";
+        const clientRecipient = orgMembers.find(m => String(m.id) === String(pipelineItem.client_person_id)) || {
+          member_name: pipelineItem.client_person_id || "Client Contact",
+          email: pipelineItem.client_person_id && pipelineItem.client_person_id.includes('@') ? pipelineItem.client_person_id : "client@company.com"
+        };
+
+        const rawDocStatus = pipelineItem.document_status || pipelineItem.status_json?.document_status || "Pending";
+        const currentDocStatus = STATUS_CONFIG[rawDocStatus] ? (rawDocStatus === "Email Sent" ? "Pending" : rawDocStatus) : "Pending";
+        const docStatusStyle = STATUS_CONFIG[currentDocStatus];
+
+        const rawTrail = Array.isArray(pipelineItem.communication_trail)
+          ? [...pipelineItem.communication_trail]
+          : (Array.isArray(pipelineItem.status_json?.communication_trail) ? [...pipelineItem.status_json.communication_trail] : []);
+
+        // Check if rawTrail already contains specific milestone types
+        const hasInitialDispatch = rawTrail.some(e => e.type === 'INITIAL_DISPATCH' || e.type === 'INITIAL_EMAIL');
+        const hasDriveSubmission = rawTrail.some(e => e.type === 'CLIENT_DRIVE_SUBMISSION');
+        const hasUpload = rawTrail.some(e => e.type === 'CLIENT_UPLOAD');
+
+        const fullTimeline = [...rawTrail];
+
+        // Ensure Initial Email Dispatch is always present if email was ever sent
+        if (!hasInitialDispatch && (pipelineItem.email_sent_at || pipelineItem.status_json?.sent_at || pipelineItem.email_status === "Email Sent" || pipelineItem.email_status === "Resent")) {
+          fullTimeline.push({
+            id: 'synth_initial_email',
+            type: 'INITIAL_DISPATCH',
+            title: 'Initial IDR Email Dispatched',
+            timestamp: pipelineItem.email_sent_at || pipelineItem.status_json?.sent_at || pipelineItem.created_at || new Date().toISOString(),
+            recipient_name: clientRecipient.member_name,
+            recipient_email: clientRecipient.email,
+            subject: 'Information Document Request (IDR)',
+            remarks: pipelineItem.remarks || pipelineItem.status_json?.remarks || '',
+            status: 'Delivered'
+          });
+        }
+
+        // Ensure Client Google Drive / Cloud Link submission is always present if submitted
+        if (!hasDriveSubmission && (pipelineItem.client_submission?.drive_url || pipelineItem.status_json?.drive_url)) {
+          fullTimeline.push({
+            id: 'synth_drive_submission',
+            type: 'CLIENT_DRIVE_SUBMISSION',
+            title: 'Client Shared Cloud Folder Link',
+            timestamp: pipelineItem.client_submission?.submitted_at || pipelineItem.status_json?.received_at || pipelineItem.updated_at || new Date().toISOString(),
+            drive_url: pipelineItem.client_submission?.drive_url || pipelineItem.status_json?.drive_url,
+            instructions: pipelineItem.client_submission?.instructions || pipelineItem.status_json?.drive_notes,
+            submitted_by: pipelineItem.client_submission?.submitted_by || clientRecipient.member_name,
+            status: 'Under Review'
+          });
+        }
+
+        // Ensure Client Uploaded Documents milestone is always present if attachments exist
+        if (!hasUpload && Array.isArray(pipelineItem.attachments) && pipelineItem.attachments.length > 0) {
+          fullTimeline.push({
+            id: 'synth_upload',
+            type: 'CLIENT_UPLOAD',
+            title: 'Client Uploaded Document Evidence',
+            timestamp: pipelineItem.attachments[0]?.uploadedAt || pipelineItem.status_json?.received_at || pipelineItem.updated_at || new Date().toISOString(),
+            files_count: pipelineItem.attachments.length,
+            files: pipelineItem.attachments,
+            submitted_by: clientRecipient.member_name,
+            status: 'Under Review'
+          });
+        }
+
+        // Add current verified status review milestone if received
+        if (currentDocStatus === 'Received' || currentDocStatus === 'Received Wrong') {
+          const hasMatchingStatus = fullTimeline.some(e => e.type === 'AUDITOR_STATUS_CHANGE' && e.status === currentDocStatus);
+          if (!hasMatchingStatus) {
+            fullTimeline.push({
+              id: `status_review_${currentDocStatus.toLowerCase().replace(/\s+/g, '_')}`,
+              type: 'AUDITOR_STATUS_CHANGE',
+              title: `Auditor Marked Status: ${currentDocStatus}`,
+              timestamp: pipelineItem.updated_at || new Date().toISOString(),
+              status: currentDocStatus
+            });
+          }
+        }
+
+        // Sort all events chronologically (oldest at top, newest at bottom)
+        fullTimeline.sort((a, b) => new Date(a.timestamp || 0).getTime() - new Date(b.timestamp || 0).getTime());
+        const synthesizedTrail = fullTimeline;
+
+        // Accurate Email Status Calculation from Trail
+        const emailEventCount = synthesizedTrail.filter(e => e.type === 'INITIAL_DISPATCH' || e.type === 'RESENT' || e.type?.includes('EMAIL')).length;
+        const currentEmailStatus = emailEventCount > 1 ? 'Resent' : (emailEventCount === 1 ? 'Email Sent' : (EMAIL_STATUS_CONFIG[pipelineItem.email_status] ? pipelineItem.email_status : 'Not Sent'));
+        const emailStatusStyle = EMAIL_STATUS_CONFIG[currentEmailStatus] || EMAIL_STATUS_CONFIG['Not Sent'];
+
+        return (
+          <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(15,23,42,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1250, backdropFilter: "blur(4px)", padding: 20 }}>
+            <div style={{ backgroundColor: C.surface, borderRadius: 16, width: 740, maxHeight: "90vh", display: "flex", flexDirection: "column", border: `1px solid ${C.border}`, boxShadow: "0 25px 50px rgba(0,0,0,0.25)" }}>
+              {/* Modal Header */}
+              <div style={{ padding: "20px 24px", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ width: 38, height: 38, borderRadius: 10, backgroundColor: C.tealBg, border: `1px solid ${C.tealBorder}`, display: "flex", alignItems: "center", justifyContent: "center", color: C.teal }}>
+                    <GitBranch size={20} />
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: 17, fontWeight: 800, color: C.text1, margin: 0 }}>Email & Communication Pipeline</h3>
+                    <div style={{ fontSize: 12, color: C.text3, marginTop: 2 }}>Audit engagement communication timeline and client submission milestones</div>
+                  </div>
+                </div>
+                <button onClick={() => setShowEmailPipelineModal(false)} style={{ border: "none", background: "transparent", fontSize: 18, cursor: "pointer", color: C.text3 }}>✕</button>
+              </div>
+
+              {/* Modal Body with Vertical Scroll Track */}
+              <div style={{ padding: "20px 24px", overflowY: "auto", maxHeight: "68vh", display: "flex", flexDirection: "column", gap: 16, flex: 1 }}>
+                {/* Context Card */}
+                <div style={{ backgroundColor: C.bg2, borderRadius: 12, padding: 16, border: `1px solid ${C.border}` }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 800, color: C.teal, textTransform: "uppercase", letterSpacing: 0.6 }}>Requirement Item</div>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: C.text1, marginTop: 2 }}>{docTitle}</div>
+                      {subProc && (
+                        <div style={{ fontSize: 11.5, color: C.text2, marginTop: 3 }}>
+                          Sub-Process: <span style={{ fontWeight: 600 }}>{subProc}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                      <span style={{ padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, backgroundColor: docStatusStyle.bg, color: docStatusStyle.color, border: `1px solid ${docStatusStyle.border}` }}>
+                        Doc: {currentDocStatus}
+                      </span>
+                      <span style={{ padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, backgroundColor: emailStatusStyle.bg, color: emailStatusStyle.color, border: `1px solid ${emailStatusStyle.border}` }}>
+                        Email: {currentEmailStatus}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
+                    <div>
+                      <div style={{ fontSize: 11, color: C.text3, fontWeight: 600 }}>CLIENT RECIPIENT</div>
+                      <div style={{ fontSize: 12.5, fontWeight: 700, color: C.text1, marginTop: 2 }}>
+                        {clientRecipient.member_name} <span style={{ fontSize: 11, color: C.text3, fontWeight: 500 }}>({clientRecipient.email})</span>
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, color: C.text3, fontWeight: 600 }}>AUDITOR REMARKS / FEEDBACK NOTE</div>
+                      <div style={{ fontSize: 12.5, fontWeight: 600, color: (pipelineItem.remarks || pipelineItem.status_json?.remarks) ? C.amber : C.text3, marginTop: 2 }}>
+                        {(pipelineItem.remarks || pipelineItem.status_json?.remarks) || "No specific feedback remarks attached yet."}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Pipeline Timeline Stream (Top to Bottom: Earliest to Latest) */}
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: C.text1, marginBottom: 14, display: "flex", alignItems: "center", gap: 6 }}>
+                    <History size={15} color={C.teal} />
+                    <span>Pipeline Milestones & Activity History ({synthesizedTrail.length})</span>
+                  </div>
+
+                  {synthesizedTrail.length === 0 ? (
+                    <div style={{ padding: "32px 20px", textAlign: "center", backgroundColor: C.bg2, borderRadius: 12, border: `1px dashed ${C.border}` }}>
+                      <Mail size={32} style={{ color: C.text3, margin: "0 auto 10px", display: "block" }} />
+                      <div style={{ fontSize: 14, fontWeight: 700, color: C.text1 }}>No Email Dispatched Yet</div>
+                      <div style={{ fontSize: 12, color: C.text3, marginTop: 4, maxWidth: 360, margin: "4px auto 14px" }}>
+                        An Information Document Request has not been sent to the client yet for this document requirement.
+                      </div>
+                      <button
+                        onClick={() => {
+                          setShowEmailPipelineModal(false);
+                          handleOpenEmailDraft([pipelineItem], pipelineItem.client_person_id);
+                        }}
+                        style={{ padding: "8px 18px", backgroundColor: C.teal, color: "#fff", border: "none", borderRadius: 8, fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}
+                      >
+                        <Send size={13} /> Send Initial IDR Request Email
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", position: "relative", paddingLeft: 20 }}>
+                      {/* Vertical Connecting Track */}
+                      <div style={{ position: "absolute", top: 12, bottom: 20, left: 29, width: 2, backgroundColor: C.tealBorder, zIndex: 1 }} />
+
+                      {synthesizedTrail.map((event, idx) => {
+                        const isEmailEvent = event.type === 'INITIAL_DISPATCH' || event.type === 'RESENT' || event.type?.includes('EMAIL');
+                        const isDriveEvent = event.type === 'CLIENT_DRIVE_SUBMISSION';
+                        const isUploadEvent = event.type === 'CLIENT_UPLOAD';
+                        const isStatusEvent = event.type === 'AUDITOR_STATUS_CHANGE';
+
+                        const iconBg = isEmailEvent ? C.blueBg : (isDriveEvent ? C.purpleBg : (isUploadEvent ? C.greenBg : C.amberBg));
+                        const iconColor = isEmailEvent ? C.blue : (isDriveEvent ? C.purple : (isUploadEvent ? C.green : C.amber));
+                        const iconBorder = isEmailEvent ? C.blueBorder : (isDriveEvent ? C.purpleBorder : (isUploadEvent ? C.greenBorder : C.amberBorder));
+
+                        return (
+                          <div key={event.id || idx} style={{ display: "flex", gap: 14, marginBottom: 20, position: "relative", zIndex: 2 }}>
+                            {/* Timeline Node Icon */}
+                            <div style={{ width: 24, height: 24, borderRadius: "50%", backgroundColor: iconBg, border: `2px solid ${iconBorder}`, color: iconColor, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2, boxShadow: "0 0 0 3px #fff" }}>
+                              {isEmailEvent ? <Mail size={12} /> : (isDriveEvent ? <FolderOpen size={12} /> : (isUploadEvent ? <FileCheck size={12} /> : <CheckCircle2 size={12} />))}
+                            </div>
+
+                            {/* Timeline Content Box */}
+                            <div style={{ flex: 1, backgroundColor: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: "14px 16px", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                                <div style={{ fontSize: 13.5, fontWeight: 800, color: C.text1 }}>
+                                  {event.title || (isEmailEvent ? (idx === 0 ? "Initial IDR Email Sent" : "Follow-up Email Resent") : "Milestone")}
+                                </div>
+                                <div style={{ fontSize: 11, color: C.text3, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
+                                  <Clock size={11} /> {event.timestamp ? new Date(event.timestamp).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : "Recently"}
+                                </div>
+                              </div>
+
+                              {/* Details per event type */}
+                              {isEmailEvent && (
+                                <div style={{ fontSize: 12, color: C.text2, display: "flex", flexDirection: "column", gap: 4 }}>
+                                  <div>To: <span style={{ fontWeight: 600, color: C.text1 }}>{event.recipient_name || clientRecipient.member_name}</span> ({event.recipient_email || clientRecipient.email})</div>
+                                  {event.subject && <div>Subject: <span style={{ fontStyle: "italic", color: C.text1 }}>{event.subject}</span></div>}
+                                  {event.remarks && (
+                                    <div style={{ marginTop: 4, backgroundColor: C.amberBg, border: `1px solid ${C.amberBorder}`, padding: "6px 10px", borderRadius: 6, color: C.amber, fontSize: 11.5, fontWeight: 600 }}>
+                                      💬 Included Auditor Note: "{event.remarks}"
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              {isDriveEvent && (
+                                <div style={{ fontSize: 12, color: C.text2, display: "flex", flexDirection: "column", gap: 6 }}>
+                                  <div>Submitted by: <span style={{ fontWeight: 600, color: C.text1 }}>{event.submitted_by || "Client"}</span></div>
+                                  {event.instructions && <div style={{ fontStyle: "italic" }}>Notes: "{event.instructions}"</div>}
+                                  {event.drive_url && (
+                                    <a
+                                      href={event.drive_url}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", backgroundColor: C.purpleBg, color: C.purple, border: `1px solid ${C.purpleBorder}`, borderRadius: 6, fontSize: 11.5, fontWeight: 700, textDecoration: "none", width: "fit-content", marginTop: 2 }}
+                                    >
+                                      <FolderOpen size={12} /> Open Shared Cloud Folder
+                                      <ExternalLink size={11} />
+                                    </a>
+                                  )}
+                                </div>
+                              )}
+
+                              {isUploadEvent && (
+                                <div style={{ fontSize: 12, color: C.text2, display: "flex", flexDirection: "column", gap: 6 }}>
+                                  <div>Files uploaded: <span style={{ fontWeight: 700, color: C.text1 }}>{event.files_count || (event.files || []).length} document(s)</span></div>
+                                  {Array.isArray(event.files) && event.files.length > 0 && (
+                                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 4 }}>
+                                      {event.files.map((f, fi) => (
+                                        <div key={fi} style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 10px", backgroundColor: C.bg2, borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 11.5 }}>
+                                          <FileSpreadsheet size={13} color={C.green} />
+                                          <span style={{ fontWeight: 600, color: C.text1 }}>{f.name}</span>
+                                          {(f.url || f.dataUrl) && (
+                                            <div style={{ display: "inline-flex", gap: 6, marginLeft: 4 }}>
+                                              <button
+                                                onClick={() => window.open(f.url || f.dataUrl, '_blank')}
+                                                style={{ background: "none", border: "none", color: C.teal, cursor: "pointer", padding: 0, fontSize: 11, fontWeight: 700, textDecoration: "underline", display: "inline-flex", alignItems: "center", gap: 2 }}
+                                              >
+                                                <Eye size={11} /> View
+                                              </button>
+                                              <a
+                                                href={f.url || f.dataUrl}
+                                                download={f.name || 'document'}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                style={{ background: "none", border: "none", color: C.purple, cursor: "pointer", padding: 0, fontSize: 11, fontWeight: 700, textDecoration: "underline", display: "inline-flex", alignItems: "center", gap: 2 }}
+                                              >
+                                                <Download size={11} /> Download
+                                              </a>
+                                            </div>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              {isStatusEvent && (
+                                <div style={{ fontSize: 12, color: C.text2, display: "flex", flexDirection: "column", gap: 4 }}>
+                                  <div>Document status reviewed & marked as <span style={{ fontWeight: 700, color: C.text1 }}>{event.status}</span>.</div>
+                                  {event.remarks && (
+                                    <div style={{ fontStyle: "italic", color: C.amber, fontSize: 11.5 }}>
+                                      Note: "{event.remarks}"
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div style={{ padding: "16px 24px", borderTop: `1px solid ${C.border}`, backgroundColor: C.bg, borderRadius: "0 0 16px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <button
+                  onClick={() => {
+                    setShowEmailPipelineModal(false);
+                    handleOpenEmailDraft([pipelineItem], pipelineItem.client_person_id);
+                  }}
+                  style={{ padding: "9px 18px", backgroundColor: C.teal, color: "#fff", border: "none", borderRadius: 8, fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, boxShadow: "0 2px 6px rgba(13,148,136,0.25)" }}
+                >
+                  <Send size={13} /> Draft & Resend Email with Remark Notes
+                </button>
+
+                <button
+                  onClick={() => setShowEmailPipelineModal(false)}
+                  style={{ padding: "9px 18px", border: `1px solid ${C.border}`, borderRadius: 8, background: C.surface, cursor: "pointer", fontSize: 12.5, fontWeight: 600, color: C.text1 }}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── 6. ADD MINUTES OF MEETING (MOM) MODAL ── */}
       {showAddMomModal && (
@@ -9893,6 +11192,385 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
           </div>
         </div>
       )}
+
+      {/* ── 8. DATA TRACKER / IDR SLIDE-OVER DRAWER ── */}
+      {selectedTrackerDrawerItem && (() => {
+        const projectPlants = Array.isArray(selectedProject?.plants) && selectedProject.plants.length > 0
+          ? selectedProject.plants.filter(Boolean)
+          : (Array.isArray(selectedProject?.meta_json?.plants) && selectedProject.meta_json.plants.length > 0
+              ? selectedProject.meta_json.plants.filter(Boolean)
+              : []);
+
+        const STATUS_OPTIONS = [
+          { val: "Pending", label: "Pending", bg: "#fef3c7", color: "#d97706", border: "#fde68a" },
+          { val: "Under Review", label: "Under Review", bg: "#ede9fe", color: "#6d28d9", border: "#ddd6fe" },
+          { val: "Partially Received", label: "Partially Received", bg: "#fffbeb", color: "#b45309", border: "#fef3c7" },
+          { val: "Received Wrong", label: "Received Wrong", bg: "#fef2f2", color: "#dc2626", border: "#fecaca" },
+          { val: "Received", label: "Received", bg: "#f0fdf4", color: "#16a34a", border: "#bbf7d0" }
+        ];
+
+        const rawDocStatus = selectedTrackerDrawerItem.document_status || selectedTrackerDrawerItem.status_json?.document_status || "Pending";
+        const currentDocStatus = rawDocStatus === "Email Sent" ? "Pending" : rawDocStatus;
+        const rawEmailStatus = selectedTrackerDrawerItem.email_status || selectedTrackerDrawerItem.status_json?.email_status || (selectedTrackerDrawerItem.email_sent_at || selectedTrackerDrawerItem.status_json?.sent_at ? "Email Sent" : "Not Sent");
+        const rawEmailSentAt = selectedTrackerDrawerItem.email_sent_at || selectedTrackerDrawerItem.status_json?.sent_at || null;
+        const currentPlants = selectedTrackerDrawerItem.plants_status || {};
+        const attachments = selectedTrackerDrawerItem.attachments || [];
+
+        const driveUrl = selectedTrackerDrawerItem.client_submission?.drive_url || selectedTrackerDrawerItem.status_json?.client_submission?.drive_url || selectedTrackerDrawerItem.status_json?.drive_url || selectedTrackerDrawerItem.drive_url;
+        const driveInstructions = selectedTrackerDrawerItem.client_submission?.instructions || selectedTrackerDrawerItem.status_json?.client_submission?.instructions || selectedTrackerDrawerItem.status_json?.drive_notes;
+        const driveSubmittedBy = selectedTrackerDrawerItem.client_submission?.submitted_by;
+        const driveSubmittedAt = selectedTrackerDrawerItem.client_submission?.submitted_at || selectedTrackerDrawerItem.status_json?.received_at;
+
+        return (
+          <div style={{ position: "fixed", inset: 0, zIndex: 1050, display: "flex", justifyContent: "flex-end" }}>
+            <div
+              onClick={() => setSelectedTrackerDrawerItem(null)}
+              style={{ position: "absolute", inset: 0, backgroundColor: "rgba(15,23,42,0.45)", backdropFilter: "blur(2px)" }}
+            />
+            <div
+              style={{
+                position: "relative", width: 660, maxWidth: "100vw", height: "100%",
+                backgroundColor: C.surface, display: "flex", flexDirection: "column",
+                boxShadow: "-10px 0 25px -5px rgba(0,0,0,0.15)", borderLeft: `1px solid ${C.border}`,
+                animation: "toastSlideIn 0.2s ease"
+              }}
+            >
+              {/* Drawer Header */}
+              <div style={{ padding: "20px 24px", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: C.surface2 }}>
+                <div>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: C.teal, letterSpacing: 0.5, textTransform: "uppercase" }}>
+                    DOCUMENT REQUIREMENT & TRACKING
+                  </span>
+                  <h3 style={{ fontSize: 16, fontWeight: 800, color: C.text1, margin: "3px 0 0" }}>
+                    {selectedTrackerDrawerItem.data_requirement || "Audit Document"}
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setSelectedTrackerDrawerItem(null)}
+                  style={{ border: "none", background: "transparent", cursor: "pointer", color: C.text3, padding: 4 }}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Drawer Content */}
+              <div style={{ padding: 24, overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: 18 }}>
+                {/* Document Title */}
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: C.text2, display: "block", marginBottom: 5 }}>
+                    Document / Data Requirement Title *
+                  </label>
+                  <input
+                    type="text"
+                    value={selectedTrackerDrawerItem.data_requirement || ""}
+                    onChange={e => setSelectedTrackerDrawerItem({ ...selectedTrackerDrawerItem, data_requirement: e.target.value })}
+                    style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 13, color: C.text1, fontWeight: 600 }}
+                  />
+                </div>
+
+                {/* Sub-Process / Area */}
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: C.text2, display: "block", marginBottom: 5 }}>
+                    Sub-Process / Audit Area
+                  </label>
+                  <input
+                    type="text"
+                    value={selectedTrackerDrawerItem.sub_process || ""}
+                    onChange={e => setSelectedTrackerDrawerItem({ ...selectedTrackerDrawerItem, sub_process: e.target.value })}
+                    placeholder="e.g. Purchase Order Creation, SOP & DOA..."
+                    style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 13, color: C.text1 }}
+                  />
+                </div>
+
+                {/* Document Status Selection & Quick Pills */}
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: C.text2 }}>
+                      Document Receipt Status
+                    </label>
+                    {/* Email Communication Status Indicator */}
+                    <div style={{ fontSize: 11.5, display: "flex", alignItems: "center", gap: 5 }}>
+                      <span style={{ color: C.text3 }}>Email Request:</span>
+                      <span style={{
+                        padding: "2px 8px", borderRadius: 4, fontWeight: 700,
+                        backgroundColor: rawEmailStatus === "Resent" ? "#f0fdfa" : rawEmailStatus === "Email Sent" ? "#e0f2fe" : "#f1f5f9",
+                        color: rawEmailStatus === "Resent" ? "#0d9488" : rawEmailStatus === "Email Sent" ? "#0369a1" : "#64748b",
+                        border: `1px solid ${rawEmailStatus === "Resent" ? "#99f6e4" : rawEmailStatus === "Email Sent" ? "#bae6fd" : "#cbd5e1"}`
+                      }}>
+                        ✉️ {rawEmailStatus}{rawEmailSentAt ? ` (${new Date(rawEmailSentAt).toLocaleDateString()})` : ''}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+                    {STATUS_OPTIONS.map(pill => {
+                      const isSelected = currentDocStatus === pill.val;
+                      return (
+                        <button
+                          key={pill.val}
+                          type="button"
+                          onClick={() => setSelectedTrackerDrawerItem({
+                            ...selectedTrackerDrawerItem,
+                            document_status: pill.val,
+                            status_json: { ...(selectedTrackerDrawerItem.status_json || {}), document_status: pill.val }
+                          })}
+                          style={{
+                            padding: "6px 12px",
+                            borderRadius: 20,
+                            fontSize: 11.5,
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            backgroundColor: isSelected ? pill.bg : C.bg2,
+                            color: isSelected ? pill.color : C.text2,
+                            border: `1.5px solid ${isSelected ? pill.border : C.border}`,
+                            boxShadow: isSelected ? `0 0 0 2px ${pill.border}40` : "none",
+                            transition: "all 0.15s ease"
+                          }}
+                        >
+                          {pill.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Client Person Recipient */}
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: C.text2, display: "block", marginBottom: 5 }}>
+                    Client Person Recipient
+                  </label>
+                  <select
+                    value={selectedTrackerDrawerItem.client_person_id || ""}
+                    onChange={e => setSelectedTrackerDrawerItem({ ...selectedTrackerDrawerItem, client_person_id: e.target.value })}
+                    style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 13, color: C.text1, backgroundColor: C.surface }}
+                  >
+                    <option value="">Select Recipient from Organization Directory...</option>
+                    {orgMembers.map(m => (
+                      <option key={m.id} value={m.id}>{m.member_name} ({m.email}) - {m.designation || m.department || 'Client'}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Plant Receipts Checklist */}
+                {projectPlants.length > 0 && (
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: C.text2, display: "block", marginBottom: 6 }}>
+                      Operating Plant Receipts
+                    </label>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: 8, padding: 12, borderRadius: 8, backgroundColor: C.bg2, border: `1px solid ${C.border}` }}>
+                      {projectPlants.map((plant, pIdx) => {
+                        const isRcvd = !!currentPlants[plant];
+                        return (
+                          <label
+                            key={pIdx}
+                            style={{
+                              display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", borderRadius: 6,
+                              backgroundColor: isRcvd ? C.greenBg : C.surface,
+                              border: `1px solid ${isRcvd ? C.greenBorder : C.border}`,
+                              cursor: "pointer", fontSize: 12, fontWeight: 700, color: isRcvd ? C.green : C.text1
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isRcvd}
+                              onChange={() => {
+                                const newP = { ...currentPlants, [plant]: !isRcvd };
+                                setSelectedTrackerDrawerItem({ ...selectedTrackerDrawerItem, plants_status: newP });
+                              }}
+                              style={{ width: 15, height: 15, accentColor: C.teal, cursor: "pointer" }}
+                            />
+                            <span>{plant}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Remarks & Notes (Clean auditor feedback) */}
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: C.text2, display: "block", marginBottom: 5 }}>
+                    Remarks / Follow-up Notes (Sent to Client on Email Resend)
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="Add auditor notes, client feedback, or pending clarification remarks..."
+                    value={selectedTrackerDrawerItem.remarks !== undefined ? selectedTrackerDrawerItem.remarks : (selectedTrackerDrawerItem.status_json?.remarks || "")}
+                    onChange={e => setSelectedTrackerDrawerItem({
+                      ...selectedTrackerDrawerItem,
+                      remarks: e.target.value,
+                      status_json: { ...(selectedTrackerDrawerItem.status_json || {}), remarks: e.target.value }
+                    })}
+                    style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 13, color: C.text1, resize: "vertical", fontFamily: "Sora, sans-serif" }}
+                  />
+                </div>
+
+                {/* Shared Cloud Folder / Google Drive Card if provided by Client (via client_submission) */}
+                {driveUrl && (
+                  <div style={{ padding: 14, borderRadius: 10, backgroundColor: "#eff6ff", border: "1px solid #bfdbfe", marginBottom: 14 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+                      <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                        <span style={{ fontSize: 20 }}>📁</span>
+                        <div>
+                          <div style={{ fontSize: 12.5, fontWeight: 800, color: "#1e40af" }}>Client Shared Cloud Folder / Google Drive</div>
+                          {driveInstructions && (
+                            <div style={{ fontSize: 12, color: "#1e3a8a", marginTop: 3, backgroundColor: "#dbeafe", padding: "4px 8px", borderRadius: 4 }}>
+                              <strong>Access Note:</strong> {driveInstructions}
+                            </div>
+                          )}
+                          {(driveSubmittedBy || driveSubmittedAt) && (
+                            <div style={{ fontSize: 11, color: "#60a5fa", marginTop: 4 }}>
+                              {driveSubmittedBy ? `Submitted by: ${driveSubmittedBy} • ` : ''}{driveSubmittedAt ? new Date(driveSubmittedAt).toLocaleString() : ''}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <a
+                        href={driveUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{
+                          padding: "7px 14px", backgroundColor: "#2563eb", color: "#ffffff",
+                          borderRadius: 6, fontSize: 12, fontWeight: 700, textDecoration: "none",
+                          display: "inline-flex", alignItems: "center", gap: 5, boxShadow: "0 2px 4px rgba(37,99,235,0.25)",
+                          flexShrink: 0
+                        }}
+                      >
+                        <ExternalLink size={13} /> Open Cloud Folder
+                      </a>
+                    </div>
+                  </div>
+                )}
+
+                {/* Evidence Uploads & Attached Files Card */}
+                <div style={{ padding: 16, borderRadius: 10, backgroundColor: C.tealBg + "25", border: `1px solid ${C.tealBorder}` }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                    <div>
+                      <span style={{ fontSize: 11, fontWeight: 800, color: C.teal, textTransform: "uppercase" }}>
+                        Attached Evidence Documents
+                      </span>
+                      <div style={{ fontSize: 12, color: C.text3, marginTop: 2 }}>Files uploaded directly or received via Client Portal.</div>
+                    </div>
+                    {attachments.length > 0 && (
+                      <span style={{ fontSize: 11, fontWeight: 800, backgroundColor: C.greenBg, color: C.green, padding: "3px 8px", borderRadius: 12, border: `1px solid ${C.greenBorder}` }}>
+                        {attachments.length} File(s)
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Direct File Upload */}
+                  <div style={{ marginBottom: 12 }}>
+                    <input
+                      type="file"
+                      multiple
+                      id={`drawer_tracker_upload_${selectedTrackerDrawerItem.id}`}
+                      style={{ display: "none" }}
+                      onChange={async e => {
+                        if (e.target.files && e.target.files.length > 0) {
+                          await handleDirectUploadTrackerFile(selectedTrackerDrawerItem.id, e.target.files);
+                          const updatedItem = dataTrackerRows.find(r => r.id === selectedTrackerDrawerItem.id);
+                          if (updatedItem) setSelectedTrackerDrawerItem(updatedItem);
+                        }
+                      }}
+                    />
+                    <label
+                      htmlFor={`drawer_tracker_upload_${selectedTrackerDrawerItem.id}`}
+                      style={{
+                        display: "inline-flex", alignItems: "center", gap: 6,
+                        padding: "7px 14px", borderRadius: 8,
+                        border: `1px dashed ${C.tealBorder}`, backgroundColor: C.surface,
+                        color: C.teal, fontSize: 12, fontWeight: 700, cursor: "pointer"
+                      }}
+                    >
+                      <Upload size={14} />
+                      <span>+ Upload Evidence File(s)</span>
+                    </label>
+                  </div>
+
+                  {/* Attachment List */}
+                  {attachments.length > 0 ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {attachments.map((f, i) => (
+                        <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", backgroundColor: C.surface, borderRadius: 8, border: `1px solid ${C.border}` }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1 }}>
+                            <FileSpreadsheet size={16} color={C.teal} style={{ flexShrink: 0 }} />
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ fontSize: 12, fontWeight: 700, color: C.text1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {f.name || f.file_name || `Evidence File ${i + 1}`}
+                              </div>
+                              {f.size && <div style={{ fontSize: 10, color: C.text3 }}>{(f.size / 1024).toFixed(1)} KB</div>}
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            {(f.url || f.dataUrl) && (
+                              <>
+                                <button
+                                  onClick={() => window.open(f.url || f.dataUrl, '_blank', 'noopener,noreferrer')}
+                                  style={{ padding: "5px 10px", backgroundColor: C.tealBg, color: C.teal, borderRadius: 6, fontSize: 11, fontWeight: 700, border: `1px solid ${C.tealBorder}`, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}
+                                  title="Open document in a new window/tab"
+                                >
+                                  <Eye size={12} /> View
+                                </button>
+
+                                <a
+                                  href={f.url || f.dataUrl}
+                                  download={f.name || 'document'}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  style={{ padding: "5px 10px", backgroundColor: C.teal, color: "#fff", borderRadius: 6, fontSize: 11, fontWeight: 700, textDecoration: "none", border: "none", display: "inline-flex", alignItems: "center", gap: 4 }}
+                                  title="Download document file"
+                                >
+                                  <Download size={12} /> Download
+                                </a>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 12, color: C.text3, fontStyle: "italic" }}>
+                      No documents attached yet for this requirement.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Drawer Footer */}
+              <div style={{ padding: "16px 24px", borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: C.surface2 }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const item = selectedTrackerDrawerItem;
+                    setSelectedTrackerDrawerItem(null);
+                    handleDeleteTrackerItem(item);
+                  }}
+                  style={{ padding: "8px 14px", backgroundColor: C.surface, color: C.red, border: `1px solid ${C.redBorder}`, borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", gap: 5 }}
+                >
+                  <Trash2 size={13} /> Delete Requirement
+                </button>
+
+                <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTrackerDrawerItem(null)}
+                    style={{ padding: "9px 18px", border: `1px solid ${C.border}`, borderRadius: 8, background: "transparent", cursor: "pointer", fontSize: 13, fontWeight: 600, color: C.text1 }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveTrackerDrawerItem}
+                    style={{ padding: "9px 24px", backgroundColor: C.teal, color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 800, display: "flex", alignItems: "center", gap: 6, boxShadow: "0 2px 6px rgba(13,148,136,0.3)" }}
+                  >
+                    <Check size={14} /> Save Changes
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── 9. ADD MANUAL TESTING ROW MODAL ── */}
       {showAddTestingModal && (

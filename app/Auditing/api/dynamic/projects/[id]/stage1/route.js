@@ -101,6 +101,7 @@ export async function POST(req, { params }) {
           project_id: projectId,
           week_name: item.week_name || `Week ${idx + 1}`,
           week_description: item.week_description || '',
+          activity_date: item.activity_date || item.date || null,
           activity: item.activity || '',
           detailed_audit_work: item.detailed_audit_work || '',
           status: item.status || 'Pending',
@@ -113,11 +114,12 @@ export async function POST(req, { params }) {
           .insert(rows)
           .select();
 
-        // If progress column doesn't exist yet, retry without progress
-        if (error && (error.code === '42703' || error.message?.includes('progress'))) {
+        // If progress or activity_date column doesn't exist yet, retry without them
+        if (error && (error.code === '42703' || error.message?.includes('progress') || error.message?.includes('activity_date'))) {
           const fallbackRows = rows.map(r => {
             const copy = { ...r };
-            delete copy.progress;
+            if (error.message?.includes('progress')) delete copy.progress;
+            if (error.message?.includes('activity_date')) delete copy.activity_date;
             return copy;
           });
           const retry = await supabase.from('audit_pre_execution_calendar').insert(fallbackRows).select();
@@ -129,11 +131,12 @@ export async function POST(req, { params }) {
         return NextResponse.json({ success: true, items: inserted });
       }
 
-      const { week_name, week_description, activity, detailed_audit_work, status, progress, remarks, sort_order } = data || {};
+      const { week_name, week_description, activity_date, date, activity, detailed_audit_work, status, progress, remarks, sort_order } = data || {};
       const insertPayload = {
         project_id: projectId,
         week_name: week_name || 'Week 1',
         week_description: week_description || '',
+        activity_date: (activity_date || date || '').trim() || null,
         activity: activity || '',
         detailed_audit_work: detailed_audit_work || '',
         status: status || 'Pending',
@@ -148,8 +151,9 @@ export async function POST(req, { params }) {
         .select()
         .single();
 
-      if (error && (error.code === '42703' || error.message?.includes('progress'))) {
-        delete insertPayload.progress;
+      if (error && (error.code === '42703' || error.message?.includes('progress') || error.message?.includes('activity_date'))) {
+        if (error.message?.includes('progress')) delete insertPayload.progress;
+        if (error.message?.includes('activity_date')) delete insertPayload.activity_date;
         const retry = await supabase.from('audit_pre_execution_calendar').insert([insertPayload]).select().single();
         inserted = retry.data;
         error = retry.error;
@@ -181,10 +185,16 @@ export async function PATCH(req, { params }) {
     const updatePayload = {};
 
     if (type === 'calendar') {
-      const allowedKeys = ['week_name', 'week_description', 'activity', 'detailed_audit_work', 'status', 'progress', 'remarks', 'sort_order', 'assigned_team_id'];
+      const allowedKeys = ['week_name', 'week_description', 'activity_date', 'activity', 'detailed_audit_work', 'status', 'progress', 'remarks', 'sort_order', 'assigned_team_id'];
       allowedKeys.forEach(k => {
         if (rawData[k] !== undefined) updatePayload[k] = rawData[k];
       });
+      if (rawData.date !== undefined && updatePayload.activity_date === undefined) {
+        updatePayload.activity_date = rawData.date;
+      }
+      if (typeof updatePayload.activity_date === 'string' && updatePayload.activity_date.trim() === '') {
+        updatePayload.activity_date = null;
+      }
       if (updatePayload.progress !== undefined) {
         updatePayload.progress = parseInt(updatePayload.progress, 10);
       }
@@ -203,8 +213,9 @@ export async function PATCH(req, { params }) {
       .select()
       .single();
 
-    if (error && (error.code === '42703' || error.message?.includes('progress'))) {
-      delete updatePayload.progress;
+    if (error && (error.code === '42703' || error.message?.includes('progress') || error.message?.includes('activity_date'))) {
+      if (error.message?.includes('progress')) delete updatePayload.progress;
+      if (error.message?.includes('activity_date')) delete updatePayload.activity_date;
       const retry = await supabase.from(table).update(updatePayload).eq('id', itemId).eq('project_id', projectId).select().single();
       updated = retry.data;
       error = retry.error;

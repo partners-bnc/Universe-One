@@ -223,10 +223,23 @@ export async function PATCH(req) {
     if (project_length !== undefined) updateData.project_length = project_length ? parseInt(project_length, 10) : 0;
     if (current_stage !== undefined) updateData.current_stage = parseInt(current_stage, 10);
     if (status !== undefined) updateData.status = status;
-    if (custom_columns !== undefined) updateData.custom_columns = custom_columns;
+    if (custom_columns !== undefined) {
+      updateData.custom_columns = custom_columns;
+    }
     if (data_tracker !== undefined) updateData.data_tracker = data_tracker;
 
     // Fetch HRM employees to map names <-> UUIDs if project_leader or assigned_team is passed
+    if (project_leader !== undefined || assigned_team !== undefined || custom_columns !== undefined) {
+      const { data: projMeta } = await supabase.from('audit_projects').select('meta_json').eq('id', targetProjectId).single();
+      const existingMeta = projMeta?.meta_json || {};
+      if (custom_columns !== undefined) {
+        updateData.meta_json = {
+          ...existingMeta,
+          custom_columns: custom_columns
+        };
+      }
+    }
+
     if (project_leader !== undefined || assigned_team !== undefined) {
       const { data: rawEmployees } = await supabase
         .from('hrm_employees')
@@ -293,12 +306,14 @@ export async function PATCH(req) {
       .select()
       .single();
 
-    // If explicit column error occurs for company_category / plants, fallback gracefully
+    // If explicit column error occurs for company_category / plants / custom_columns, fallback gracefully
     if (error && (error.code === '42703' || error.message?.includes('column'))) {
       const catVal = updateData.company_category;
       const plVal = updateData.plants;
       delete updateData.company_category;
       delete updateData.plants;
+      delete updateData.custom_columns;
+      delete updateData.data_tracker;
       
       const retry = await supabase
         .from('audit_projects')

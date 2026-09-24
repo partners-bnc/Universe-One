@@ -31,7 +31,17 @@ export async function POST(req) {
       clientPersonId
     } = body;
 
-    // Helper to parse name and email from strings or objects
+    // Resolve Origin / Base URL dynamically for production domain or local environment
+    const forwardedHost = req.headers.get('x-forwarded-host') || req.headers.get('host');
+    const forwardedProto = req.headers.get('x-forwarded-proto') || (forwardedHost?.includes('localhost') ? 'http' : 'https');
+    const resolvedOrigin = req.headers.get('origin') || (forwardedHost ? `${forwardedProto}://${forwardedHost}` : process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://universeone.in');
+
+    let resolvedPortalUrl = portalUrl || '';
+    if (!resolvedPortalUrl && portalToken) {
+      resolvedPortalUrl = `${resolvedOrigin}/Auditing/client-portal/${portalToken}`;
+    } else if (resolvedPortalUrl.startsWith('/')) {
+      resolvedPortalUrl = `${resolvedOrigin}${resolvedPortalUrl}`;
+    }
     const parseRecipientItem = (item) => {
       if (!item) return null;
       if (typeof item === 'object' && item.email) {
@@ -337,19 +347,23 @@ export async function POST(req) {
 
           const finalSubs = cleanSubItems.length > 0 ? cleanSubItems : [rawText];
 
+          const itemRemarks = (it.remarks || it.status_json?.remarks || '').trim();
+
           if (finalSubs.length > 1) {
             finalSubs.forEach((sub, subIdx) => {
               parsedFlatItems.push({
                 numLabel: `${rowNum}.${subIdx + 1}`,
                 docName: sub,
-                procNote: subIdx === 0 ? procNote : ''
+                procNote: subIdx === 0 ? procNote : '',
+                remarks: subIdx === 0 ? itemRemarks : ''
               });
             });
           } else {
             parsedFlatItems.push({
               numLabel: `${rowNum}`,
               docName: finalSubs[0],
-              procNote: procNote
+              procNote: procNote,
+              remarks: itemRemarks
             });
           }
         });
@@ -362,6 +376,11 @@ export async function POST(req) {
                 <td valign="top" style="padding: 12px 16px; font-size: 13px; font-weight: 700; color: #3d63ab; border-bottom: ${idx < parsedFlatItems.length - 1 ? '1px solid #e2e8f0' : 'none'}; width: 45px;">${it.numLabel}</td>
                 <td valign="top" style="padding: 12px 16px; font-size: 13px; color: #1e293b; border-bottom: ${idx < parsedFlatItems.length - 1 ? '1px solid #e2e8f0' : 'none'};">
                   <div style="font-weight: 600; color: #0f172a;">${it.docName}</div>
+                  ${it.remarks ? `
+                    <div style="margin-top: 6px; font-size: 12px; color: #9a3412; background-color: #fff7ed; border-left: 3px solid #f97316; padding: 6px 10px; border-radius: 0 4px 4px 0;">
+                      <strong>Auditor Note:</strong> ${it.remarks}
+                    </div>
+                  ` : ''}
                 </td>
               </tr>
             `;
@@ -374,6 +393,23 @@ export async function POST(req) {
             </td>
           </tr>
         `;
+
+      // Sanitize body text so salutations, raw numbered lists, or URLs never duplicate
+      let cleanBody = bodyText || '';
+      cleanBody = cleanBody.replace(/^Dear\s+[^,\n]+,\s*/i, '').trim();
+      cleanBody = cleanBody.split(/SECURE UPLOAD LINK:/i)[0].trim();
+      cleanBody = cleanBody.split(/Best regards,/i)[0].trim();
+      cleanBody = cleanBody.split(/Regards,/i)[0].trim();
+
+      if (parsedFlatItems.length > 0) {
+        const lines = cleanBody.split('\n');
+        const introLines = lines.filter(l => !/^\s*\d+[\.\)]\s*/.test(l));
+        cleanBody = introLines.join('\n').trim();
+      }
+
+      if (!cleanBody) {
+        cleanBody = `As part of our audit engagement (${projectName || 'Internal Audit'} - ${financialYear || 'FY 2026-27'}), please upload the requested audit document(s) listed below through our secure client portal:`;
+      }
 
       htmlContent = `
         <!DOCTYPE html>
@@ -422,7 +458,7 @@ export async function POST(req) {
                       Dear <strong>${primaryName}</strong>,
                     </p>
                     
-                    <div style="font-size: 14px; color: #475569; line-height: 1.6; margin-bottom: 24px; white-space: pre-wrap;">${bodyText || 'In connection with our ongoing internal audit review, kindly upload the requested files and information through our secure client portal.'}</div>
+                    <div style="font-size: 14px; color: #475569; line-height: 1.6; margin-bottom: 24px; white-space: pre-wrap;">${cleanBody}</div>
 
                     <div style="margin-bottom: 28px;">
                       <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #64748b; margin-bottom: 10px;">
@@ -435,9 +471,9 @@ export async function POST(req) {
                       </table>
                     </div>
 
-                    ${portalUrl ? `
+                    ${resolvedPortalUrl ? `
                       <div style="text-align: center; margin: 32px 0 24px 0;">
-                        <a href="${portalUrl}" target="_blank" rel="noopener noreferrer" style="display: inline-block; background-color: #3d63ab; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-size: 14px; font-weight: 700; letter-spacing: 0.3px; box-shadow: 0 4px 6px -1px rgba(61, 99, 171, 0.3);">
+                        <a href="${resolvedPortalUrl}" target="_blank" rel="noopener noreferrer" style="display: inline-block; background-color: #3d63ab; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-size: 14px; font-weight: 700; letter-spacing: 0.3px; box-shadow: 0 4px 6px -1px rgba(61, 99, 171, 0.3);">
                           &rarr; Open Secure Document Upload Portal
                         </a>
                       </div>
@@ -594,6 +630,103 @@ export async function POST(req) {
       } catch (tokenInsertErr) {
         console.warn("Notice: audit_upload_tokens insert:", tokenInsertErr.message);
       }
+
+      // Update dedicated audit_data_tracker items with email status & communication trail
+      if (Array.isArray(items) && items.length > 0) {
+        try {
+          const nowIso = new Date().toISOString();
+          for (const it of items) {
+            let dbMatch = null;
+            if (it.id && validUuidPattern.test(it.id)) {
+              const { data } = await supabase.from('audit_data_tracker').select('*').eq('project_id', validProjectId).eq('id', it.id).limit(1);
+              if (data && data.length > 0) dbMatch = data;
+            }
+            if (!dbMatch && it.programme_id && validUuidPattern.test(it.programme_id)) {
+              const { data } = await supabase.from('audit_data_tracker').select('*').eq('project_id', validProjectId).eq('programme_id', it.programme_id).limit(1);
+              if (data && data.length > 0) dbMatch = data;
+            }
+            if (!dbMatch && (it.data_requirement || it.document_name)) {
+              const reqTitle = (it.data_requirement || it.document_name || '').trim();
+              if (reqTitle) {
+                const { data } = await supabase.from('audit_data_tracker').select('*').eq('project_id', validProjectId).ilike('data_requirement', reqTitle).limit(1);
+                if (data && data.length > 0) dbMatch = data;
+              }
+            }
+
+            const existingRow = dbMatch && dbMatch[0];
+            if (!existingRow) continue;
+
+            const prevTrail = Array.isArray(existingRow?.communication_trail)
+              ? [...existingRow.communication_trail]
+              : (Array.isArray(existingRow?.status_json?.communication_trail) ? [...existingRow.status_json.communication_trail] : []);
+
+            // If prevTrail was empty but email_sent_at existed, synthesize prior initial dispatch first
+            if (prevTrail.length === 0 && (existingRow.email_sent_at || existingRow.status_json?.sent_at)) {
+              prevTrail.push({
+                id: `email_prior_${Date.now()}`,
+                type: 'INITIAL_DISPATCH',
+                title: 'Initial IDR Email Sent',
+                timestamp: existingRow.email_sent_at || existingRow.status_json?.sent_at,
+                recipient_name: recipientName || '',
+                recipient_email: primaryEmail || '',
+                subject: 'Information Document Request (IDR)',
+                remarks: existingRow.remarks || existingRow.status_json?.remarks || '',
+                status: 'Delivered'
+              });
+            }
+
+            const isResend = (existingRow?.email_status && existingRow.email_status !== 'Not Sent') || prevTrail.length > 0;
+            const newEmailStatus = isResend ? 'Resent' : 'Email Sent';
+
+            const trailEvent = {
+              id: `email_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+              type: isResend ? 'RESENT' : 'INITIAL_DISPATCH',
+              title: isResend ? 'IDR Follow-up Email Resent' : 'Initial IDR Email Sent',
+              timestamp: nowIso,
+              recipient_name: recipientName || '',
+              recipient_email: primaryEmail || '',
+              cc_emails: ccEmails || '',
+              subject: emailSubject || '',
+              remarks: (it.remarks || '').trim(),
+              portal_url: resolvedPortalUrl || '',
+              status: 'Delivered'
+            };
+
+            const updatedTrail = [...prevTrail, trailEvent];
+            const updatedStatusJson = {
+              ...(existingRow?.status_json || {}),
+              email_status: newEmailStatus,
+              sent_at: nowIso,
+              portal_token: tokenStr,
+              communication_trail: updatedTrail
+            };
+
+            let { error: updateErr } = await supabase
+              .from('audit_data_tracker')
+              .update({
+                email_status: newEmailStatus,
+                email_sent_at: nowIso,
+                communication_trail: updatedTrail,
+                status_json: updatedStatusJson,
+                client_person_id: validClientPersonId || existingRow.client_person_id,
+                updated_at: nowIso
+              })
+              .eq('id', existingRow.id);
+
+            if (updateErr && (updateErr.code === '42703' || updateErr.message?.includes('column'))) {
+              await supabase
+                .from('audit_data_tracker')
+                .update({
+                  status_json: updatedStatusJson,
+                  updated_at: nowIso
+                })
+                .eq('id', existingRow.id);
+            }
+          }
+        } catch (trailErr) {
+          console.warn("Notice updating audit_data_tracker communication trail in send-email:", trailErr);
+        }
+      }
     }
 
     // Write log entry to audit_logs table
@@ -608,7 +741,7 @@ export async function POST(req) {
         new_payload: {
           recipients: targetRecipients,
           subject: emailSubject,
-          portal_url: portalUrl || null,
+          portal_url: resolvedPortalUrl || null,
           items_count: emailType === 'calendar' ? (calendarItems?.length || 0) : (items?.length || 0),
           service_used: serviceUsed || 'Gateway Activation'
         },

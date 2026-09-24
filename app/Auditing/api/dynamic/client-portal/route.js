@@ -185,14 +185,14 @@ export async function GET(req) {
   }
 }
 
-// POST: Upload document files for a requested item & update database
+// POST: Upload document files or submit Google Drive link & update database
 export async function POST(req) {
   try {
     const body = await req.json();
-    const { token, itemId, files, comment } = body;
+    const { token, itemId, files, comment, action, driveUrl, driveNotes } = body;
 
-    if (!token || !itemId || !Array.isArray(files)) {
-      return NextResponse.json({ success: false, error: 'Missing required parameters (token, itemId, files)' }, { status: 400 });
+    if (!token) {
+      return NextResponse.json({ success: false, error: 'Token is required' }, { status: 400 });
     }
 
     const decoded = decodeToken(token);
@@ -200,10 +200,7 @@ export async function POST(req) {
       return NextResponse.json({ success: false, error: 'Invalid or corrupt portal link token' }, { status: 400 });
     }
 
-    const { projectId, createdAt } = decoded;
-
-
-
+    const { projectId } = decoded;
     const supabase = adminClient;
     const { data: project, error } = await supabase
       .from('audit_projects')
@@ -218,6 +215,136 @@ export async function POST(req) {
     let trackerRows = project.data_tracker || [];
     if (typeof trackerRows === 'string') {
       try { trackerRows = JSON.parse(trackerRows); } catch (e) { trackerRows = []; }
+    }
+
+    // Handle Action: Submit Google Drive / Cloud Link
+    if (action === 'submit_drive_link' || (driveUrl && typeof driveUrl === 'string')) {
+      const cleanDriveUrl = (driveUrl || '').trim();
+      if (!cleanDriveUrl) {
+        return NextResponse.json({ success: false, error: 'Please enter a valid Google Drive or Cloud folder URL' }, { status: 400 });
+      }
+
+      const clientSubmissionObj = {
+        drive_url: cleanDriveUrl,
+        instructions: (driveNotes || '').trim(),
+        submitted_at: new Date().toISOString(),
+        submitted_by: decoded.recipientName || decoded.recipientEmail || ''
+      };
+
+      const updatedTracker = trackerRows.map(tr => {
+        const isMatched = !decoded.itemIds || decoded.itemIds.length === 0 ||
+          decoded.itemIds.includes(String(tr.id)) ||
+          decoded.itemIds.includes(String(tr.programme_id));
+
+        if (isMatched) {
+          const currentStatus = tr.document_status || tr.status_json?.document_status || 'Pending';
+          const newStatus = currentStatus === 'Received' ? 'Received' : 'Under Review';
+
+          return {
+            ...tr,
+            document_status: newStatus,
+            client_submission: clientSubmissionObj,
+            status_json: {
+              ...tr.status_json,
+              document_status: newStatus,
+              client_submission: clientSubmissionObj,
+              drive_url: cleanDriveUrl,
+              drive_notes: driveNotes || '',
+              received_at: new Date().toISOString()
+            }
+          };
+        }
+        return tr;
+      });
+
+      // Update project data_tracker
+      try {
+        await supabase
+          .from('audit_projects')
+          .update({ data_tracker: updatedTracker, updated_at: new Date().toISOString() })
+          .eq('id', projectId);
+      } catch (e) { }
+
+      // Update dedicated audit_data_tracker table
+      try {
+        const { data: dbTrackers } = await supabase
+          .from('audit_data_tracker')
+          .select('id, programme_id, document_status, status_json, communication_trail')
+          .eq('project_id', projectId);
+
+        if (Array.isArray(dbTrackers)) {
+          for (const dbT of dbTrackers) {
+            const isMatched = !decoded.itemIds || decoded.itemIds.length === 0 ||
+              decoded.itemIds.includes(String(dbT.id)) ||
+              decoded.itemIds.includes(String(dbT.programme_id));
+
+            if (isMatched) {
+              const currentStatus = dbT.document_status || dbT.status_json?.document_status || 'Pending';
+              const newStatus = currentStatus === 'Received' ? 'Received' : 'Under Review';
+
+              const prevTrail = Array.isArray(dbT.communication_trail)
+                ? dbT.communication_trail
+                : (Array.isArray(dbT.status_json?.communication_trail) ? dbT.status_json.communication_trail : []);
+
+              const trailEvent = {
+                id: `trail_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+                type: 'CLIENT_DRIVE_SUBMISSION',
+                title: 'Client Submitted Cloud Folder Link',
+                timestamp: new Date().toISOString(),
+                drive_url: cleanDriveUrl,
+                instructions: driveNotes || '',
+                submitted_by: decoded.recipientName || decoded.recipientEmail || 'Client',
+                status: newStatus
+              };
+
+              const updatedTrail = [...prevTrail, trailEvent];
+
+              const updatedStatusJson = {
+                ...(dbT.status_json || {}),
+                document_status: newStatus,
+                client_submission: clientSubmissionObj,
+                drive_url: cleanDriveUrl,
+                drive_notes: driveNotes || '',
+                received_at: new Date().toISOString(),
+                communication_trail: updatedTrail
+              };
+
+              let { error: dbUpdateErr } = await supabase
+                .from('audit_data_tracker')
+                .update({
+                  document_status: newStatus,
+                  client_submission: clientSubmissionObj,
+                  communication_trail: updatedTrail,
+                  status_json: updatedStatusJson,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', dbT.id);
+
+              // Fallback if document_status or client_submission column not yet created in table
+              if (dbUpdateErr && (dbUpdateErr.code === '42703' || dbUpdateErr.message?.includes('column'))) {
+                await supabase
+                  .from('audit_data_tracker')
+                  .update({
+                    status_json: updatedStatusJson,
+                    updated_at: new Date().toISOString()
+                  })
+                  .eq('id', dbT.id);
+              }
+            }
+          }
+        }
+      } catch (dbErr) {
+        console.warn('Notice updating audit_data_tracker with drive link:', dbErr);
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: 'Google Drive link submitted successfully! Status updated to Under Review for Audit Team verification.'
+      });
+    }
+
+    if (!itemId || !Array.isArray(files)) {
+      return NextResponse.json({ success: false, error: 'Missing required parameters (itemId, files)' }, { status: 400 });
     }
 
     const BUCKET_NAME = 'auditing-documents';
@@ -328,9 +455,10 @@ export async function POST(req) {
 
         return {
           ...tr,
+          document_status: 'Under Review',
           status_json: {
             ...tr.status_json,
-            document_status: 'Received',
+            document_status: 'Under Review',
             received_at: new Date().toISOString()
           },
           attachments: [...existingFiles, ...newFiles]
@@ -357,8 +485,9 @@ export async function POST(req) {
         procedure: linkedProg?.row_data?.procedure || '',
         sub_process: linkedProg?.row_data?.sub_process || '',
         client_person_id: decoded.recipientId || '',
+        document_status: 'Under Review',
         status_json: {
-          document_status: 'Received',
+          document_status: 'Under Review',
           received_at: new Date().toISOString()
         },
         attachments: newFiles
@@ -368,47 +497,157 @@ export async function POST(req) {
       itemFound = true;
     }
 
-    // Save back to audit_projects data_tracker JSON column
-    const { error: updateErr } = await supabase
-      .from('audit_projects')
-      .update({ data_tracker: updatedTracker, updated_at: new Date().toISOString() })
-      .eq('id', projectId);
+    // 1. Primary storage: Upsert/Update into dedicated audit_data_tracker table in Supabase
+    let trackerDbSaved = false;
+    try {
+      const validUuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      let dbMatch = null;
+      if (itemId && validUuidPattern.test(itemId)) {
+        const { data } = await supabase.from('audit_data_tracker').select('*').eq('project_id', projectId).eq('id', itemId).limit(1);
+        if (data && data.length > 0) dbMatch = data;
+      }
+      if (!dbMatch && itemId && validUuidPattern.test(itemId)) {
+        const { data } = await supabase.from('audit_data_tracker').select('*').eq('project_id', projectId).eq('programme_id', itemId).limit(1);
+        if (data && data.length > 0) dbMatch = data;
+      }
 
-    if (updateErr) {
-      throw updateErr;
-    }
+      if (dbMatch && dbMatch.length > 0) {
+        const existingRecord = dbMatch[0];
+        const prevAttachments = Array.isArray(existingRecord.attachments) ? existingRecord.attachments : [];
+        const combinedAttachments = [...prevAttachments, ...newFiles];
 
-    // Also sync/upsert to audit_data_tracker table in Supabase
-    for (const trItem of updatedTracker) {
-      if (String(trItem.id) === String(itemId) || String(trItem.programme_id) === String(itemId)) {
-        const { data: dbMatch } = await supabase
+        const prevTrail = Array.isArray(existingRecord.communication_trail)
+          ? [...existingRecord.communication_trail]
+          : (Array.isArray(existingRecord.status_json?.communication_trail) ? [...existingRecord.status_json.communication_trail] : []);
+
+        // If prevTrail was empty but email_sent_at existed, synthesize prior initial dispatch first
+        if (prevTrail.length === 0 && (existingRecord.email_sent_at || existingRecord.status_json?.sent_at)) {
+          prevTrail.push({
+            id: `email_prior_${Date.now()}`,
+            type: 'INITIAL_DISPATCH',
+            title: 'Initial IDR Email Sent',
+            timestamp: existingRecord.email_sent_at || existingRecord.status_json?.sent_at,
+            recipient_name: decoded.recipientName || '',
+            recipient_email: decoded.recipientEmail || '',
+            subject: 'Information Document Request (IDR)',
+            remarks: existingRecord.remarks || existingRecord.status_json?.remarks || '',
+            status: 'Delivered'
+          });
+        }
+
+        const trailEvent = {
+          id: `trail_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+          type: 'CLIENT_UPLOAD',
+          title: 'Client Uploaded Document(s)',
+          timestamp: new Date().toISOString(),
+          files_count: newFiles.length,
+          files: newFiles.map(f => ({ name: f.name, size: f.size, url: f.url || f.dataUrl })),
+          submitted_by: decoded.recipientName || decoded.recipientEmail || 'Client',
+          status: 'Under Review'
+        };
+
+        const updatedTrail = [...prevTrail, trailEvent];
+
+        const updatedStatusJson = {
+          ...(existingRecord.status_json || {}),
+          document_status: 'Under Review',
+          received_at: new Date().toISOString(),
+          communication_trail: updatedTrail
+        };
+
+        let { error: dbUpdateErr } = await supabase
           .from('audit_data_tracker')
-          .select('id')
-          .eq('project_id', projectId)
-          .or(`id.eq.${trItem.id},programme_id.eq.${trItem.programme_id || trItem.id}`)
-          .limit(1);
+          .update({
+            document_status: 'Under Review',
+            communication_trail: updatedTrail,
+            status_json: updatedStatusJson,
+            attachments: combinedAttachments,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingRecord.id);
 
-        if (dbMatch && dbMatch.length > 0) {
+        if (dbUpdateErr && (dbUpdateErr.code === '42703' || dbUpdateErr.message?.includes('column'))) {
           await supabase
             .from('audit_data_tracker')
             .update({
-              status_json: trItem.status_json,
-              attachments: trItem.attachments,
+              status_json: updatedStatusJson,
+              attachments: combinedAttachments,
               updated_at: new Date().toISOString()
             })
-            .eq('id', dbMatch[0].id);
-        } else {
+            .eq('id', existingRecord.id);
+        }
+        trackerDbSaved = true;
+      } else {
+        // Find linked programme info to create clean row in audit_data_tracker
+        const { data: progMatch } = await supabase
+          .from('audit_programme')
+          .select('*')
+          .eq('project_id', projectId)
+          .eq('id', itemId)
+          .limit(1);
+
+        const linkedProg = (progMatch && progMatch[0]) || null;
+        const docName = linkedProg?.row_data?.data_requirement || linkedProg?.row_data?.document_name || 'Requested Audit Document';
+        const subProc = linkedProg?.row_data?.sub_process || linkedProg?.process_name || '';
+
+        const initialTrail = [{
+          id: `trail_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+          type: 'CLIENT_UPLOAD',
+          title: 'Client Uploaded Document(s)',
+          timestamp: new Date().toISOString(),
+          files_count: newFiles.length,
+          files: newFiles.map(f => ({ name: f.name, size: f.size, url: f.url || f.dataUrl })),
+          submitted_by: decoded.recipientName || decoded.recipientEmail || 'Client',
+          status: 'Under Review'
+        }];
+
+        const newStatusJson = {
+          document_name: docName,
+          sub_process: subProc,
+          document_status: 'Under Review',
+          received_at: new Date().toISOString(),
+          communication_trail: initialTrail
+        };
+
+        let { error: dbInsErr } = await supabase
+          .from('audit_data_tracker')
+          .insert([{
+            project_id: projectId,
+            programme_id: itemId,
+            data_requirement: docName,
+            sub_process: subProc,
+            mapped_column_key: docName,
+            client_person_id: decoded.recipientId || null,
+            document_status: 'Under Review',
+            communication_trail: initialTrail,
+            status_json: newStatusJson,
+            attachments: newFiles
+          }]);
+
+        if (dbInsErr && (dbInsErr.code === '42703' || dbInsErr.message?.includes('column'))) {
           await supabase
             .from('audit_data_tracker')
             .insert([{
               project_id: projectId,
-              programme_id: trItem.programme_id || trItem.id,
-              client_person_id: trItem.client_person_id || null,
-              status_json: trItem.status_json,
-              attachments: trItem.attachments
+              programme_id: itemId,
+              status_json: newStatusJson,
+              attachments: newFiles
             }]);
         }
+        trackerDbSaved = true;
       }
+    } catch (dbErr) {
+      console.warn("Notice saving to audit_data_tracker:", dbErr);
+    }
+
+    // 2. Safe touch update to audit_projects (never throws if data_tracker column was removed)
+    try {
+      await supabase
+        .from('audit_projects')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('id', projectId);
+    } catch (pErr) {
+      // ignore
     }
 
     // Mark upload token as used in audit_upload_tokens

@@ -16,8 +16,32 @@ import {
   User,
   CheckSquare,
   Building2,
-  FileCheck
+  FileCheck,
+  Image as ImageIcon,
+  Archive,
+  FileCode,
+  File
 } from "lucide-react";
+
+const getFileIcon = (fileName = "") => {
+  const ext = fileName.split('.').pop()?.toLowerCase() || '';
+  if (['xlsx', 'xls', 'csv', 'tsv'].includes(ext)) {
+    return <FileSpreadsheet size={14} style={{ color: "#16a34a", flexShrink: 0 }} />;
+  }
+  if (['png', 'jpg', 'jpeg', 'svg', 'webp', 'gif'].includes(ext)) {
+    return <ImageIcon size={14} style={{ color: "#2563eb", flexShrink: 0 }} />;
+  }
+  if (['pdf'].includes(ext)) {
+    return <FileText size={14} style={{ color: "#dc2626", flexShrink: 0 }} />;
+  }
+  if (['doc', 'docx', 'rtf', 'txt', 'odt'].includes(ext)) {
+    return <FileText size={14} style={{ color: "#0284c7", flexShrink: 0 }} />;
+  }
+  if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) {
+    return <Archive size={14} style={{ color: "#d97706", flexShrink: 0 }} />;
+  }
+  return <File size={14} style={{ color: "#64748b", flexShrink: 0 }} />;
+};
 
 const C = {
   bg: "#f8fafc", bg2: "#f1f5f9", surface: "#ffffff",
@@ -44,6 +68,11 @@ export default function ClientPortalUploadPage() {
   const [submittingItemId, setSubmittingItemId] = useState(null);
   const [isSubmittingAll, setIsSubmittingAll] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+
+  // Google Drive / Cloud Link State
+  const [driveUrl, setDriveUrl] = useState("");
+  const [driveNotes, setDriveNotes] = useState("");
+  const [isSubmittingDrive, setIsSubmittingDrive] = useState(false);
 
   useEffect(() => {
     if (!token) {
@@ -113,6 +142,8 @@ export default function ClientPortalUploadPage() {
     return data.files;
   };
 
+  const [submitProgressText, setSubmitProgressText] = useState("");
+
   const handleSubmitItemFiles = async (itemId) => {
     const filesToUpload = uploadsMap[itemId] || [];
     if (filesToUpload.length === 0) {
@@ -142,11 +173,11 @@ export default function ClientPortalUploadPage() {
       if (!data.success) {
         alert(`Error: ${data.error}`);
       } else {
-        setSuccessMessage("Document(s) successfully uploaded to storage and transmitted to the Audit Team!");
+        setSuccessMessage("✅ Upload Done! Document(s) successfully transmitted to the Audit Team.");
         setPortalData(prev => ({
           ...prev,
           requestedItems: (prev.requestedItems || []).map(it =>
-            it.id === itemId ? { ...it, status: "Received" } : it
+            it.id === itemId ? { ...it, status: "Under Review" } : it
           )
         }));
       }
@@ -159,17 +190,25 @@ export default function ClientPortalUploadPage() {
 
   const handleSubmitAllDocuments = async () => {
     const itemsToSubmit = (portalData?.requestedItems || []).filter(it => (uploadsMap[it.id] || []).length > 0);
-    if (itemsToSubmit.length === 0) {
-      alert("Please upload document files for at least one requested item before submitting.");
+    const hasDriveUrl = !!driveUrl.trim();
+
+    if (itemsToSubmit.length === 0 && !hasDriveUrl) {
+      alert("Please upload documents or provide a Google Drive / Cloud link before submitting.");
       return;
     }
 
     setIsSubmittingAll(true);
     setSuccessMessage("");
+    setSubmitProgressText("Preparing submission...");
 
     try {
-      for (const item of itemsToSubmit) {
+      let submittedDocsCount = 0;
+      // 1. Submit file uploads item by item
+      for (let i = 0; i < itemsToSubmit.length; i++) {
+        const item = itemsToSubmit[i];
         const filesToUpload = uploadsMap[item.id] || [];
+        setSubmitProgressText(`Uploading document ${i + 1} of ${itemsToSubmit.length}: ${item.data_requirement}...`);
+
         const uploadedStorageFiles = await uploadFilesToStorage(item.id, filesToUpload);
 
         await fetch("/Auditing/api/dynamic/client-portal", {
@@ -181,20 +220,91 @@ export default function ClientPortalUploadPage() {
             files: uploadedStorageFiles
           })
         });
+        submittedDocsCount += filesToUpload.length;
       }
 
-      setSuccessMessage("All uploaded documents successfully stored in bucket and transmitted to the Audit Team!");
+      // 2. Also submit Google Drive link if provided in the input
+      if (hasDriveUrl) {
+        setSubmitProgressText("Submitting Google Drive / Cloud folder link...");
+        await fetch("/Auditing/api/dynamic/client-portal", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            token,
+            action: "submit_drive_link",
+            driveUrl: driveUrl.trim(),
+            driveNotes: driveNotes.trim()
+          })
+        });
+      }
+
+      setSuccessMessage(
+        hasDriveUrl && submittedDocsCount > 0
+          ? "✅ Upload Done! All documents and Google Drive folder link successfully transmitted to the Audit Team."
+          : hasDriveUrl
+          ? "✅ Upload Done! Google Drive folder link successfully transmitted to the Audit Team."
+          : "✅ Upload Done! All uploaded documents successfully stored and transmitted to the Audit Team."
+      );
+
       setPortalData(prev => ({
         ...prev,
-        requestedItems: (prev.requestedItems || []).map(it => ({
-          ...it,
-          status: (uploadsMap[it.id] || []).length > 0 ? "Received" : it.status
-        }))
+        requestedItems: (prev.requestedItems || []).map(it => {
+          const hasNewUpload = (uploadsMap[it.id] || []).length > 0;
+          return {
+            ...it,
+            status: hasNewUpload ? "Under Review" : it.status
+          };
+        })
       }));
     } catch (err) {
       alert(`Error submitting documents: ${err.message}`);
     } finally {
       setIsSubmittingAll(false);
+      setSubmitProgressText("");
+    }
+  };
+
+  // Handle Google Drive / Cloud Link Submission
+  const handleSubmitDriveLink = async (e) => {
+    e?.preventDefault();
+    const cleanUrl = driveUrl.trim();
+    if (!cleanUrl) {
+      alert("Please enter a valid Google Drive, OneDrive, or Dropbox folder URL.");
+      return;
+    }
+
+    setIsSubmittingDrive(true);
+    setSuccessMessage("");
+
+    try {
+      const res = await fetch("/Auditing/api/dynamic/client-portal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token,
+          action: "submit_drive_link",
+          driveUrl: cleanUrl,
+          driveNotes: driveNotes.trim()
+        })
+      });
+
+      const data = await res.json();
+      if (!data.success) {
+        alert(`Error: ${data.error}`);
+      } else {
+        setSuccessMessage("✅ Upload Done! Google Drive / Cloud folder link successfully transmitted to the Audit Team.");
+        setPortalData(prev => ({
+          ...prev,
+          requestedItems: (prev.requestedItems || []).map(it => ({
+            ...it,
+            status: "Under Review"
+          }))
+        }));
+      }
+    } catch (err) {
+      alert(`Submission error: ${err.message}`);
+    } finally {
+      setIsSubmittingDrive(false);
     }
   };
 
@@ -412,7 +522,7 @@ export default function ClientPortalUploadPage() {
                           {files.map((f, fIdx) => (
                             <div key={fIdx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: C.bg2, padding: "6px 10px", borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 11.5 }}>
                               <div style={{ display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
-                                <FileSpreadsheet size={14} style={{ color: C.teal, flexShrink: 0 }} />
+                                {getFileIcon(f.name)}
                                 <span style={{ fontWeight: 600, color: C.text1, textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap", maxWidth: 200 }}>{f.name}</span>
                               </div>
                               <button
@@ -436,12 +546,22 @@ export default function ClientPortalUploadPage() {
                         style={{
                           padding: "8px 16px", borderRadius: 8, backgroundColor: files.length > 0 ? C.teal : C.bg2,
                           color: files.length > 0 ? "#fff" : C.text3, border: `1px solid ${files.length > 0 ? C.teal : C.border}`,
-                          fontSize: 12, fontWeight: 700, cursor: files.length > 0 ? "pointer" : "not-allowed",
+                          fontSize: 12, fontWeight: 700, cursor: files.length > 0 && !isSubmittingThis ? "pointer" : "not-allowed",
                           display: "inline-flex", alignItems: "center", gap: 6, transition: "all 0.15s ease",
                           boxShadow: files.length > 0 ? "0 2px 6px rgba(13,148,136,0.2)" : "none"
                         }}
                       >
-                        <Send size={13} /> {isSubmittingThis ? "Submitting..." : "Submit"}
+                        {isSubmittingThis ? (
+                          <>
+                            <div style={{ width: 12, height: 12, border: "2px solid #fff", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.6s linear infinite" }} />
+                            <span>Submitting...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Send size={13} />
+                            <span>Submit</span>
+                          </>
+                        )}
                       </button>
                     </td>
                   </tr>
@@ -451,21 +571,117 @@ export default function ClientPortalUploadPage() {
           </table>
         </div>
 
+        {/* OR Provide Google Drive / Cloud Folder Link Section */}
+        <div style={{ backgroundColor: C.surface, borderRadius: 16, padding: "26px 30px", border: `1px solid ${C.tealBorder}`, marginTop: 24, boxShadow: "0 4px 16px rgba(13,148,136,0.06)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+            <div style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: C.tealBg, display: "flex", alignItems: "center", justifyContent: "center", border: `1px solid ${C.tealBorder}` }}>
+              <Building2 size={18} style={{ color: C.teal }} />
+            </div>
+            <div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: C.text1 }}>Or Provide Google Drive / Cloud Folder Link</div>
+              <div style={{ fontSize: 12.5, color: C.text2, marginTop: 2 }}>If your audit documents are already organized in a shared cloud folder (Google Drive, OneDrive, Dropbox, or SharePoint), paste the link below:</div>
+            </div>
+          </div>
+
+          <form onSubmit={handleSubmitDriveLink} style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 14 }}>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 700, color: C.text1, display: "block", marginBottom: 6 }}>
+                Shared Cloud Folder URL <span style={{ color: C.red }}>*</span>
+              </label>
+              <input
+                type="url"
+                required
+                placeholder="https://drive.google.com/drive/folders/... or OneDrive / Dropbox link"
+                value={driveUrl}
+                onChange={e => setDriveUrl(e.target.value)}
+                style={{
+                  width: "100%", padding: "12px 16px", borderRadius: 10, border: `1px solid ${C.border}`,
+                  fontSize: 13.5, color: C.text1, outline: "none", backgroundColor: C.bg,
+                  transition: "border-color 0.15s ease", fontFamily: "inherit"
+                }}
+                onFocus={e => e.target.style.borderColor = C.teal}
+                onBlur={e => e.target.style.borderColor = C.border}
+              />
+            </div>
+
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 700, color: C.text1, display: "block", marginBottom: 6 }}>
+                Access Notes / Instructions (Optional)
+              </label>
+              <input
+                type="text"
+                placeholder="e.g., General access enabled, contains FY 2026-27 documents"
+                value={driveNotes}
+                onChange={e => setDriveNotes(e.target.value)}
+                style={{
+                  width: "100%", padding: "10px 16px", borderRadius: 10, border: `1px solid ${C.border}`,
+                  fontSize: 13, color: C.text1, outline: "none", backgroundColor: C.bg,
+                  transition: "border-color 0.15s ease", fontFamily: "inherit"
+                }}
+                onFocus={e => e.target.style.borderColor = C.teal}
+                onBlur={e => e.target.style.borderColor = C.border}
+              />
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 4 }}>
+              <button
+                type="submit"
+                disabled={isSubmittingDrive || !driveUrl.trim()}
+                style={{
+                  padding: "11px 24px", borderRadius: 10,
+                  backgroundColor: driveUrl.trim() && !isSubmittingDrive ? C.teal : C.border2,
+                  color: "#fff", border: "none", fontSize: 13.5, fontWeight: 700,
+                  cursor: driveUrl.trim() && !isSubmittingDrive ? "pointer" : "not-allowed",
+                  display: "inline-flex", alignItems: "center", gap: 8,
+                  boxShadow: driveUrl.trim() ? "0 4px 12px rgba(13,148,136,0.25)" : "none",
+                  transition: "all 0.15s ease"
+                }}
+              >
+                {isSubmittingDrive ? (
+                  <>
+                    <div style={{ width: 14, height: 14, border: "2px solid #fff", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.6s linear infinite" }} />
+                    <span>Submitting Cloud Link...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send size={15} />
+                    <span>Submit Google Drive Link</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+
         {/* Clean Master Submit Action Footer Bar */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 24, padding: "18px 26px", backgroundColor: C.surface, borderRadius: 14, border: `1px solid ${C.border}`, flexWrap: "wrap", gap: 14 }}>
           <div style={{ fontSize: 13, color: C.text2 }}>
             Total documents attached: <strong>{totalAttachedFiles} file(s)</strong> across <strong>{completedCount} of {totalCount}</strong> requirement(s)
+            {driveUrl.trim() && <span style={{ color: C.teal, fontWeight: 700, marginLeft: 8 }}>• Cloud Folder Link Included</span>}
           </div>
           <button
             onClick={handleSubmitAllDocuments}
-            disabled={isSubmittingAll || totalAttachedFiles === 0}
+            disabled={isSubmittingAll || (totalAttachedFiles === 0 && !driveUrl.trim())}
             style={{
-              padding: "11px 26px", borderRadius: 10, backgroundColor: totalAttachedFiles > 0 ? C.teal : C.border2,
-              color: "#fff", border: "none", fontSize: 13.5, fontWeight: 700, cursor: totalAttachedFiles > 0 ? "pointer" : "not-allowed",
-              display: "flex", alignItems: "center", gap: 8, boxShadow: totalAttachedFiles > 0 ? "0 4px 12px rgba(13,148,136,0.25)" : "none"
+              padding: "11px 26px", borderRadius: 10,
+              backgroundColor: (totalAttachedFiles > 0 || driveUrl.trim()) && !isSubmittingAll ? C.teal : C.border2,
+              color: "#fff", border: "none", fontSize: 13.5, fontWeight: 700,
+              cursor: (totalAttachedFiles > 0 || driveUrl.trim()) && !isSubmittingAll ? "pointer" : "not-allowed",
+              display: "flex", alignItems: "center", gap: 8,
+              boxShadow: (totalAttachedFiles > 0 || driveUrl.trim()) ? "0 4px 12px rgba(13,148,136,0.25)" : "none"
             }}
           >
-            <Send size={15} /> {isSubmittingAll ? "Submitting..." : "Submit All Uploaded Documents"}
+            {isSubmittingAll ? (
+              <>
+                <div style={{ width: 14, height: 14, border: "2px solid #fff", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.6s linear infinite" }} />
+                <span>{submitProgressText || "Submitting All Submissions..."}</span>
+              </>
+            ) : (
+              <>
+                <Send size={15} />
+                <span>Submit All Uploaded Documents {driveUrl.trim() ? "& Link" : ""}</span>
+              </>
+            )}
           </button>
         </div>
 
@@ -474,6 +690,7 @@ export default function ClientPortalUploadPage() {
           Powered by Universeone Audit Engine • Confidential Audit Data Portal
         </div>
       </div>
+      <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
