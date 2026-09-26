@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, createContext, useContext, useCallback } from 'react';
+import { usePathname } from 'next/navigation';
 import Sidebar from './components/Sidebar';
 import { createClient } from '@/utils/supabase/client';
 import { useWorkspaceRouting } from '@/app/components-homepage/useWorkspaceRouting';
@@ -16,6 +17,9 @@ export function useVendor() {
 }
 
 export default function VendorLayout({ children }) {
+  const pathname = usePathname();
+  const isPortalRoute = pathname.startsWith('/other-modules/vendor/portal');
+
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const { user, loading: authLoading } = useWorkspaceRouting();
@@ -46,6 +50,10 @@ export default function VendorLayout({ children }) {
   };
 
   const fetchPaymentsData = useCallback(async () => {
+    if (isPortalRoute) {
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const res = await fetch('/other-modules/vendor/api/payments');
@@ -64,7 +72,7 @@ export default function VendorLayout({ children }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isPortalRoute]);
 
   useEffect(() => {
     fetchPaymentsData();
@@ -74,6 +82,11 @@ export default function VendorLayout({ children }) {
     document.documentElement.classList.remove('dark');
     localStorage.removeItem('vendor-theme');
   }, [fetchPaymentsData]);
+
+  // If visiting the isolated vendor portal, render portal layout directly
+  if (isPortalRoute) {
+    return <>{children}</>;
+  }
 
   return (
     <VendorContext.Provider
@@ -113,3 +126,4 @@ export default function VendorLayout({ children }) {
     </VendorContext.Provider>
   );
 }
+

@@ -11,7 +11,8 @@ import {
   ChevronLeft,
   Moon,
   Sun,
-  HandCoins
+  HandCoins,
+  Users
 } from 'lucide-react';
 import { useVendor } from '../layout';
 
@@ -84,6 +85,15 @@ export default function Sidebar() {
           icon={HandCoins}
           label="F&F Settlements"
           href="/other-modules/vendor/full-and-final"
+          isCollapsed={isSidebarCollapsed}
+        />
+        
+        <Divider />
+
+        <SidebarItem
+          icon={Users}
+          label="Vendor Clients"
+          href="/other-modules/vendor/clients"
           isCollapsed={isSidebarCollapsed}
         />
         

@@ -414,6 +414,59 @@ async function tryEmployeeLogin(identifier, password, loginAs) {
   };
 }
 
+async function tryVendorLogin(identifier, password, loginAs) {
+  const normalizedEmail = String(identifier).trim().toLowerCase();
+
+  if (!normalizedEmail.includes('@')) {
+    return { ok: false };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: normalizedEmail,
+    password,
+  });
+
+  if (error || !data?.user) {
+    return { ok: false };
+  }
+
+  const authContext = await resolveAuthenticatedUserContext(supabase, data.user);
+
+  if (!authContext || authContext.accountType !== 'vendor') {
+    await supabase.auth.signOut();
+    return { ok: false };
+  }
+
+  const normalizedPortal = normalizeLoginPortal(loginAs);
+  if (normalizedPortal !== 'vendor' && normalizedPortal !== 'employee') {
+    await supabase.auth.signOut();
+    return {
+      ok: false,
+      payload: {
+        error: `This account belongs to ${getAccountTypeLabel(authContext.accountType)}. Please choose the Vendor login tab.`,
+      },
+      status: 403,
+    };
+  }
+
+  return {
+    ok: true,
+    payload: {
+      success: true,
+      role: 'vendor',
+      destination: authContext.destination,
+      workspaceHref: authContext.destination,
+      taskManagerHref: authContext.destination,
+      user: {
+        id: authContext.user.id,
+        email: authContext.user.email,
+        name: authContext.user.name,
+      },
+    },
+  };
+}
+
 export async function POST(request) {
   try {
     const { email, password, loginAs, turnstileToken } = await request.json();
@@ -425,6 +478,17 @@ export async function POST(request) {
 
     if (!(await verifyTurnstileToken(request, turnstileToken, 'login'))) {
       return NextResponse.json({ error: 'Security verification failed. Please try again.' }, { status: 403 });
+    }
+
+    if (selectedPortal === 'vendor') {
+      const vendorResult = await tryVendorLogin(email, password, selectedPortal);
+      if (vendorResult.ok) {
+        return NextResponse.json(vendorResult.payload);
+      }
+      if (vendorResult.payload?.error) {
+        return NextResponse.json(vendorResult.payload, { status: vendorResult.status || 403 });
+      }
+      return NextResponse.json({ error: 'Invalid vendor credentials' }, { status: 401 });
     }
 
     const privilegedResult = await tryPrivilegedLogin(email, password, selectedPortal);
@@ -452,6 +516,12 @@ export async function POST(request) {
 
     if (legacySupportResult.payload?.error) {
       return NextResponse.json(legacySupportResult.payload, { status: legacySupportResult.status || 403 });
+    }
+
+    // Try vendor login as fallback before employee
+    const vendorFallbackResult = await tryVendorLogin(email, password, selectedPortal);
+    if (vendorFallbackResult.ok) {
+      return NextResponse.json(vendorFallbackResult.payload);
     }
 
     const employeeResult = await tryEmployeeLogin(email, password, selectedPortal);

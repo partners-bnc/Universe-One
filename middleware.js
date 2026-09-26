@@ -74,6 +74,20 @@ export async function middleware(request) {
       return NextResponse.redirect(url)
     }
 
+    // Strict Vendor Portal Isolation: Vendors can access /other-modules/vendor/portal and vendor APIs
+    if (authContext.accountType === 'vendor') {
+      const isVendorAllowed =
+        pathname.startsWith('/other-modules/vendor/portal') ||
+        pathname.startsWith('/other-modules/vendor/api') ||
+        pathname.startsWith('/api/');
+      if (!isVendorAllowed) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/other-modules/vendor/portal'
+        return NextResponse.redirect(url)
+      }
+      return supabaseResponse
+    }
+
     if (isSuperAdminPath && !authContext.isSuperAdmin) {
       const url = request.nextUrl.clone()
       url.pathname = authContext.destination

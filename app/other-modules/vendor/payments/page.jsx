@@ -467,7 +467,7 @@ export default function VendorPayments() {
                   placeholder="e.g. Acme Corp Inc."
                   value={vendorName}
                   onChange={(e) => setVendorName(e.target.value)}
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs md:text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-all font-medium"
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs md:text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-all font-medium placeholder:text-slate-700"
                 />
               </div>
 
@@ -479,7 +479,7 @@ export default function VendorPayments() {
                   placeholder="e.g. Server hosting fee, consulting"
                   value={natureOfPayment}
                   onChange={(e) => setNatureOfPayment(e.target.value)}
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs md:text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-all font-medium"
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs md:text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-all font-medium placeholder:text-slate-700"
                 />
               </div>
             </div>
@@ -498,7 +498,7 @@ export default function VendorPayments() {
                     placeholder="0.00"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
-                    className="w-full rounded-2xl border border-slate-200 bg-white pl-7.5 pr-3.5 py-2.5 text-xs md:text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-all font-medium"
+                    className="w-full rounded-2xl border border-slate-200 bg-white pl-7.5 pr-3.5 py-2.5 text-xs md:text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-all font-medium placeholder:text-slate-700"
                   />
                 </div>
               </div>

@@ -14,6 +14,7 @@ const LOGIN_OPTIONS = [
   { id: 'hr_admin', label: 'HR Admin' },
   { id: 'support', label: 'Support' },
   { id: 'employee', label: 'Employee' },
+  { id: 'vendor', label: 'Vendor' },
 ];
 
 const SIMPLE_ROLE_ERROR_BY_LOGIN = {
@@ -21,6 +22,7 @@ const SIMPLE_ROLE_ERROR_BY_LOGIN = {
   hr_admin: 'This email is not registered as an HR Admin. Please choose the correct login type.',
   support: 'This email is not registered as a Support user. Please choose the correct login type.',
   employee: 'This email is not registered as an Employee. Please choose the correct login type.',
+  vendor: 'This email is not registered as a Vendor Partner. Please choose the correct login type.',
 };
 
 function sanitizeLoginErrorMessage(message, loginAs) {
@@ -319,7 +321,7 @@ export default function Login({ onSuccess }) {
                 <div
                   className="pointer-events-none absolute inset-y-1 md:inset-y-1.5 left-1 md:left-1.5 rounded-full bg-[#0372CC] shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),_0_6px_16px_rgba(3,114,204,0.28)] border border-white/20 transition-transform duration-300 ease-out"
                   style={{
-                    width: 'calc((100% - 0.5rem) / 4)',
+                    width: `calc((100% - 0.5rem) / ${LOGIN_OPTIONS.length})`,
                     transform: `translateX(calc(${activeLoginIndex} * 100%))`,
                   }}
                 />

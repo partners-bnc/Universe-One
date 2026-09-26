@@ -86,6 +86,10 @@ function getDefaultDestinationForResolvedContext(accountType, moduleAccessState)
     return '/Taskmanager/admin';
   }
 
+  if (accountType === 'vendor') {
+    return '/other-modules/vendor/portal';
+  }
+
   if (accountType === 'employee') {
     return '/other-modules';
   }
@@ -202,8 +206,19 @@ export async function resolveAuthenticatedUserContext(supabase, user) {
   }
 
   const privilegedAccount = await findPrivilegedAccountByAuthUserId(user.id);
-  const profileRole = normalizeProfileRole(profile?.role || privilegedAccount?.role);
-  const accountType = resolveAccountType({ profileRole, employee });
+  let vendorProfile = null;
+  
+  // Check if user is a vendor client
+  const { data: vProfile } = await adminClient
+    .from('vendor_profiles')
+    .select('*')
+    .or(`auth_user_id.eq.${user.id},email.eq.${user.email?.toLowerCase() || ''}`)
+    .maybeSingle();
+  vendorProfile = vProfile || null;
+
+  const rawRole = profile?.role || privilegedAccount?.role || user.user_metadata?.role || (vendorProfile ? 'vendor' : null);
+  const profileRole = normalizeProfileRole(rawRole);
+  const accountType = resolveAccountType({ profileRole, employee, vendorProfile });
 
   if (!accountType) {
     return null;
@@ -240,6 +255,7 @@ export async function resolveAuthenticatedUserContext(supabase, user) {
   const displayName =
     superAdmin?.name ||
     hrAdmin?.name ||
+    vendorProfile?.vendor_name ||
     profile?.full_name ||
     employee?.name ||
     user.user_metadata?.full_name ||
@@ -259,6 +275,7 @@ export async function resolveAuthenticatedUserContext(supabase, user) {
     isSuperAdmin: isSuperAdminRole(profileRole),
     isHrAdmin: isHrAdminRole(profileRole),
     isSupport: isSupportRole(profileRole),
+    isVendor: accountType === 'vendor',
     destination: getDefaultDestinationForResolvedContext(accountType, moduleAccess),
     user: {
       id: user.id,
@@ -278,6 +295,7 @@ export async function resolveAuthenticatedUserContext(supabase, user) {
     support: support || null,
     privilegedAccount: privilegedAccount || null,
     employee: employee || null,
+    vendorProfile: vendorProfile || null,
     profile: profile || null,
     moduleAccess,
   };

@@ -1,10 +1,11 @@
-export const LOGIN_PORTALS = ['super_admin', 'hr_admin', 'support', 'employee'];
+export const LOGIN_PORTALS = ['super_admin', 'hr_admin', 'support', 'employee', 'vendor'];
 
 export function normalizeProfileRole(role) {
   const normalized = String(role || '').trim().toLowerCase();
 
   if (!normalized) return null;
   if (normalized === 'admin') return 'hr_admin';
+  if (normalized === 'vendor' || normalized === 'vendor_client' || normalized === 'client_vendor') return 'vendor';
 
   return normalized;
 }
@@ -15,6 +16,7 @@ export function normalizeLoginPortal(portal) {
   if (normalized === 'superadmin') return 'super_admin';
   if (normalized === 'hr') return 'hr_admin';
   if (normalized === 'supportteam') return 'support';
+  if (normalized === 'vendor' || normalized === 'vendor_client' || normalized === 'client') return 'vendor';
 
   return normalized || 'employee';
 }
@@ -32,7 +34,11 @@ export function isSupportRole(role) {
   return normalizeProfileRole(role) === 'support';
 }
 
-export function resolveAccountType({ profileRole, employee }) {
+export function isVendorRole(role) {
+  return normalizeProfileRole(role) === 'vendor';
+}
+
+export function resolveAccountType({ profileRole, employee, vendorProfile }) {
   const normalizedProfileRole = normalizeProfileRole(profileRole);
 
   if (normalizedProfileRole === 'super_admin') {
@@ -45,6 +51,10 @@ export function resolveAccountType({ profileRole, employee }) {
 
   if (normalizedProfileRole === 'support') {
     return 'support';
+  }
+
+  if (normalizedProfileRole === 'vendor' || vendorProfile) {
+    return 'vendor';
   }
 
   if (employee) {
@@ -68,6 +78,8 @@ export function getDefaultDestinationForAccountType(accountType) {
       return '/HRM/hrm/admin';
     case 'employee':
       return '/HRM/hrm';
+    case 'vendor':
+      return '/other-modules/vendor/portal';
     default:
       return '/login';
   }
@@ -83,7 +95,10 @@ export function getAccountTypeLabel(accountType) {
       return 'Employee';
     case 'support':
       return 'Support';
+    case 'vendor':
+      return 'Vendor Partner';
     default:
       return 'User';
   }
 }
+

@@ -60,19 +60,20 @@ export function normalizeCurrentStage(value, fallback = 'none') {
 }
 
 export function deriveEmploymentFields(row = {}) {
-  const legacyStatus = normalizeText(row.employee_status || row.status || row.employment_status);
+  const safeRow = row || {};
+  const legacyStatus = normalizeText(safeRow.employee_status || safeRow.status || safeRow.employment_status);
 
   let lifecycle = normalizeEmploymentLifecycleStatus(
-    row.employment_lifecycle_status,
+    safeRow.employment_lifecycle_status,
     (legacyStatus === 'terminated' || legacyStatus === 'separated') ? 'separated' : legacyStatus === 'inactive' ? 'inactive' : 'active'
   );
 
   let currentStage = normalizeCurrentStage(
-    row.current_stage,
+    safeRow.current_stage,
     ['probation', 'notice_period', 'on_leave'].includes(legacyStatus || '') ? legacyStatus : 'none'
   );
 
-  const employeeType = normalizeEmployeeType(row.employee_type);
+  const employeeType = normalizeEmployeeType(safeRow.employee_type);
 
   if (employeeType === 'intern' && currentStage === 'probation') {
     currentStage = 'none';
@@ -93,7 +94,7 @@ export function deriveEmploymentFields(row = {}) {
   };
 }
 
-export function toLegacyEmployeeStatus({ employmentLifecycleStatus, currentStage }) {
+export function toLegacyEmployeeStatus({ employmentLifecycleStatus, currentStage } = {}) {
   const lifecycle = normalizeEmploymentLifecycleStatus(employmentLifecycleStatus);
   const stage = normalizeCurrentStage(currentStage);
 
@@ -104,11 +105,13 @@ export function toLegacyEmployeeStatus({ employmentLifecycleStatus, currentStage
 }
 
 export function isEmployeeLoginBlocked(row = {}) {
+  if (!row) return false;
   const lifecycle = deriveEmploymentFields(row).employmentLifecycleStatus;
   return lifecycle === 'separated' || lifecycle === 'inactive';
 }
 
 export function isEmployeeAccessDisabledNow(row = {}, now = new Date()) {
+  if (!row) return false;
   if (isEmployeeLoginBlocked(row)) {
     return true;
   }
