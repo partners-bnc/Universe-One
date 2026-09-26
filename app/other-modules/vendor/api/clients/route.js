@@ -206,13 +206,16 @@ export async function POST(request) {
     }
 
     // 3. Dispatch credentials email
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://universeone.bncglobal.in';
+    const configuredAppUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || 'https://universeone.bncglobal.in';
+    const appUrl = configuredAppUrl.includes('tasks.bncglobal.in') ? 'https://universeone.bncglobal.in' : configuredAppUrl.replace(/\/$/, '');
+    const vendorLoginUrl = `${appUrl}/login`;
+
     await sendVendorAccountCreatedEmail({
       vendorName,
       recipientEmail: normalizedEmail,
       phone: cleanPhone,
       tempPassword: password,
-      loginUrl: `${appUrl}/login`
+      loginUrl: vendorLoginUrl
     }).catch(err => {
       console.warn('Non-fatal: Email dispatch failed for vendor:', err.message);
     });
@@ -223,7 +226,7 @@ export async function POST(request) {
       credentials: {
         email: normalizedEmail,
         password: password,
-        loginUrl: `${appUrl}/login`
+        loginUrl: vendorLoginUrl
       }
     });
   } catch (error) {

@@ -66,7 +66,8 @@ export async function sendVendorAccountCreatedEmail({
 
   const zohoToken = process.env.ZOHO_TOKEN || process.env.ZEPTOMAIL_TOKEN;
   const name = vendorName || 'Vendor Partner';
-  const targetUrl = loginUrl || `${process.env.NEXT_PUBLIC_APP_URL || 'https://universeone.bncglobal.in'}/login`;
+  let rawUrl = loginUrl || `${process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || 'https://universeone.bncglobal.in'}/login`;
+  const targetUrl = rawUrl.replace('tasks.bncglobal.in', 'universeone.bncglobal.in');
 
   const subject = `Welcome to Vendora — Your Vendor Portal Access (BNC Global)`;
   const textBody = `Dear ${name},

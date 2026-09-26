@@ -1,7 +1,11 @@
 const DEFAULT_APP_URL = 'https://universeone.bncglobal.in';
 
 function normalizeUrl(value) {
-  return String(value || '').trim().replace(/\/$/, '');
+  let url = String(value || '').trim().replace(/\/$/, '');
+  if (url.includes('tasks.bncglobal.in')) {
+    url = url.replace('tasks.bncglobal.in', 'universeone.bncglobal.in');
+  }
+  return url;
 }
 
 export function getAppUrl(preferredUrl = '') {
@@ -16,9 +20,10 @@ export function getAppUrl(preferredUrl = '') {
     DEFAULT_APP_URL
   );
 
-  return configuredUrl;
+  return configuredUrl || DEFAULT_APP_URL;
 }
 
 export function getLoginUrl(preferredUrl = '') {
   return `${getAppUrl(preferredUrl)}/login`;
 }
+
