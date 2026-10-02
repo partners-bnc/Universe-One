@@ -62,7 +62,11 @@ function formatMonthLabel(year: number, month: number) {
 
 function formatStatusLabel(status?: string | null) {
   const normalized = String(status || 'draft').replace(/_/g, ' ').trim();
-  return normalized ? normalized.charAt(0).toUpperCase() + normalized.slice(1) : 'Draft';
+  if (!normalized) return 'Draft';
+  return normalized
+    .split(' ')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
 }
 
 function formatToggle(value: unknown) {
@@ -1302,11 +1306,11 @@ export default function PayoutsPayroll() {
                         <td className="px-5 py-4">
                           <div className="flex flex-col gap-2">
                             <span className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold ${lifecycleTone(employee.resolved_employment_lifecycle_status)}`}>
-                              {String(employee.resolved_employment_lifecycle_status || 'active').replace('_', ' ')}
+                              {formatStatusLabel(employee.resolved_employment_lifecycle_status || 'active')}
                             </span>
                             {(employee.resolved_current_stage || 'none') !== 'none' ? (
                               <SoftTag tone="violet">
-                                {String(employee.resolved_current_stage).replace('_', ' ')}
+                                {formatStatusLabel(employee.resolved_current_stage)}
                               </SoftTag>
                             ) : null}
                           </div>

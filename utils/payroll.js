@@ -476,8 +476,8 @@ function formatCurrencyDisplay(value) {
   }).format(toNumber(value, 0));
 }
 
-const PAYSLIP_OFFICIAL_COMPANY_NAME = 'Broccoli & Carrots Global Services Pvt. Ltd. (BNC Global Services Pvt. Ltd.)';
-const PAYSLIP_OFFICIAL_ADDRESS = 'OFFICE NO 208, DDA BUILDING NO 5, Janakpuri District Centre, New Delhi, South West Delhi, Delhi, 110058';
+const PAYSLIP_OFFICIAL_COMPANY_NAME = 'BNC Global Consultech Private Limited';
+const PAYSLIP_OFFICIAL_ADDRESS = 'C - 15 & 16 Udyog Vihar, Phase 5, Sector 19, Gurugram, Haryana -122016, India';
 const PAYSLIP_DEFAULT_LOCATION = 'NEW DELHI';
 
 function formatPayslipMonthTitle(month, year) {
@@ -497,6 +497,38 @@ function buildPayslipLocation(employee) {
   const state = String(employee?.state || '').trim();
   const combined = [city, state].filter(Boolean).join(', ');
   return (combined || PAYSLIP_DEFAULT_LOCATION).toUpperCase();
+}
+
+export function normalizePayslipSnapshot(snapshot) {
+  if (!snapshot || typeof snapshot !== 'object') return snapshot;
+  const rawHeader = snapshot.header || {};
+  const companyName =
+    !rawHeader.companyName || rawHeader.companyName.includes('Broccoli & Carrots')
+      ? PAYSLIP_OFFICIAL_COMPANY_NAME
+      : rawHeader.companyName;
+  const addressLine =
+    !rawHeader.addressLine ||
+    rawHeader.addressLine.includes('Janakpuri') ||
+    rawHeader.addressLine.includes('DDA BUILDING')
+      ? PAYSLIP_OFFICIAL_ADDRESS
+      : rawHeader.addressLine;
+
+  return {
+    ...snapshot,
+    header: {
+      ...rawHeader,
+      companyName,
+      addressLine,
+    },
+  };
+}
+
+export function normalizePayslipRecord(payslip) {
+  if (!payslip) return null;
+  return {
+    ...payslip,
+    snapshot_json: normalizePayslipSnapshot(payslip.snapshot_json),
+  };
 }
 
 function titleCaseWords(value) {
@@ -599,7 +631,8 @@ function buildPayslipDetailColumns({ employee, payrollItem, monthLabel }) {
   };
 }
 
-export function buildPayslipHtml(snapshot = {}) {
+export function buildPayslipHtml(rawSnapshot = {}) {
+  const snapshot = normalizePayslipSnapshot(rawSnapshot) || {};
   const header = snapshot.header || {};
   const meta = snapshot.meta || {};
   const detailColumns = snapshot.detailColumns || { left: [], right: [] };
@@ -1845,7 +1878,7 @@ export async function getLatestPayslipForItem(itemId) {
     throw new Error(error.message || 'Failed to load payslip');
   }
 
-  return data || null;
+  return normalizePayslipRecord(data);
 }
 
 export async function listAdminPayrollHistory({ employeeId, year = null }) {

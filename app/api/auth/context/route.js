@@ -35,6 +35,7 @@ export async function GET() {
           auditing: { enabled: false, href: null },
           crm: { enabled: false, href: null },
           vendor: { enabled: false, href: null },
+          finance: { enabled: false, href: null },
         },
       });
     }
@@ -54,6 +55,7 @@ export async function GET() {
           auditing: { enabled: false, href: null },
           crm: { enabled: false, href: null },
           vendor: { enabled: false, href: null },
+          finance: { enabled: false, href: null },
         },
       });
     }
@@ -90,6 +92,7 @@ export async function GET() {
           auditing: { enabled: false, href: null },
           crm: { enabled: false, href: null },
           vendor: { enabled: false, href: null },
+          finance: { enabled: false, href: null },
         },
         error: error.message || 'Failed to resolve auth context',
       },

@@ -7,7 +7,7 @@ import { useHrmFeedback } from '../../ui/HrmFeedback';
 import HrmEmptyState from '../../ui/HrmEmptyState';
 import { TableRowsSkeleton } from '../../ui/Skeleton';
 
-type ModuleKey = 'task_manager' | 'hrm_admin' | 'auditing' | 'crm' | 'vendor';
+type ModuleKey = 'task_manager' | 'hrm_admin' | 'auditing' | 'crm' | 'vendor' | 'finance';
 
 type ModuleConfig = {
   key: ModuleKey;
@@ -52,6 +52,10 @@ const MODULES: ModuleConfig[] = [
   {
     key: 'vendor',
     label: 'Vendor',
+  },
+  {
+    key: 'finance',
+    label: 'Finance',
   },
 ];
 

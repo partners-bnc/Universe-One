@@ -45,6 +45,13 @@ const otherModules = [
     video: '/assets/other 2.mp4',
     accessKey: 'far',
   },
+  {
+    id: 'finance',
+    title: 'Finance',
+    image: '/assets/Audit.jpeg',
+    video: '/assets/gif 4th.mp4',
+    accessKey: 'finance',
+  },
 ];
 
 export function OthersSection({ modules: moduleAccessMap = {}, loading = false, className = '' }) {
@@ -57,6 +64,14 @@ export function OthersSection({ modules: moduleAccessMap = {}, loading = false, 
             ...module,
             enabled: true,
             href: '/other-modules/far',
+          };
+        }
+        if (module.id === 'finance') {
+          const isEnabled = Boolean(moduleAccessMap?.finance?.enabled);
+          return {
+            ...module,
+            enabled: isEnabled,
+            href: isEnabled ? '/other-modules/finance' : null,
           };
         }
         return {

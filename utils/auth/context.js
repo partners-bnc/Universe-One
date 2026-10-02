@@ -17,6 +17,7 @@ function getDefaultModuleAccess() {
     auditing: false,
     crm: false,
     vendor: false,
+    finance: false,
   };
 }
 
@@ -44,6 +45,7 @@ export function buildModuleAccessState(authContext) {
   const auditingEnabled = !employeeAccessBlocked && (isHrOrSuperAdmin ? true : Boolean(employeeModuleAccess.auditing));
   const crmEnabled = !employeeAccessBlocked && (isHrOrSuperAdmin ? true : Boolean(employeeModuleAccess.crm));
   const vendorEnabled = !employeeAccessBlocked && (isHrOrSuperAdmin ? true : Boolean(employeeModuleAccess.vendor));
+  const financeEnabled = !employeeAccessBlocked && (isHrOrSuperAdmin ? true : Boolean(employeeModuleAccess.finance));
 
   return {
     taskManager: {
@@ -69,6 +71,10 @@ export function buildModuleAccessState(authContext) {
     vendor: {
       enabled: vendorEnabled,
       href: vendorEnabled ? '/other-modules/vendor' : null,
+    },
+    finance: {
+      enabled: financeEnabled,
+      href: financeEnabled ? '/other-modules/finance' : null,
     },
   };
 }
@@ -123,7 +129,9 @@ export async function resolveAuthenticatedUserContext(supabase, user) {
           auditing,
           crm,
           vendor,
-          vendor_role
+          vendor_role,
+          finance,
+          finance_role
         )
       `)
       .eq('auth_user_id', user.id)
@@ -168,7 +176,9 @@ export async function resolveAuthenticatedUserContext(supabase, user) {
             auditing,
             crm,
             vendor,
-            vendor_role
+            vendor_role,
+            finance,
+            finance_role
           )
         `)
         .eq('id', fallbackEmployeeUuid)
@@ -196,7 +206,9 @@ export async function resolveAuthenticatedUserContext(supabase, user) {
             auditing,
             crm,
             vendor,
-            vendor_role
+            vendor_role,
+            finance,
+            finance_role
           )
         `)
         .ilike('employee_id', fallbackEmployeeCode)

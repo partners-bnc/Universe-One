@@ -152,8 +152,27 @@ function ensureRows(rows: any[] = [], minRows = 3) {
   return Array.from({ length: count }, (_, index) => safeRows[index] || { label: '', displayAmount: '' });
 }
 
+const OFFICIAL_COMPANY_NAME = 'BNC Global Consultech Private Limited';
+const OFFICIAL_ADDRESS = 'C - 15 & 16 Udyog Vihar, Phase 5, Sector 19, Gurugram, Haryana -122016, India';
+
 export default function PayrollPdfDocument({ snapshot }: { snapshot: any }) {
-  const header = snapshot?.header || {};
+  const rawHeader = snapshot?.header || {};
+  const companyName =
+    !rawHeader.companyName || rawHeader.companyName.includes('Broccoli & Carrots')
+      ? OFFICIAL_COMPANY_NAME
+      : rawHeader.companyName;
+  const addressLine =
+    !rawHeader.addressLine ||
+    rawHeader.addressLine.includes('Janakpuri') ||
+    rawHeader.addressLine.includes('DDA BUILDING')
+      ? OFFICIAL_ADDRESS
+      : rawHeader.addressLine;
+
+  const header = {
+    ...rawHeader,
+    companyName,
+    addressLine,
+  };
   const meta = snapshot?.meta || {};
   const detailColumns = snapshot?.detailColumns || { left: [], right: [] };
   const earningsRows = snapshot?.earningsRows || [];
