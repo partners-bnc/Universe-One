@@ -16,7 +16,13 @@ const EMPLOYEE_DIRECTORY_SELECT = `
     task_manager_role,
     hrm_admin,
     auditing,
-    crm
+    auditing_role,
+    crm,
+    crm_role,
+    vendor,
+    vendor_role,
+    finance,
+    finance_role
   )
 `;
 const ASSIGNMENT_ACTIVITY_SELECT = `
@@ -184,7 +190,13 @@ async function getActorFromSupabaseUserWithOptions(options = {}) {
           task_manager_role,
           hrm_admin,
           auditing,
-          crm
+          auditing_role,
+          crm,
+          crm_role,
+          vendor,
+          vendor_role,
+          finance,
+          finance_role
         )
       `)
       .eq('auth_user_id', user.id)
@@ -222,7 +234,13 @@ async function getActorFromSupabaseUserWithOptions(options = {}) {
             task_manager_role,
             hrm_admin,
             auditing,
-            crm
+            auditing_role,
+            crm,
+            crm_role,
+            vendor,
+            vendor_role,
+            finance,
+            finance_role
           )
         `)
         .eq('id', metadataEmployeeUuid)
@@ -248,7 +266,13 @@ async function getActorFromSupabaseUserWithOptions(options = {}) {
             task_manager_role,
             hrm_admin,
             auditing,
-            crm
+            auditing_role,
+            crm,
+            crm_role,
+            vendor,
+            vendor_role,
+            finance,
+            finance_role
           )
         `)
         .ilike('employee_id', employeeCode)

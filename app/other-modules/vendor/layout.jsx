@@ -6,6 +6,8 @@ import Sidebar from './components/Sidebar';
 import { createClient } from '@/utils/supabase/client';
 import { useWorkspaceRouting } from '@/app/components-homepage/useWorkspaceRouting';
 
+import { ModuleAccessGate } from '@/app/components-homepage/ModuleAccessGate';
+
 const VendorContext = createContext(null);
 
 export function useVendor() {
@@ -89,41 +91,43 @@ export default function VendorLayout({ children }) {
   }
 
   return (
-    <VendorContext.Provider
-      value={{
-        user,
-        isSidebarCollapsed,
-        toggleSidebar,
-        isDarkMode: false,
-        toggleDarkMode: () => {},
-        payments,
-        stats,
-        loading: loading || authLoading,
-        refreshData: fetchPaymentsData
-      }}
-    >
-      <div className="flex h-screen flex-col overflow-hidden bg-slate-50 transition-colors duration-300 md:flex-row">
-        {/* Desktop Sidebar */}
-        <div className="hidden md:block">
-          <Sidebar />
-        </div>
-        
-        {/* Mobile Navbar */}
-        <div className="flex items-center justify-between border-b border-slate-200 bg-white px-5 py-4 text-slate-800 md:hidden">
-          <span className="text-base font-extrabold tracking-wider bg-gradient-to-r from-blue-600 to-violet-600 bg-clip-text text-transparent uppercase leading-none">
-            VENDORA
-          </span>
-          <span className="rounded-full bg-blue-50 border border-blue-200 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-blue-650 shrink-0">
-            Active
-          </span>
-        </div>
+    <ModuleAccessGate moduleKey="vendor" moduleLabel="Vendora">
+      <VendorContext.Provider
+        value={{
+          user,
+          isSidebarCollapsed,
+          toggleSidebar,
+          isDarkMode: false,
+          toggleDarkMode: () => {},
+          payments,
+          stats,
+          loading: loading || authLoading,
+          refreshData: fetchPaymentsData
+        }}
+      >
+        <div className="flex h-screen flex-col overflow-hidden bg-slate-50 transition-colors duration-300 md:flex-row">
+          {/* Desktop Sidebar */}
+          <div className="hidden md:block">
+            <Sidebar />
+          </div>
+          
+          {/* Mobile Navbar */}
+          <div className="flex items-center justify-between border-b border-slate-200 bg-white px-5 py-4 text-slate-800 md:hidden">
+            <span className="text-base font-extrabold tracking-wider bg-gradient-to-r from-blue-600 to-violet-600 bg-clip-text text-transparent uppercase leading-none">
+              VENDORA
+            </span>
+            <span className="rounded-full bg-blue-50 border border-blue-200 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-blue-650 shrink-0">
+              Active
+            </span>
+          </div>
 
-        {/* Main Content Area */}
-        <main className="min-h-0 w-full flex-1 overflow-y-auto scroll-smooth">
-          {children}
-        </main>
-      </div>
-    </VendorContext.Provider>
+          {/* Main Content Area */}
+          <main className="min-h-0 w-full flex-1 overflow-y-auto scroll-smooth">
+            {children}
+          </main>
+        </div>
+      </VendorContext.Provider>
+    </ModuleAccessGate>
   );
 }
 

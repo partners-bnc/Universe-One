@@ -1301,9 +1301,16 @@ export async function GET(request) {
         ),
         module_access:hrm_module_access!module_access_employee_id_fkey (
           task_manager,
+          task_manager_role,
           hrm_admin,
           auditing,
-          crm
+          auditing_role,
+          crm,
+          crm_role,
+          vendor,
+          vendor_role,
+          finance,
+          finance_role
         )
       `)
       .order('created_at', { ascending: false });
@@ -1725,6 +1732,10 @@ export async function POST(request) {
         auditing_role: null,
         crm: false,
         crm_role: null,
+        vendor: false,
+        vendor_role: 'viewer',
+        finance: false,
+        finance_role: 'viewer',
         hrm_admin: false,
         granted_by: authContext?.employee?.id || null,
         granted_at: new Date().toISOString(),
@@ -1997,6 +2008,7 @@ export async function PATCH(request) {
     const auditingAccess = body?.auditingAccess !== undefined ? parseBoolean(body.auditingAccess) : undefined;
     const crmAccess = body?.crmAccess !== undefined ? parseBoolean(body.crmAccess) : undefined;
     const vendorAccess = body?.vendorAccess !== undefined ? parseBoolean(body.vendorAccess) : undefined;
+    const financeAccess = body?.financeAccess !== undefined ? parseBoolean(body.financeAccess) : undefined;
 
     const payload = {};
     if (name !== undefined) payload.name = name;
@@ -2198,7 +2210,8 @@ export async function PATCH(request) {
       hrmAdminAccess !== undefined ||
       auditingAccess !== undefined ||
       crmAccess !== undefined ||
-      vendorAccess !== undefined;
+      vendorAccess !== undefined ||
+      financeAccess !== undefined;
 
     if (Object.keys(payload).length === 0 && !hasModuleAccessUpdate) {
       return NextResponse.json({ error: 'No fields provided for update' }, { status: 400 });
@@ -2237,6 +2250,8 @@ export async function PATCH(request) {
         crm_role: currentModuleAccess?.crm_role || null,
         vendor: vendorAccess !== undefined ? vendorAccess : currentModuleAccess?.vendor || false,
         vendor_role: currentModuleAccess?.vendor_role || null,
+        finance: financeAccess !== undefined ? financeAccess : currentModuleAccess?.finance || false,
+        finance_role: currentModuleAccess?.finance_role || null,
         hrm_admin: hrmAdminAccess !== undefined ? hrmAdminAccess : currentModuleAccess?.hrm_admin || false,
         granted_by: currentModuleAccess?.granted_by || authContext.employee?.id || null,
         granted_at: currentModuleAccess?.granted_at || new Date().toISOString(),

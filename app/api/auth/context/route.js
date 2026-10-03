@@ -73,6 +73,7 @@ export async function GET() {
         auditing: { enabled: false, href: null },
         crm: { enabled: false, href: null },
         vendor: { enabled: false, href: null },
+        finance: { enabled: false, href: null },
       },
       user: authContext.user,
     });

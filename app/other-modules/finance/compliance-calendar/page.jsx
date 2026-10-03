@@ -29,6 +29,8 @@ import {
   Lock,
 } from 'lucide-react';
 
+import { ModuleAccessGate } from '@/app/components-homepage/ModuleAccessGate';
+
 const STORAGE_COMPANIES_KEY = 'finance_compliance_companies_v2';
 const STORAGE_ITEMS_PREFIX = 'finance_compliance_items_';
 const STORAGE_PERSONS_PREFIX = 'finance_compliance_persons_';
@@ -247,7 +249,7 @@ export default function ComplianceCalendarCompaniesPage() {
   };
 
   return (
-    <>
+    <ModuleAccessGate moduleKey="finance" moduleLabel="Finance">
       <Navbar
         workspaceHref={workspaceHref}
         workspaceLabel={workspaceLabel}
@@ -784,7 +786,7 @@ export default function ComplianceCalendarCompaniesPage() {
           </div>
         </div>
       )}
-    </>
+    </ModuleAccessGate>
   );
 }
 

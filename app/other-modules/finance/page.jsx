@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Navbar } from '@/app/components-homepage/Navbar';
 import { useWorkspaceRouting } from '@/app/components-homepage/useWorkspaceRouting';
 import { Calendar, ArrowRight, ShieldCheck } from 'lucide-react';
+import { ModuleAccessGate } from '@/app/components-homepage/ModuleAccessGate';
 
 export default function FinanceHubPage() {
   const { loading, isAuthenticated, workspaceHref, user } = useWorkspaceRouting();
@@ -25,7 +26,7 @@ export default function FinanceHubPage() {
   ];
 
   return (
-    <>
+    <ModuleAccessGate moduleKey="finance" moduleLabel="Finance">
       <Navbar
         workspaceHref={workspaceHref}
         workspaceLabel={workspaceLabel}
@@ -96,6 +97,6 @@ export default function FinanceHubPage() {
           </div>
         </div>
       </main>
-    </>
+    </ModuleAccessGate>
   );
 }

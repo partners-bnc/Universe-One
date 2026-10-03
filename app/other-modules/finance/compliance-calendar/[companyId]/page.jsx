@@ -51,6 +51,7 @@ import {
   resolveStatutoryDueDate,
   computeEffectiveStatus,
 } from '@/utils/finance-compliance-master';
+import { ModuleAccessGate } from '@/app/components-homepage/ModuleAccessGate';
 
 const STORAGE_COMPANIES_KEY = 'finance_compliance_companies_v2';
 const STORAGE_PERSONS_PREFIX = 'finance_compliance_persons_';
@@ -1140,10 +1141,11 @@ export default function CompanyComplianceWorkspace() {
   ];
 
   return (
-    <div
-      className="flex h-screen w-screen overflow-hidden bg-[linear-gradient(180deg,#f8fafc_0%,#eef6ff_50%,#f0fdf4_100%)] text-slate-800 font-sans"
-      style={{ fontFamily: "'Inter', sans-serif" }}
-    >
+    <ModuleAccessGate moduleKey="finance" moduleLabel="Finance">
+      <div
+        className="flex h-screen w-screen overflow-hidden bg-[linear-gradient(180deg,#f8fafc_0%,#eef6ff_50%,#f0fdf4_100%)] text-slate-800 font-sans"
+        style={{ fontFamily: "'Inter', sans-serif" }}
+      >
       {/* Mobile Sidebar backdrop overlay */}
       {isSidebarOpen && (
         <div
@@ -3811,6 +3813,7 @@ export default function CompanyComplianceWorkspace() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </ModuleAccessGate>
   );
 }

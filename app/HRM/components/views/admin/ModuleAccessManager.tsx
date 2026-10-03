@@ -120,7 +120,15 @@ function buildPatchBody(moduleKey: ModuleKey, nextValue: boolean) {
     return { crmAccess: nextValue };
   }
 
-  return { vendorAccess: nextValue };
+  if (moduleKey === 'vendor') {
+    return { vendorAccess: nextValue };
+  }
+
+  if (moduleKey === 'finance') {
+    return { financeAccess: nextValue };
+  }
+
+  return {};
 }
 
 export default function ModuleAccessManager() {

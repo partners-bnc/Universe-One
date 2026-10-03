@@ -26,9 +26,16 @@ const EMPLOYEE_PROFILE_SELECT_BASE = `
   reporting_manager_id,
   module_access:hrm_module_access!module_access_employee_id_fkey (
     task_manager,
+    task_manager_role,
     hrm_admin,
     auditing,
-    crm
+    auditing_role,
+    crm,
+    crm_role,
+    vendor,
+    vendor_role,
+    finance,
+    finance_role
   ),
   department:hrm_departments (id, name),
   designation:hrm_designations (id, title)
