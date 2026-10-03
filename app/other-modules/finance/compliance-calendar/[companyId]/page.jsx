@@ -50,6 +50,7 @@ import {
   formatPeriodFull,
   resolveStatutoryDueDate,
   computeEffectiveStatus,
+  resolveEffectiveEntry,
 } from '@/utils/finance-compliance-master';
 import { ModuleAccessGate } from '@/app/components-homepage/ModuleAccessGate';
 
@@ -139,13 +140,35 @@ export default function CompanyComplianceWorkspace() {
   // Active View Tab: 'dashboard' | 'calendar' | 'people' | 'profile' | 'email_logs'
   const [activeTab, setActiveTab] = useState('calendar');
 
-  // Tracking Period State (Default: September 2026)
-  const [activeMonth, setActiveMonth] = useState(9);
-  const [activeYear, setActiveYear] = useState(2026);
+  // Tracking Period State (Defaults dynamically to current month & year)
+  const [activeMonth, setActiveMonth] = useState(() => new Date().getMonth() + 1);
+  const [activeYear, setActiveYear] = useState(() => new Date().getFullYear());
 
   // Company State
   const [companies, setCompanies] = useState([]);
   const [company, setCompany] = useState(null);
+
+  // Inception / Onboarding Period Calculation
+  const companyInception = useMemo(() => {
+    if (!company?.created_at) return null;
+    const d = new Date(company.created_at);
+    if (isNaN(d.getTime())) return null;
+    const m = d.getMonth() + 1;
+    const y = d.getFullYear();
+    return {
+      year: y,
+      month: m,
+      label: formatPeriodLabel(m, y),
+      fullLabel: formatPeriodFull(m, y),
+    };
+  }, [company?.created_at]);
+
+  const isBeforeInception = useMemo(() => {
+    if (!companyInception) return false;
+    if (activeYear < companyInception.year) return true;
+    if (activeYear === companyInception.year && activeMonth < companyInception.month) return true;
+    return false;
+  }, [companyInception, activeYear, activeMonth]);
 
   // Company Profile Edit State & Drawer
   const [isEditProfileDrawerOpen, setIsEditProfileDrawerOpen] = useState(false);
@@ -462,8 +485,11 @@ export default function CompanyComplianceWorkspace() {
   // Open Edit Drawer for a Row
   const handleOpenEditDrawer = (item, options = {}) => {
     setEditingItem(item);
-    const entry = entries[item.id] || {};
-    const effectiveSt = computeEffectiveStatus(item, entry, activeMonth, activeYear);
+    const entry = {
+      ...(entries[item.id] || {}),
+      ...resolveEffectiveEntry(item, company?.monthly_entries, activeMonth, activeYear),
+    };
+    const effectiveSt = computeEffectiveStatus(item, entry, activeMonth, activeYear, new Date(), company?.created_at);
     const initialStatus = options.forcedStatus || entry.status || effectiveSt || 'Pending';
 
     setEditFormWarning(options.warning || '');
@@ -586,6 +612,22 @@ export default function CompanyComplianceWorkspace() {
       },
     };
     setEntries(updatedEntries);
+
+    // Update company.monthly_entries so cross-month inheritance immediately reflects
+    const periodKey = `${activeYear}_${activeMonth}`;
+    setCompany((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        monthly_entries: {
+          ...(prev.monthly_entries || {}),
+          [periodKey]: {
+            ...(prev.monthly_entries?.[periodKey] || {}),
+            [editingItem.id]: updatedEntries[editingItem.id],
+          },
+        },
+      };
+    });
 
     // 3. Save to API & Supabase in parallel
     try {
@@ -1036,6 +1078,25 @@ export default function CompanyComplianceWorkspace() {
 
   // Statistics & Breakdown
   const stats = useMemo(() => {
+    if (isBeforeInception) {
+      return {
+        total: items.length,
+        completed: 0,
+        inProgress: 0,
+        pending: 0,
+        overdue: 0,
+        score: 0,
+        isPreInception: true,
+        frequencyCounts: {
+          Monthly: 0,
+          Quarterly: 0,
+          Annual: 0,
+          'One time': 0,
+          'Half-Yearly': 0,
+        },
+      };
+    }
+
     let completed = 0;
     let inProgress = 0;
     let pending = 0;
@@ -1050,8 +1111,11 @@ export default function CompanyComplianceWorkspace() {
     };
 
     items.forEach((it) => {
-      const entry = entries[it.id] || {};
-      const st = computeEffectiveStatus(it, entry, activeMonth, activeYear);
+      const entry = {
+        ...(entries[it.id] || {}),
+        ...resolveEffectiveEntry(it, company?.monthly_entries, activeMonth, activeYear),
+      };
+      const st = computeEffectiveStatus(it, entry, activeMonth, activeYear, new Date(), company?.created_at);
       if (st === 'Completed') completed++;
       else if (st === 'In Progress') inProgress++;
       else if (st === 'Overdue') overdue++;
@@ -1066,14 +1130,17 @@ export default function CompanyComplianceWorkspace() {
     const total = items.length;
     const score = total > 0 ? Math.round((completed / total) * 100) : 0;
 
-    return { total, completed, inProgress, pending, overdue, score, frequencyCounts };
-  }, [items, entries, activeMonth, activeYear]);
+    return { total, completed, inProgress, pending, overdue, score, isPreInception: false, frequencyCounts };
+  }, [items, entries, activeMonth, activeYear, isBeforeInception, company?.created_at, company?.monthly_entries]);
 
   // Filtered items
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
-      const entry = entries[item.id] || {};
-      const effectiveSt = computeEffectiveStatus(item, entry, activeMonth, activeYear);
+      const entry = {
+        ...(entries[item.id] || {}),
+        ...resolveEffectiveEntry(item, company?.monthly_entries, activeMonth, activeYear),
+      };
+      const effectiveSt = computeEffectiveStatus(item, entry, activeMonth, activeYear, new Date(), company?.created_at);
 
       if (searchTerm.trim()) {
         const term = searchTerm.toLowerCase();
@@ -1088,22 +1155,30 @@ export default function CompanyComplianceWorkspace() {
       }
       return true;
     });
-  }, [items, entries, activeMonth, activeYear, searchTerm, frequencyFilter, statusFilter]);
+  }, [items, entries, activeMonth, activeYear, searchTerm, frequencyFilter, statusFilter, company?.created_at, company?.monthly_entries]);
 
   // Dashboard filtered list
   const dashboardItems = useMemo(() => {
     if (dashboardFilter === 'ALL') return items;
     if (dashboardFilter === 'NEEDS_ACTION') {
       return items.filter((it) => {
-        const st = computeEffectiveStatus(it, entries[it.id], activeMonth, activeYear);
+        const entry = {
+          ...(entries[it.id] || {}),
+          ...resolveEffectiveEntry(it, company?.monthly_entries, activeMonth, activeYear),
+        };
+        const st = computeEffectiveStatus(it, entry, activeMonth, activeYear, new Date(), company?.created_at);
         return st === 'Pending' || st === 'Overdue';
       });
     }
     return items.filter((it) => {
-      const st = computeEffectiveStatus(it, entries[it.id], activeMonth, activeYear);
+      const entry = {
+        ...(entries[it.id] || {}),
+        ...resolveEffectiveEntry(it, company?.monthly_entries, activeMonth, activeYear),
+      };
+      const st = computeEffectiveStatus(it, entry, activeMonth, activeYear, new Date(), company?.created_at);
       return st === dashboardFilter;
     });
-  }, [items, entries, activeMonth, activeYear, dashboardFilter]);
+  }, [items, entries, activeMonth, activeYear, dashboardFilter, company?.created_at, company?.monthly_entries]);
 
   const activePeriodLabel = formatPeriodLabel(activeMonth, activeYear);
   const activePeriodFull = formatPeriodFull(activeMonth, activeYear);
@@ -1378,6 +1453,34 @@ export default function CompanyComplianceWorkspace() {
           {activeTab === 'dashboard' && (
             <div className="space-y-6 max-w-7xl mx-auto animate-fadeIn">
               
+              {/* Pre-Inception Notice Banner */}
+              {isBeforeInception && (
+                <div className="p-4.5 rounded-2xl bg-gradient-to-r from-blue-50/90 to-indigo-50/80 border border-blue-200 text-blue-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-xl bg-blue-100 text-[#3170c6] shrink-0">
+                      <AlertCircle className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-900">Data Not Available for {activePeriodFull}</h4>
+                      <p className="text-[11px] text-slate-600 mt-0.5">
+                        <strong>{company?.company_name || 'This entity'}</strong> was onboarded in <strong>{companyInception?.fullLabel || 'a later period'}</strong>. Statutory compliance tracking begins from {companyInception?.fullLabel || 'onboarding'} onwards.
+                      </p>
+                    </div>
+                  </div>
+                  {companyInception && (
+                    <button
+                      onClick={() => {
+                        setActiveMonth(companyInception.month);
+                        setActiveYear(companyInception.year);
+                      }}
+                      className="px-3.5 py-1.5 rounded-xl bg-[#3170c6] hover:bg-[#2558a2] text-white text-xs font-bold shrink-0 transition-colors shadow-xs cursor-pointer"
+                    >
+                      Go to {companyInception.label}
+                    </button>
+                  )}
+                </div>
+              )}
+
               {/* 1. KPI Metric Cards Directly at Top */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div className="bg-white/90 border border-slate-200/80 rounded-2xl p-5 shadow-xs backdrop-blur-xl">
@@ -1664,8 +1767,11 @@ export default function CompanyComplianceWorkspace() {
                 ) : (
                   <div className="divide-y divide-slate-100">
                     {dashboardItems.map((item, idx) => {
-                      const entry = entries[item.id] || {};
-                      const st = entry.status || 'Pending';
+                      const entry = {
+                        ...(entries[item.id] || {}),
+                        ...resolveEffectiveEntry(item, company?.monthly_entries, activeMonth, activeYear),
+                      };
+                      const st = computeEffectiveStatus(item, entry, activeMonth, activeYear, new Date(), company?.created_at);
                       return (
                         <div
                           key={item.id}
@@ -1797,37 +1903,79 @@ export default function CompanyComplianceWorkspace() {
                 </div>
               </div>
 
-              {/* Spreadsheet Grid with Increased Status Column Width */}
-              <div className="bg-white/95 border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden backdrop-blur-xl">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="bg-slate-50/90 border-b border-slate-200 text-slate-700 font-extrabold uppercase tracking-wider text-[11px]">
-                        <th className="py-3.5 px-3 w-12 text-center">S.No</th>
-                        <th className="py-3.5 px-4 min-w-[260px]">Compliance Nature</th>
-                        <th className="py-3.5 px-3 w-28 text-center">Frequency</th>
-                        <th className="py-3.5 px-4 min-w-[180px]">Statutory Due Date</th>
-                        <th className="py-3.5 px-4 min-w-[180px]">Internal Control Date</th>
-                        <th className="py-3.5 px-4 min-w-[160px] whitespace-nowrap">Actual Payment Date</th>
-                        
-                        {/* Increased Status Column Width */}
-                        <th className="py-3.5 px-4 w-44 min-w-[170px] text-center">Status</th>
-                        
-                        <th className="py-3.5 px-4 min-w-[240px]">Remarks / Notes</th>
-                        <th className="py-3.5 px-3 w-12 text-center">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 text-slate-700">
-                      {filteredItems.length === 0 ? (
-                        <tr>
-                          <td colSpan={9} className="py-12 text-center text-slate-400">
-                            No compliance items recorded yet. Click "Add Row" above to add your first compliance item.
-                          </td>
+              {/* Calendar Spreadsheet Body / Pre-Inception Notice */}
+              {isBeforeInception ? (
+                <div className="bg-white/95 border border-slate-200/80 rounded-2xl p-12 text-center shadow-xs backdrop-blur-xl space-y-4">
+                  <div className="w-16 h-16 rounded-2xl bg-blue-50 text-[#3170c6] flex items-center justify-center mx-auto shadow-inner">
+                    <Calendar className="w-8 h-8" />
+                  </div>
+                  <div className="max-w-md mx-auto space-y-2">
+                    <h3 className="text-base font-extrabold text-slate-900">
+                      Data Not Available for {activePeriodFull}
+                    </h3>
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      <strong>{company?.company_name || 'This company'}</strong> was onboarded in <strong>{companyInception?.fullLabel || 'a later period'}</strong>. Statutory compliance monitoring and monthly tracking records begin from {companyInception?.fullLabel || 'onboarding'} onwards.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                    {companyInception && (
+                      <button
+                        onClick={() => {
+                          setActiveMonth(companyInception.month);
+                          setActiveYear(companyInception.year);
+                        }}
+                        className="px-4 py-2 rounded-xl bg-[#3170c6] hover:bg-[#2558a2] text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+                      >
+                        Switch to Onboarded Month ({companyInception.label})
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        const now = new Date();
+                        setActiveMonth(now.getMonth() + 1);
+                        setActiveYear(now.getFullYear());
+                      }}
+                      className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all cursor-pointer"
+                    >
+                      Jump to Current Month
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Spreadsheet Grid with Increased Status Column Width */
+                <div className="bg-white/95 border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden backdrop-blur-xl">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50/90 border-b border-slate-200 text-slate-700 font-extrabold uppercase tracking-wider text-[11px]">
+                          <th className="py-3.5 px-3 w-12 text-center">S.No</th>
+                          <th className="py-3.5 px-4 min-w-[260px]">Compliance Nature</th>
+                          <th className="py-3.5 px-3 w-28 text-center">Frequency</th>
+                          <th className="py-3.5 px-4 min-w-[180px]">Statutory Due Date</th>
+                          <th className="py-3.5 px-4 min-w-[180px]">Internal Control Date</th>
+                          <th className="py-3.5 px-4 min-w-[160px] whitespace-nowrap">Actual Payment Date</th>
+                          
+                          {/* Increased Status Column Width */}
+                          <th className="py-3.5 px-4 w-44 min-w-[170px] text-center">Status</th>
+                          
+                          <th className="py-3.5 px-4 min-w-[240px]">Remarks / Notes</th>
+                          <th className="py-3.5 px-3 w-12 text-center">Action</th>
                         </tr>
-                      ) : (
-                        filteredItems.map((item, index) => {
-                          const entry = entries[item.id] || {};
-                          const status = computeEffectiveStatus(item, entry, activeMonth, activeYear);
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-slate-700">
+                        {filteredItems.length === 0 ? (
+                          <tr>
+                            <td colSpan={9} className="py-12 text-center text-slate-400">
+                              No compliance items recorded yet. Click "Add Row" above to add your first compliance item.
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredItems.map((item, index) => {
+                            const entry = {
+                              ...(entries[item.id] || {}),
+                              ...resolveEffectiveEntry(item, company?.monthly_entries, activeMonth, activeYear),
+                            };
+                            const status = computeEffectiveStatus(item, entry, activeMonth, activeYear, new Date(), company?.created_at);
 
                           return (
                             <tr
@@ -1922,6 +2070,7 @@ export default function CompanyComplianceWorkspace() {
                   </table>
                 </div>
               </div>
+              )}
             </div>
           )}
 
@@ -3561,6 +3710,19 @@ export default function CompanyComplianceWorkspace() {
                       </p>
                     </div>
 
+                    {/* Pre-Inception Warning in Email Modal */}
+                    {isBeforeInception && (
+                      <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-1">
+                        <div className="flex items-center gap-2 font-bold text-amber-800">
+                          <AlertTriangle className="w-4 h-4 text-amber-600" />
+                          <span>Pre-Onboarding Period Selected</span>
+                        </div>
+                        <p className="text-[11px] text-amber-700">
+                          You are viewing <strong>{activePeriodFull}</strong>, which is before the company's onboarding date (<strong>{companyInception?.fullLabel}</strong>). Switch to an active tracking period to dispatch reports.
+                        </p>
+                      </div>
+                    )}
+
                     {/* Custom Note */}
                     <div className="p-4 rounded-2xl border border-white/60 bg-white/50 backdrop-blur-2xl shadow-[inset_0_1.5px_2px_rgba(255,255,255,0.8),0_10px_30px_rgba(0,0,0,0.02)] space-y-1.5">
                       <label className="font-bold text-slate-800">Custom Note / Remarks (Optional)</label>
@@ -3590,7 +3752,7 @@ export default function CompanyComplianceWorkspace() {
                   <button
                     type="submit"
                     form="email-calendar-form"
-                    disabled={emailSending || persons.length === 0}
+                    disabled={emailSending || persons.length === 0 || isBeforeInception}
                     className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#3170c6] hover:bg-[#2558a2] text-white text-xs font-bold shadow-md shadow-[#3170c6]/20 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {emailSending ? (

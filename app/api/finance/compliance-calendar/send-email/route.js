@@ -8,6 +8,7 @@ import {
   formatPeriodLabel,
   formatPeriodFull,
   computeEffectiveStatus,
+  resolveEffectiveEntry,
 } from '@/utils/finance-compliance-master';
 
 export async function POST(request) {
@@ -95,9 +96,21 @@ export async function POST(request) {
     let pendingCount = 0;
     let overdueCount = 0;
 
+    const allMonthlyEntries = company?.monthly_entries || {};
+
     const itemsWithEntries = (items || []).map((item, idx) => {
-      const entry = entriesMap[item.id] || {};
-      const status = computeEffectiveStatus(item, entry, Number(periodMonth), Number(periodYear));
+      const entry = {
+        ...(entriesMap[item.id] || {}),
+        ...resolveEffectiveEntry(item, allMonthlyEntries, Number(periodMonth), Number(periodYear)),
+      };
+      const status = computeEffectiveStatus(
+        item,
+        entry,
+        Number(periodMonth),
+        Number(periodYear),
+        new Date(),
+        company?.created_at
+      );
 
       if (status === 'Completed') completedCount++;
       else if (status === 'In Progress') inProgressCount++;

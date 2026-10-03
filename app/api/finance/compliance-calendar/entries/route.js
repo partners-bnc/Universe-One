@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { adminClient } from '@/utils/supabase/admin';
+import { resolveEffectiveEntry } from '@/utils/finance-compliance-master';
 
 export async function GET(request) {
   try {
@@ -14,7 +15,7 @@ export async function GET(request) {
 
     const { data: company, error } = await adminClient
       .from('finance_compliance')
-      .select('monthly_entries')
+      .select('compliance_items, monthly_entries')
       .eq('id', companyId)
       .single();
 
@@ -23,10 +24,24 @@ export async function GET(request) {
       return NextResponse.json({ entries: {} });
     }
 
+    const items = company?.compliance_items || [];
+    const allMonthlyEntries = company?.monthly_entries || {};
     const periodKey = `${year}_${month}`;
-    const periodEntries = company?.monthly_entries?.[periodKey] || {};
+    const directPeriodEntries = allMonthlyEntries[periodKey] || {};
 
-    return NextResponse.json({ entries: periodEntries });
+    const resolvedEntries = { ...directPeriodEntries };
+
+    items.forEach((item) => {
+      const effective = resolveEffectiveEntry(item, allMonthlyEntries, month, year);
+      if (effective && Object.keys(effective).length > 0) {
+        resolvedEntries[item.id] = {
+          ...(resolvedEntries[item.id] || {}),
+          ...effective,
+        };
+      }
+    });
+
+    return NextResponse.json({ entries: resolvedEntries });
   } catch (error) {
     console.error('GET /api/finance/compliance-calendar/entries error:', error);
     return NextResponse.json({ error: error.message || 'Failed to fetch entries' }, { status: 500 });

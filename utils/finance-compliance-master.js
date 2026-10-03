@@ -349,17 +349,19 @@ export function resolveStatutoryDueDate(item, activeMonth, activeYear) {
  * Computes the authoritative status for a compliance item.
  * Rules:
  *  1. 'Completed' is ONLY valid if actual_payment_date is provided.
- *  2. If the statutory due date is in the past and item is not completed, status is automatically 'Overdue'.
- *  3. Otherwise, returns user status or default status.
+ *  2. If the period is BEFORE company creation / onboarding, it is NOT Overdue (returns 'N/A' or 'Pending').
+ *  3. If the statutory due date is in the past and item is not completed, status is automatically 'Overdue'.
+ *  4. Otherwise, returns user status or default status.
  *
  * @param {Object} item - Compliance item
  * @param {Object} entry - Tracking entry { status, actual_payment_date, remarks }
  * @param {number} activeMonth - Active month index (1-12)
  * @param {number} activeYear - Active year
  * @param {Date} [now] - Current date
- * @returns {string} - 'Completed' | 'Overdue' | 'In Progress' | 'Pending'
+ * @param {string|Date} [companyCreatedAt] - Company creation / inception date
+ * @returns {string} - 'Completed' | 'Overdue' | 'In Progress' | 'Pending' | 'N/A'
  */
-export function computeEffectiveStatus(item, entry, activeMonth, activeYear, now = new Date()) {
+export function computeEffectiveStatus(item, entry, activeMonth, activeYear, now = new Date(), companyCreatedAt = null) {
   const hasPaymentDate = Boolean(entry?.actual_payment_date && entry.actual_payment_date.trim().length > 0);
   const userStatus = entry?.status || (hasPaymentDate ? 'Completed' : item?.default_status || 'Pending');
 
@@ -368,7 +370,19 @@ export function computeEffectiveStatus(item, entry, activeMonth, activeYear, now
     return 'Completed';
   }
 
-  // Rule 2: Check if statutory deadline has passed for this period
+  // Rule 2: If this period is prior to company onboarding, do not flag as Overdue
+  if (companyCreatedAt) {
+    const cd = new Date(companyCreatedAt);
+    if (!isNaN(cd.getTime())) {
+      const createdYear = cd.getFullYear();
+      const createdMonth = cd.getMonth() + 1;
+      if (activeYear < createdYear || (activeYear === createdYear && activeMonth < createdMonth)) {
+        return userStatus !== 'Completed' ? 'N/A' : 'Completed';
+      }
+    }
+  }
+
+  // Rule 3: Check if statutory deadline has passed for this period
   const dueDate = resolveStatutoryDueDate(item, activeMonth, activeYear);
   if (dueDate && now > dueDate) {
     return 'Overdue';
@@ -380,4 +394,96 @@ export function computeEffectiveStatus(item, entry, activeMonth, activeYear, now
   }
 
   return userStatus === 'Completed' && !hasPaymentDate ? 'Pending' : userStatus;
+}
+
+/**
+ * Resolves the effective entry for an item across monthly_entries considering its frequency.
+ * - 'One time': If completed in ANY period, persists as Completed across all future/other months.
+ * - 'Annual' / 'Yearly': If completed in any month within the same year, persists as Completed for that year.
+ * - 'Half-Yearly': If completed in that half-year (Apr-Sep or Oct-Mar), persists within that half-year.
+ * - 'Quarterly': If completed in that quarter, persists within that quarter.
+ * - 'Monthly': Only scoped to the specific month.
+ *
+ * @param {Object} item - Compliance item { id, frequency, ... }
+ * @param {Object} allMonthlyEntries - Map of all periods { "2026_9": { ... }, "2026_10": { ... } }
+ * @param {number} activeMonth - Active month (1-12)
+ * @param {number} activeYear - Active year
+ * @returns {Object} Effective entry object
+ */
+export function resolveEffectiveEntry(item, allMonthlyEntries = {}, activeMonth = 9, activeYear = 2026) {
+  if (!item?.id) return {};
+  const currentPeriodKey = `${activeYear}_${activeMonth}`;
+  const directEntry = allMonthlyEntries?.[currentPeriodKey]?.[item.id];
+
+  // If already directly recorded as completed for this active period, return direct entry
+  if (directEntry?.actual_payment_date && directEntry.actual_payment_date.trim().length > 0) {
+    return directEntry;
+  }
+
+  const freq = (item.frequency || 'Monthly').toLowerCase().trim();
+
+  // 1. One time: Check all periods for any completed payment
+  if (freq === 'one time' || freq === 'onetime' || freq === 'one-time') {
+    for (const [periodKey, periodMap] of Object.entries(allMonthlyEntries || {})) {
+      const e = periodMap?.[item.id];
+      if (e?.actual_payment_date && e.actual_payment_date.trim().length > 0) {
+        return {
+          ...e,
+          status: 'Completed',
+          isInheritedFromPeriod: periodKey,
+        };
+      }
+    }
+  }
+
+  // 2. Annual / Yearly: Check all months in the activeYear for a completed payment
+  if (freq === 'annual' || freq === 'yearly' || freq.includes('year')) {
+    for (let m = 1; m <= 12; m++) {
+      const pKey = `${activeYear}_${m}`;
+      const e = allMonthlyEntries?.[pKey]?.[item.id];
+      if (e?.actual_payment_date && e.actual_payment_date.trim().length > 0) {
+        return {
+          ...e,
+          status: 'Completed',
+          isInheritedFromPeriod: pKey,
+        };
+      }
+    }
+  }
+
+  // 3. Half-Yearly: Check months in the same half-year
+  if (freq.includes('half')) {
+    const isHY1 = activeMonth >= 4 && activeMonth <= 9;
+    const hyMonths = isHY1 ? [4, 5, 6, 7, 8, 9] : [10, 11, 12, 1, 2, 3];
+    for (const m of hyMonths) {
+      const pKey = `${activeYear}_${m}`;
+      const e = allMonthlyEntries?.[pKey]?.[item.id];
+      if (e?.actual_payment_date && e.actual_payment_date.trim().length > 0) {
+        return {
+          ...e,
+          status: 'Completed',
+          isInheritedFromPeriod: pKey,
+        };
+      }
+    }
+  }
+
+  // 4. Quarterly: Check months in the same quarter
+  if (freq.includes('quarter')) {
+    const qIndex = Math.floor((activeMonth - 1) / 3);
+    const qMonths = [qIndex * 3 + 1, qIndex * 3 + 2, qIndex * 3 + 3];
+    for (const m of qMonths) {
+      const pKey = `${activeYear}_${m}`;
+      const e = allMonthlyEntries?.[pKey]?.[item.id];
+      if (e?.actual_payment_date && e.actual_payment_date.trim().length > 0) {
+        return {
+          ...e,
+          status: 'Completed',
+          isInheritedFromPeriod: pKey,
+        };
+      }
+    }
+  }
+
+  return directEntry || {};
 }
