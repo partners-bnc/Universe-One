@@ -270,19 +270,19 @@ export default function ModuleAccessManager() {
 
         <div className="rounded-[1.5rem] border border-outline-variant/10">
           <div className="overflow-x-auto scroll-smooth [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <table className="w-full min-w-[1180px] table-fixed">
+            <table className="w-full min-w-[1280px] table-fixed">
               <thead className="sticky top-0 z-20 border-b border-outline-variant/10 bg-surface-container-low/50">
                 <tr>
-                  <th className="w-[320px] px-3 py-3 text-left text-[11px] font-extrabold uppercase tracking-[0.18em] text-on-surface-variant/70">
+                  <th className="w-[280px] px-3.5 py-3 text-left text-[11px] font-extrabold uppercase tracking-[0.18em] text-on-surface-variant/70">
                     Employee
                   </th>
-                  <th className="w-[220px] px-3 py-3 text-left text-[11px] font-extrabold uppercase tracking-[0.18em] text-on-surface-variant/70">
+                  <th className="w-[200px] px-3.5 py-3 text-left text-[11px] font-extrabold uppercase tracking-[0.18em] text-on-surface-variant/70">
                     Designation / Department
                   </th>
                   {MODULES.map((module) => (
                     <th
                       key={module.key}
-                      className="px-3 py-3 text-center text-[11px] font-extrabold uppercase tracking-[0.18em] text-on-surface-variant/70"
+                      className="w-[130px] px-3 py-3 text-center text-[11px] font-extrabold uppercase tracking-[0.18em] text-on-surface-variant/70"
                     >
                       {module.label}
                     </th>
@@ -316,7 +316,7 @@ export default function ModuleAccessManager() {
 
                     return (
                       <tr key={employeeRecordId || employee.employee_id || employee.email || employee.name} className="hover:bg-surface-container-low/20">
-                        <td className="px-3 py-3">
+                        <td className="px-3.5 py-3">
                           <div className="flex items-center gap-3">
                             {employee.profile_picture_url ? (
                               <Image
@@ -356,7 +356,7 @@ export default function ModuleAccessManager() {
                             </div>
                           </div>
                         </td>
-                        <td className="px-3 py-3">
+                        <td className="px-3.5 py-3">
                           <p className="truncate text-sm font-semibold text-on-surface">{getEmployeeDesignation(employee)}</p>
                           <p className="truncate text-xs text-on-surface-variant">{getEmployeeDepartment(employee)}</p>
                         </td>
@@ -364,7 +364,7 @@ export default function ModuleAccessManager() {
                           const enabled = Boolean(access?.[module.key]);
 
                           return (
-                            <td key={module.key} className="px-2 py-3 text-center">
+                            <td key={module.key} className="px-3 py-3 text-center">
                               <button
                                 type="button"
                                 onClick={() =>
@@ -374,7 +374,7 @@ export default function ModuleAccessManager() {
                                     nextValue: !enabled,
                                   })
                                 }
-                                className={`inline-flex min-w-[110px] items-center justify-center rounded-full px-4 py-2 text-[11.5px] font-extrabold transition-all duration-200 hover:-translate-y-0.5 ${
+                                className={`inline-flex min-w-[96px] items-center justify-center rounded-full px-3.5 py-1.5 text-[11px] font-extrabold transition-all duration-200 hover:-translate-y-0.5 ${
                                   enabled
                                     ? 'bg-[#2559a5] text-white shadow-[0_4px_12px_rgba(37,89,165,0.18)] hover:bg-[#1d4682] hover:shadow-[0_6px_16px_rgba(37,89,165,0.3)] border-none'
                                     : 'bg-slate-100 text-slate-400 border border-slate-200/60 hover:bg-slate-200/50 hover:text-slate-655'
