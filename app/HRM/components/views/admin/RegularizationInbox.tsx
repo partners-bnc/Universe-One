@@ -33,6 +33,21 @@ function statusTone(status: AdminRegularizationItem['status']) {
   return 'bg-amber-50 text-amber-700';
 }
 
+const MONTH_OPTIONS = [
+  { value: '01', label: 'Jan' },
+  { value: '02', label: 'Feb' },
+  { value: '03', label: 'Mar' },
+  { value: '04', label: 'Apr' },
+  { value: '05', label: 'May' },
+  { value: '06', label: 'Jun' },
+  { value: '07', label: 'Jul' },
+  { value: '08', label: 'Aug' },
+  { value: '09', label: 'Sep' },
+  { value: '10', label: 'Oct' },
+  { value: '11', label: 'Nov' },
+  { value: '12', label: 'Dec' },
+];
+
 export default function RegularizationInbox() {
   const { showFeedback } = useHrmFeedback();
   const [activeTab, setActiveTab] = useState<InboxTab>('pending');
@@ -42,6 +57,10 @@ export default function RegularizationInbox() {
   const [isReviewingId, setIsReviewingId] = useState('');
   const [error, setError] = useState('');
   const [setupPending, setSetupPending] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedYear, setSelectedYear] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState('');
+  const [selectedDay, setSelectedDay] = useState('');
 
   const loadInbox = async () => {
     setIsLoading(true);
@@ -106,14 +125,78 @@ export default function RegularizationInbox() {
     }
   };
 
-  const list = activeTab === 'pending' ? pendingForMe : history;
+  const availableYears = useMemo(() => {
+    const currentYear = new Date().getFullYear().toString();
+    const yearsSet = new Set<string>([currentYear, '2025', '2026']);
+    [...pendingForMe, ...history].forEach((item) => {
+      if (item.date && item.date.length >= 4) {
+        const y = item.date.slice(0, 4);
+        if (/^\d{4}$/.test(y)) {
+          yearsSet.add(y);
+        }
+      }
+    });
+    return Array.from(yearsSet).sort((a, b) => b.localeCompare(a));
+  }, [pendingForMe, history]);
+
+  const dayOptions = useMemo(() => {
+    return Array.from({ length: 31 }, (_, i) => {
+      return (i + 1).toString().padStart(2, '0');
+    });
+  }, []);
+
+  const filteredPending = useMemo(() => {
+    return pendingForMe.filter((item) => {
+      const q = searchQuery.toLowerCase().trim();
+      const matchSearch =
+        !q ||
+        (item.employeeName && item.employeeName.toLowerCase().includes(q)) ||
+        (item.employeeCode && item.employeeCode.toLowerCase().includes(q));
+
+      const matchYear = !selectedYear || (item.date && item.date.slice(0, 4) === selectedYear);
+      const matchMonth = !selectedMonth || (item.date && item.date.slice(5, 7) === selectedMonth);
+      const matchDay = !selectedDay || (item.date && item.date.slice(8, 10) === selectedDay);
+
+      return matchSearch && matchYear && matchMonth && matchDay;
+    });
+  }, [pendingForMe, searchQuery, selectedYear, selectedMonth, selectedDay]);
+
+  const filteredHistory = useMemo(() => {
+    return history.filter((item) => {
+      const q = searchQuery.toLowerCase().trim();
+      const matchSearch =
+        !q ||
+        (item.employeeName && item.employeeName.toLowerCase().includes(q)) ||
+        (item.employeeCode && item.employeeCode.toLowerCase().includes(q));
+
+      const matchYear = !selectedYear || (item.date && item.date.slice(0, 4) === selectedYear);
+      const matchMonth = !selectedMonth || (item.date && item.date.slice(5, 7) === selectedMonth);
+      const matchDay = !selectedDay || (item.date && item.date.slice(8, 10) === selectedDay);
+
+      return matchSearch && matchYear && matchMonth && matchDay;
+    });
+  }, [history, searchQuery, selectedYear, selectedMonth, selectedDay]);
+
+  const isFiltering = Boolean(searchQuery.trim() || selectedYear || selectedMonth || selectedDay);
+  const totalList = activeTab === 'pending' ? pendingForMe : history;
+  const list = activeTab === 'pending' ? filteredPending : filteredHistory;
 
   const switchTabs = useMemo(
     () => [
-      { key: 'pending' as const, label: 'Pending', count: pendingForMe.length, icon: 'hourglass_top' },
-      { key: 'history' as const, label: 'History', count: history.length, icon: 'history' },
+      {
+        key: 'pending' as const,
+        label: 'Pending',
+        count: isFiltering ? filteredPending.length : pendingForMe.length,
+        icon: 'hourglass_top',
+      },
+      {
+        key: 'history' as const,
+        label: 'History',
+        count: isFiltering ? filteredHistory.length : history.length,
+        icon: 'history',
+      },
     ],
-    [history.length, pendingForMe.length]
+    [history.length, pendingForMe.length, filteredPending.length, filteredHistory.length, isFiltering]
   );
 
   const activeTabIndex = switchTabs.findIndex((tab) => tab.key === activeTab);
@@ -131,8 +214,8 @@ export default function RegularizationInbox() {
         </div>
       </section>
 
-      <section className="overflow-x-auto py-3 mb-6">
-        <div className="inline-grid min-w-[420px] grid-cols-2 gap-2 rounded-full border border-outline-variant/10 bg-surface-container-lowest p-1 shadow-sm">
+      <section className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between mb-6">
+        <div className="inline-grid min-w-[280px] sm:min-w-[340px] grid-cols-2 gap-2 rounded-full border border-outline-variant/10 bg-surface-container-lowest p-1 shadow-sm">
           {switchTabs.map((tab) => {
             const isActive = activeTab === tab.key;
 
@@ -160,6 +243,108 @@ export default function RegularizationInbox() {
             );
           })}
         </div>
+
+        {/* 3 Separate Date Selectors (Year, Month, Date) & Search Filter */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* Year Selector */}
+          <div className="relative flex items-center">
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+              className="h-11 appearance-none rounded-full border border-outline-variant/20 bg-surface-container-lowest pl-3.5 pr-8 text-xs font-semibold text-on-surface outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm cursor-pointer"
+              title="Filter by Year"
+            >
+              <option value="">All Years</option>
+              {availableYears.map((yr) => (
+                <option key={yr} value={yr}>
+                  {yr}
+                </option>
+              ))}
+            </select>
+            <span className="material-symbols-outlined absolute right-2 text-slate-400 text-[18px] pointer-events-none">
+              expand_more
+            </span>
+          </div>
+
+          {/* Month Selector */}
+          <div className="relative flex items-center">
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="h-11 appearance-none rounded-full border border-outline-variant/20 bg-surface-container-lowest pl-3.5 pr-8 text-xs font-semibold text-on-surface outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm cursor-pointer"
+              title="Filter by Month"
+            >
+              <option value="">All Months</option>
+              {MONTH_OPTIONS.map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+            <span className="material-symbols-outlined absolute right-2 text-slate-400 text-[18px] pointer-events-none">
+              expand_more
+            </span>
+          </div>
+
+          {/* Day / Date Selector */}
+          <div className="relative flex items-center">
+            <select
+              value={selectedDay}
+              onChange={(e) => setSelectedDay(e.target.value)}
+              className="h-11 appearance-none rounded-full border border-outline-variant/20 bg-surface-container-lowest pl-3.5 pr-8 text-xs font-semibold text-on-surface outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm cursor-pointer"
+              title="Filter by Date / Day"
+            >
+              <option value="">All Days</option>
+              {dayOptions.map((d) => (
+                <option key={d} value={d}>
+                  Day {d}
+                </option>
+              ))}
+            </select>
+            <span className="material-symbols-outlined absolute right-2 text-slate-400 text-[18px] pointer-events-none">
+              expand_more
+            </span>
+          </div>
+
+          {/* Reset Date Button */}
+          {selectedYear || selectedMonth || selectedDay ? (
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedYear('');
+                setSelectedMonth('');
+                setSelectedDay('');
+              }}
+              className="inline-flex h-11 items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-3 text-xs font-semibold text-rose-600 hover:bg-rose-100 transition shadow-sm"
+              title="Reset date filters"
+            >
+              <span className="material-symbols-outlined text-[16px]">restart_alt</span>
+              <span>Reset Date</span>
+            </button>
+          ) : null}
+
+          {/* Search bar */}
+          <div className="relative flex items-center min-w-[200px] sm:min-w-[250px]">
+            <span className="material-symbols-outlined absolute left-3.5 text-slate-400 text-[18px] pointer-events-none">search</span>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search employee name, ID..."
+              className="h-11 w-full rounded-full border border-outline-variant/20 bg-surface-container-lowest pl-9 pr-9 text-xs font-medium text-on-surface outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm placeholder:text-slate-400"
+            />
+            {searchQuery ? (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 text-slate-400 hover:text-slate-600"
+                title="Clear search"
+              >
+                <span className="material-symbols-outlined text-[16px]">close</span>
+              </button>
+            ) : null}
+          </div>
+        </div>
       </section>
 
       <section className="rounded-[2rem] border border-outline-variant/10 bg-surface-container-lowest p-6 shadow-sm">
@@ -176,7 +361,7 @@ export default function RegularizationInbox() {
           <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-medium text-amber-700">
             Regularization database setup is pending. Apply the latest migration so the recipient table exists in Supabase.
           </div>
-        ) : list.length === 0 ? (
+        ) : totalList.length === 0 ? (
           <HrmEmptyState
             icon={activeTab === 'pending' ? 'hourglass_disabled' : 'history'}
             title={activeTab === 'pending' ? 'No pending requests' : 'No history records yet'}
@@ -186,6 +371,12 @@ export default function RegularizationInbox() {
                 : 'Reviewed regularization records will begin showing here after the first approval cycle.'
             }
           />
+        ) : list.length === 0 ? (
+          <HrmEmptyState
+            icon="search_off"
+            title="No matching requests found"
+            message={`No ${activeTab} regularization requests match the selected filters. Try adjusting your search query, year, month, or date filter.`}
+          />
         ) : activeTab === 'pending' ? (
           <>
             <div className="mb-5 flex items-center justify-between gap-4">
@@ -194,7 +385,7 @@ export default function RegularizationInbox() {
                 <p className="mt-1 text-sm text-on-surface-variant">Review employee regularization requests in a cleaner approval queue.</p>
               </div>
               <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
-                {pendingForMe.length} pending
+                {filteredPending.length} pending
               </span>
             </div>
 
@@ -202,41 +393,40 @@ export default function RegularizationInbox() {
               <table className="w-full min-w-[1160px] text-left">
                 <thead className="sticky top-0 z-20 bg-white">
                   <tr className="border-b border-outline-variant/10">
-                    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/70">Employee</th>
-                    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/70">Date</th>
-                    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/70">Request Type</th>
-                    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/70">Current Status</th>
-                    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/70">Requested Time</th>
-                    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/70">Reporting Manager</th>
-                    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/70">Reason</th>
-                    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/70">Applied On</th>
-                    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/70">Status</th>
-                    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/70">Action</th>
+                    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/70 whitespace-nowrap">Employee</th>
+                    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/70 whitespace-nowrap">Date</th>
+                    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/70 whitespace-nowrap">Request Type</th>
+                    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/70 whitespace-nowrap">Current Status</th>
+                    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/70 whitespace-nowrap">Requested Time</th>
+                    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/70 whitespace-nowrap">Reporting Manager</th>
+                    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/70 whitespace-nowrap">Reason</th>
+                    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/70 whitespace-nowrap">Applied On</th>
+                    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/70 whitespace-nowrap">Status</th>
+                    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/70 whitespace-nowrap">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-outline-variant/10">
-                  {pendingForMe.map((item) => (
+                  {filteredPending.map((item) => (
                     <tr key={item.id} className="align-top">
-                      <td className="px-4 py-4 text-sm text-on-surface">
+                      <td className="px-4 py-4 text-sm text-on-surface whitespace-nowrap">
                         <p className="font-semibold truncate whitespace-nowrap">{item.employeeName}</p>
-                        <p className="mt-1 text-xs text-on-surface-variant">{item.employeeCode}</p>
+                        <p className="mt-1 text-xs text-on-surface-variant whitespace-nowrap">{item.employeeCode}</p>
                       </td>
                       <td className="px-4 py-4 text-sm text-on-surface whitespace-nowrap">{item.date}</td>
-                      <td className="px-4 py-4 text-sm text-on-surface">{item.requestType}</td>
-                      <td className="px-4 py-4 text-sm text-on-surface">{item.currentStatusLabel || '-'}</td>
-                      <td className="px-4 py-4 text-sm text-on-surface">{item.timeRange}</td>
-                      <td className="px-4 py-4 text-sm text-on-surface">{item.reportingManager || '-'}</td>
-                      <td className="px-4 py-4 text-sm text-on-surface">{item.reason || '-'}</td>
+                      <td className="px-4 py-4 text-sm text-on-surface whitespace-nowrap">{item.requestType}</td>
+                      <td className="px-4 py-4 text-sm text-on-surface whitespace-nowrap">{item.currentStatusLabel || '-'}</td>
+                      <td className="px-4 py-4 text-sm text-on-surface whitespace-nowrap">{item.timeRange}</td>
+                      <td className="px-4 py-4 text-sm text-on-surface whitespace-nowrap">{item.reportingManager || '-'}</td>
+                      <td className="px-4 py-4 text-sm text-on-surface whitespace-nowrap">{item.reason || '-'}</td>
                       <td className="px-4 py-4 text-sm text-on-surface whitespace-nowrap">{item.appliedOn}</td>
-                      <td className="px-4 py-4">
+                      <td className="px-4 py-4 whitespace-nowrap">
                         <span className={`rounded-full px-3 py-1 text-[11px] font-bold ${statusTone(item.status)}`}>{item.status}</span>
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-4 py-4 whitespace-nowrap">
                         {item.canReview ? (
                           (() => {
                             const isHalfDayRequest =
-                              String(item.requestType || '').toLowerCase().includes('half') ||
-                              String(item.currentStatusLabel || '').toLowerCase().includes('half');
+                              String(item.requestType || '').toLowerCase().includes('half');
 
                             if (isHalfDayRequest) {
                               return (
@@ -308,7 +498,7 @@ export default function RegularizationInbox() {
                 <p className="mt-1 text-sm text-on-surface-variant">View reviewed regularization requests with final decisions and audit trail.</p>
               </div>
               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
-                {history.length} records
+                {filteredHistory.length} records
               </span>
             </div>
 
@@ -316,32 +506,32 @@ export default function RegularizationInbox() {
               <table className="w-full min-w-[1080px] text-left">
                 <thead className="sticky top-0 z-20 bg-white">
                   <tr className="border-b border-outline-variant/10">
-                    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/70">Employee</th>
-                    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/70">Date</th>
-                    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/70">Requested Time</th>
-                    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/70">Status</th>
-                    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/70">Approval Result</th>
-                    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/70">Reviewed By</th>
-                    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/70">Reviewed At</th>
-                    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/70">Reason</th>
+                    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/70 whitespace-nowrap">Employee</th>
+                    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/70 whitespace-nowrap">Date</th>
+                    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/70 whitespace-nowrap">Requested Time</th>
+                    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/70 whitespace-nowrap">Status</th>
+                    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/70 whitespace-nowrap">Approval Result</th>
+                    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/70 whitespace-nowrap">Reviewed By</th>
+                    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/70 whitespace-nowrap">Reviewed At</th>
+                    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/70 whitespace-nowrap">Reason</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-outline-variant/10">
-                  {history.map((item) => (
+                  {filteredHistory.map((item) => (
                     <tr key={item.id}>
-                      <td className="px-4 py-4 text-sm text-on-surface">
+                      <td className="px-4 py-4 text-sm text-on-surface whitespace-nowrap">
                         <p className="font-semibold truncate whitespace-nowrap">{item.employeeName}</p>
-                        <p className="mt-1 text-xs text-on-surface-variant">{item.employeeCode}</p>
+                        <p className="mt-1 text-xs text-on-surface-variant whitespace-nowrap">{item.employeeCode}</p>
                       </td>
                       <td className="px-4 py-4 text-sm text-on-surface whitespace-nowrap">{item.date}</td>
-                      <td className="px-4 py-4 text-sm text-on-surface">{item.timeRange}</td>
-                      <td className="px-4 py-4">
+                      <td className="px-4 py-4 text-sm text-on-surface whitespace-nowrap">{item.timeRange}</td>
+                      <td className="px-4 py-4 whitespace-nowrap">
                         <span className={`rounded-full px-3 py-1 text-[11px] font-bold ${statusTone(item.status)}`}>{item.status}</span>
                       </td>
-                      <td className="px-4 py-4 text-sm text-on-surface">{item.approvalOutcome || '-'}</td>
-                      <td className="px-4 py-4 text-sm text-on-surface">{item.reviewedBy || '-'}</td>
-                      <td className="px-4 py-4 text-sm text-on-surface">{item.reviewedAt || '-'}</td>
-                      <td className="px-4 py-4 text-sm text-on-surface">{item.reason || '-'}</td>
+                      <td className="px-4 py-4 text-sm text-on-surface whitespace-nowrap">{item.approvalOutcome || '-'}</td>
+                      <td className="px-4 py-4 text-sm text-on-surface whitespace-nowrap">{item.reviewedBy || '-'}</td>
+                      <td className="px-4 py-4 text-sm text-on-surface whitespace-nowrap">{item.reviewedAt || '-'}</td>
+                      <td className="px-4 py-4 text-sm text-on-surface whitespace-nowrap">{item.reason || '-'}</td>
                     </tr>
                   ))}
                 </tbody>

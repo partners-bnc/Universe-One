@@ -1136,7 +1136,7 @@ export default function AdminAttendance() {
                   <thead className="sticky top-0 z-20 border-b border-outline-variant/10 bg-surface-container-low/50">
                     <tr>
                       {['Employee ID', 'Employee Name', 'Department', 'Designation', 'Reporting To', 'Status', 'Check-in', 'Check-out', 'Swipe Type', 'Work Hours', 'Notes / Source', 'Swipes'].map((column) => (
-                        <th key={column} className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/70">
+                        <th key={column} className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/70 whitespace-nowrap">
                           {column}
                         </th>
                       ))}
@@ -1145,29 +1145,29 @@ export default function AdminAttendance() {
                   <tbody className="divide-y divide-outline-variant/10">
                     {dailyRows.map((row) => (
                       <tr key={`${row.employeeId}-${row.date}`}>
-                        <td className="px-4 py-4 text-sm font-semibold text-on-surface">{row.employeeId}</td>
-                        <td className="px-4 py-4 text-sm text-on-surface">{row.employeeName}</td>
-                        <td className="px-4 py-4 text-sm text-on-surface">{row.department}</td>
-                        <td className="px-4 py-4 text-sm text-on-surface">{row.designation}</td>
-                        <td className="px-4 py-4 text-sm text-on-surface">{row.reportingTo}</td>
-                        <td className="px-4 py-4 text-sm text-on-surface">{row.statusLabel}</td>
+                        <td className="px-4 py-4 text-sm font-semibold text-on-surface whitespace-nowrap">{row.employeeId}</td>
+                        <td className="px-4 py-4 text-sm text-on-surface whitespace-nowrap">{row.employeeName}</td>
+                        <td className="px-4 py-4 text-sm text-on-surface whitespace-nowrap">{row.department}</td>
+                        <td className="px-4 py-4 text-sm text-on-surface whitespace-nowrap">{row.designation}</td>
+                        <td className="px-4 py-4 text-sm text-on-surface whitespace-nowrap">{row.reportingTo}</td>
+                        <td className="px-4 py-4 text-sm text-on-surface whitespace-nowrap">{row.statusLabel}</td>
                         <td className="px-4 py-4 text-sm whitespace-nowrap text-on-surface">{row.checkIn}</td>
                         <td className="px-4 py-4 text-sm whitespace-nowrap text-on-surface">{row.checkOut}</td>
-                        <td className="px-4 py-4 text-sm text-on-surface">
-                          <span className="inline-flex rounded-full bg-surface-container px-3 py-1 text-xs font-semibold text-on-surface">
+                        <td className="px-4 py-4 text-sm text-on-surface whitespace-nowrap">
+                          <span className="inline-flex rounded-full bg-surface-container px-3 py-1 text-xs font-semibold text-on-surface whitespace-nowrap">
                             {row.swipePattern || '--'}
                           </span>
                           {typeof row.swipeCount === 'number' && row.swipeCount > 0 ? (
-                            <div className="mt-1 text-xs text-on-surface-variant">
+                            <div className="mt-1 text-xs text-on-surface-variant whitespace-nowrap">
                               {row.swipeCount} swipe{row.swipeCount === 1 ? '' : 's'}
                             </div>
                           ) : null}
                         </td>
-                        <td className="px-4 py-4 text-sm text-on-surface">{row.workHours}</td>
-                        <td className="px-4 py-4 text-sm text-on-surface-variant">
+                        <td className="px-4 py-4 text-sm text-on-surface whitespace-nowrap">{row.workHours}</td>
+                        <td className="px-4 py-4 text-sm text-on-surface-variant whitespace-nowrap">
                           {row.notes || row.source || '--'}
                         </td>
-                        <td className="px-4 py-4 text-sm text-on-surface">
+                        <td className="px-4 py-4 text-sm text-on-surface whitespace-nowrap">
                           <button
                             type="button"
                             onClick={() => openSwipeModal(row)}
@@ -1236,7 +1236,7 @@ export default function AdminAttendance() {
                   <thead className="sticky top-0 z-20 border-b border-outline-variant/10 bg-surface-container-low/50">
                     <tr>
                       {['Date', 'Status', 'Check-in', 'Check-out', 'Work Hours', 'Shift Hours', 'Notes'].map((column) => (
-                        <th key={column} className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/70">
+                        <th key={column} className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant/70 whitespace-nowrap">
                           {column}
                         </th>
                       ))}
@@ -1245,13 +1245,13 @@ export default function AdminAttendance() {
                   <tbody className="divide-y divide-outline-variant/10">
                     {individualRows.map((row) => (
                       <tr key={row.date}>
-                        <td className="px-4 py-4 text-sm font-semibold text-on-surface">{row.date}</td>
-                        <td className="px-4 py-4 text-sm text-on-surface">{row.statusLabel}</td>
+                        <td className="px-4 py-4 text-sm font-semibold text-on-surface whitespace-nowrap">{row.date}</td>
+                        <td className="px-4 py-4 text-sm text-on-surface whitespace-nowrap">{row.statusLabel}</td>
                         <td className="px-4 py-4 text-sm whitespace-nowrap text-on-surface">{row.checkIn}</td>
                         <td className="px-4 py-4 text-sm whitespace-nowrap text-on-surface">{row.checkOut}</td>
-                        <td className="px-4 py-4 text-sm text-on-surface">{row.workHours}</td>
-                        <td className="px-4 py-4 text-sm text-on-surface">{row.shiftHours || '9h 00m'}</td>
-                        <td className="px-4 py-4 text-sm text-on-surface-variant">{row.notes || '--'}</td>
+                        <td className="px-4 py-4 text-sm text-on-surface whitespace-nowrap">{row.workHours}</td>
+                        <td className="px-4 py-4 text-sm text-on-surface whitespace-nowrap">{row.shiftHours || '9h 00m'}</td>
+                        <td className="px-4 py-4 text-sm text-on-surface-variant min-w-[280px]">{row.notes || '--'}</td>
                       </tr>
                     ))}
                   </tbody>

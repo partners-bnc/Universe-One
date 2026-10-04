@@ -248,7 +248,6 @@ export async function listDirectReportEmployeesForLeave(reportingManagerId) {
     .from('hrm_employees')
     .select(EMPLOYEE_LEAVE_CONTEXT_SELECT_WITH_EMPLOYMENT_FIELDS)
     .eq('reporting_manager_id', reportingManagerId)
-    .eq('employment_lifecycle_status', 'active')
     .order('name', { ascending: true });
 
   if (employeeResult.error && isMissingEmploymentColumnsError(employeeResult.error)) {
@@ -256,7 +255,6 @@ export async function listDirectReportEmployeesForLeave(reportingManagerId) {
       .from('hrm_employees')
       .select(EMPLOYEE_LEAVE_CONTEXT_SELECT_BASE)
       .eq('reporting_manager_id', reportingManagerId)
-      .eq('employee_status', 'active')
       .order('name', { ascending: true });
   }
 

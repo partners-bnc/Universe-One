@@ -109,6 +109,7 @@ export default function LeaveManagement() {
   const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
   const [activeActionId, setActiveActionId] = useState<string>('');
   const [activeSection, setActiveSection] = useState<'pending' | 'history' | 'balances'>('pending');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const loadData = useCallback(async () => {
     try {
@@ -203,14 +204,53 @@ export default function LeaveManagement() {
     return Array.from(grouped.values()).sort((left, right) => left.employeeName.localeCompare(right.employeeName));
   }, [data?.balances]);
 
+  const filteredPending = useMemo(() => {
+    if (!searchQuery.trim()) return data?.pending || [];
+    const query = searchQuery.toLowerCase().trim();
+    return (data?.pending || []).filter(
+      (item) =>
+        item.employeeName.toLowerCase().includes(query) ||
+        item.employeeCode.toLowerCase().includes(query) ||
+        (item.reason && item.reason.toLowerCase().includes(query)) ||
+        (item.leaveTypeName && item.leaveTypeName.toLowerCase().includes(query)) ||
+        (item.startDate && item.startDate.includes(query)) ||
+        (item.endDate && item.endDate.includes(query))
+    );
+  }, [data?.pending, searchQuery]);
+
+  const filteredHistory = useMemo(() => {
+    if (!searchQuery.trim()) return data?.history || [];
+    const query = searchQuery.toLowerCase().trim();
+    return (data?.history || []).filter(
+      (item) =>
+        item.employeeName.toLowerCase().includes(query) ||
+        item.employeeCode.toLowerCase().includes(query) ||
+        (item.reason && item.reason.toLowerCase().includes(query)) ||
+        (item.leaveTypeName && item.leaveTypeName.toLowerCase().includes(query)) ||
+        (item.reviewedByName && item.reviewedByName.toLowerCase().includes(query)) ||
+        (item.startDate && item.startDate.includes(query)) ||
+        (item.endDate && item.endDate.includes(query))
+    );
+  }, [data?.history, searchQuery]);
+
+  const filteredBalanceRows = useMemo(() => {
+    if (!searchQuery.trim()) return balanceRows;
+    const query = searchQuery.toLowerCase().trim();
+    return balanceRows.filter(
+      (row) =>
+        row.employeeName.toLowerCase().includes(query) ||
+        row.employeeCode.toLowerCase().includes(query)
+    );
+  }, [balanceRows, searchQuery]);
+
   const exportToExcel = useCallback(() => {
-    if (!balanceRows || balanceRows.length === 0) return;
+    if (!filteredBalanceRows || filteredBalanceRows.length === 0) return;
 
     // Headers
     const headers = ['Sl No.', 'Employee Name', 'Employee Code', 'Casual Leave', 'Sick Leave', 'Special Leave', 'Used Days'];
 
     // Rows
-    const rows = balanceRows.map((row, index) => [
+    const rows = filteredBalanceRows.map((row, index) => [
       index + 1,
       row.employeeName,
       row.employeeCode,
@@ -235,30 +275,30 @@ export default function LeaveManagement() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  }, [balanceRows]);
+  }, [filteredBalanceRows]);
+
+  const isFiltering = Boolean(searchQuery.trim());
 
   const sectionCards = [
     {
       id: 'pending' as const,
       label: 'Pending Requests',
-      count: (data?.pending || []).length,
+      count: isFiltering ? filteredPending.length : (data?.pending || []).length,
       description: 'Review and take action quickly.',
     },
     {
       id: 'history' as const,
       label: 'Review History',
-      count: (data?.history || []).length,
+      count: isFiltering ? filteredHistory.length : (data?.history || []).length,
       description: 'Track the latest leave decisions.',
     },
     {
       id: 'balances' as const,
       label: 'Leave Employee Balance',
-      count: balanceRows.length,
+      count: isFiltering ? filteredBalanceRows.length : balanceRows.length,
       description: 'Simple leave balance table.',
     },
   ];
-
-  const activeSectionIndex = sectionCards.findIndex((section) => section.id === activeSection);
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-6 py-6">
@@ -290,8 +330,8 @@ export default function LeaveManagement() {
         </div>
       ) : null}
 
-      <section className="overflow-x-auto py-3 mb-6">
-        <div className="inline-grid min-w-full grid-cols-3 gap-2 rounded-full border border-outline-variant/10 bg-surface-container-lowest p-1 shadow-sm md:min-w-[620px]">
+      <section className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mb-6">
+        <div className="inline-grid min-w-full lg:min-w-[620px] grid-cols-3 gap-2 rounded-full border border-outline-variant/10 bg-surface-container-lowest p-1 shadow-sm">
           {sectionCards.map((section) => {
             const isActive = activeSection === section.id;
 
@@ -325,6 +365,28 @@ export default function LeaveManagement() {
             );
           })}
         </div>
+
+        {/* Search Bar on the right of Leave employee balance button */}
+        <div className="relative flex items-center min-w-[240px] md:min-w-[280px]">
+          <span className="material-symbols-outlined absolute left-3.5 text-slate-400 text-[18px] pointer-events-none">search</span>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search employee name, ID..."
+            className="h-11 w-full rounded-full border border-outline-variant/20 bg-surface-container-lowest pl-9 pr-9 text-xs font-medium text-on-surface outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm placeholder:text-slate-400"
+          />
+          {searchQuery ? (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 text-slate-400 hover:text-slate-600"
+              title="Clear search"
+            >
+              <span className="material-symbols-outlined text-[16px]">close</span>
+            </button>
+          ) : null}
+        </div>
       </section>
 
       <section className="rounded-[2rem] border border-outline-variant/10 bg-surface-container-lowest p-6 shadow-sm">
@@ -343,7 +405,7 @@ export default function LeaveManagement() {
                 <p className="mt-1 text-sm text-on-surface-variant">Simple review queue for all pending leave applications.</p>
               </div>
               <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
-                {(data?.pending || []).length} pending
+                {filteredPending.length} pending
               </span>
             </div>
 
@@ -352,6 +414,12 @@ export default function LeaveManagement() {
                 icon="hourglass_disabled"
                 title="No pending leave requests"
                 message="New leave applications will appear here as soon as employees send them for review."
+              />
+            ) : filteredPending.length === 0 ? (
+              <HrmEmptyState
+                icon="search_off"
+                title="No matching pending requests"
+                message={`No pending leave requests found matching "${searchQuery}".`}
               />
             ) : (
               <div className="overflow-x-auto scroll-smooth [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -370,7 +438,7 @@ export default function LeaveManagement() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-outline-variant/10">
-                    {(data?.pending || []).map((item) => (
+                    {filteredPending.map((item) => (
                       <tr key={item.id} className="align-top">
                         <td className="px-4 py-4 text-sm text-on-surface">
                           <p className="font-semibold">{item.employeeName}</p>
@@ -435,7 +503,7 @@ export default function LeaveManagement() {
                 <p className="mt-1 text-sm text-on-surface-variant">Recent approved and rejected leave decisions in one simple table.</p>
               </div>
               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
-                {(data?.history || []).length} records
+                {filteredHistory.length} records
               </span>
             </div>
 
@@ -444,6 +512,12 @@ export default function LeaveManagement() {
                 icon="history_toggle_off"
                 title="No reviewed requests yet"
                 message="Approved and rejected leave decisions will start building a review history here."
+              />
+            ) : filteredHistory.length === 0 ? (
+              <HrmEmptyState
+                icon="search_off"
+                title="No matching history records"
+                message={`No reviewed leave records found matching "${searchQuery}".`}
               />
             ) : (
               <div className="overflow-x-auto scroll-smooth [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -462,7 +536,7 @@ export default function LeaveManagement() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-outline-variant/10">
-                    {(data?.history || []).map((item) => (
+                    {filteredHistory.map((item) => (
                       <tr key={item.id}>
                         <td className="px-4 py-4 text-sm text-on-surface">
                           <p className="font-semibold">{item.employeeName}</p>
@@ -513,7 +587,7 @@ export default function LeaveManagement() {
                   Export to Excel
                 </button>
                 <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600">
-                  {balanceRows.length} employees
+                  {filteredBalanceRows.length} employees
                 </span>
               </div>
             </div>
@@ -523,6 +597,12 @@ export default function LeaveManagement() {
                 icon="table_rows_narrow"
                 title="No leave balance records yet"
                 message="Once leave credit and employee balances are available, this summary table will fill in automatically."
+              />
+            ) : filteredBalanceRows.length === 0 ? (
+              <HrmEmptyState
+                icon="search_off"
+                title="No matching employees found"
+                message={`No employee balances found matching "${searchQuery}".`}
               />
             ) : (
               <div className="overflow-x-auto scroll-smooth [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -538,7 +618,7 @@ export default function LeaveManagement() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-outline-variant/10">
-                    {balanceRows.map((row, index) => (
+                    {filteredBalanceRows.map((row, index) => (
                       <tr key={row.employeeId}>
                         <td className="px-4 py-4 text-sm text-on-surface">{index + 1}</td>
                         <td className="px-4 py-4 text-sm text-on-surface">

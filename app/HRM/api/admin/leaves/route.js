@@ -63,9 +63,10 @@ export async function GET() {
       return auth.error;
     }
 
-    const [employees, leaveTypes] = await Promise.all([
+    const [employees, leaveTypes, allEmployeesResult] = await Promise.all([
       listActiveEmployeesForLeave(),
       listActiveLeaveTypes(),
+      adminClient.from('hrm_employees').select('id, employee_id, name, reporting_manager_id'),
     ]);
 
     const leaveTypeMap = new Map(leaveTypes.map((type) => [type.id, type]));
@@ -83,7 +84,7 @@ export async function GET() {
       return NextResponse.json({ error: requestError.message || 'Failed to load leave inbox' }, { status: 500 });
     }
 
-    const employeeMap = new Map((employees || []).map((employee) => [employee.id, employee]));
+    const employeeMap = new Map(((allEmployeesResult?.data) || employees || []).map((employee) => [employee.id, employee]));
     const hrName = auth.authContext.hrAdmin?.name || auth.authContext.user?.name || 'HR Admin';
 
     const mappedRequests = (requests || []).map((row) => {
@@ -98,13 +99,16 @@ export async function GET() {
       const projectedLopDays = isLopLeaveType(leaveTypeCode) ? totalDays : 0;
       const isProjectedLop = isLopLeaveType(leaveTypeCode);
 
+      const reportingManager = employee?.reporting_manager_id ? employeeMap.get(employee.reporting_manager_id) : null;
+      const reportingManagerName = row.reporting_manager_name_snapshot || employee?.reporting_manager_name || reportingManager?.name || '';
+
       return {
         id: row.id,
         employeeId: row.employee_id,
         employeeCode: employee?.employee_id || '',
         employeeName: employee?.name || 'Employee',
-        reportingManagerId: row.reporting_manager_id || '',
-        reportingManagerName: row.reporting_manager_name_snapshot || employee?.reporting_manager_name || '',
+        reportingManagerId: row.reporting_manager_id || employee?.reporting_manager_id || '',
+        reportingManagerName,
         leaveTypeName: leaveType?.name || 'Leave',
         leaveTypeCode,
         startDate: row.start_date,

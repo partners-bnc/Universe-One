@@ -193,8 +193,7 @@ export default function TeamRegularization() {
                         {item.canReview ? (
                           (() => {
                             const isHalfDayRequest =
-                              String(item.requestType || '').toLowerCase().includes('half') ||
-                              String(item.currentStatusLabel || '').toLowerCase().includes('half');
+                              String(item.requestType || '').toLowerCase().includes('half');
 
                             if (isHalfDayRequest) {
                               return (
