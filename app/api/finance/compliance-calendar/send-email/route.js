@@ -17,9 +17,14 @@ export async function POST(request) {
     const {
       companyId,
       recipientEmail,
+      recipientEmails = [],
       recipientName,
+      recipientNames = [],
+      ccEmails = [],
       periodMonth = 9,
       periodYear = 2026,
+      financialYear = null,
+      includeHeatmap = true,
       subject: customSubject,
       customMessage = '',
       senderName = 'Universe One Finance Team',
@@ -51,26 +56,67 @@ export async function POST(request) {
     const companyName = company?.company_name || 'Valued Client';
     const periodLabel = formatPeriodLabel(Number(periodMonth), Number(periodYear));
     const periodFull = formatPeriodFull(Number(periodMonth), Number(periodYear));
-    const finalSubject =
-      customSubject?.trim() ||
-      `Statutory Compliance Calendar - ${companyName} (${periodLabel})`;
 
-    // Determine target recipient email
-    const finalRecipientEmail =
-      recipientEmail ||
-      (company?.persons && company.persons[0]?.email) ||
-      company?.email;
-    const finalRecipientName =
-      recipientName ||
-      (company?.persons && company.persons[0]?.name) ||
-      companyName;
+    // Determine target recipient emails
+    let targetRecipients = [];
+    if (Array.isArray(recipientEmails) && recipientEmails.length > 0) {
+      targetRecipients = recipientEmails.filter(Boolean);
+    } else if (recipientEmail) {
+      targetRecipients = [recipientEmail];
+    } else if (company?.persons && company.persons.length > 0) {
+      targetRecipients = [company.persons[0].email];
+    } else if (company?.email) {
+      targetRecipients = [company.email];
+    }
 
-    if (!finalRecipientEmail) {
+    if (targetRecipients.length === 0) {
       return NextResponse.json(
-        { error: 'Please specify a recipient email address.' },
+        { error: 'Please specify at least one recipient email address.' },
         { status: 400 }
       );
     }
+
+    // Dynamic resolution of recipient names from company directory
+    const companyPersons = Array.isArray(company?.persons) ? company.persons : [];
+    const matchedRecipientDetails = targetRecipients.map((email, idx) => {
+      const cleanEmail = email.trim();
+      const foundPerson = companyPersons.find(
+        (p) => p.email && p.email.trim().toLowerCase() === cleanEmail.toLowerCase()
+      );
+      const providedName = Array.isArray(recipientNames) && recipientNames[idx] ? recipientNames[idx] : null;
+      
+      const resolvedName =
+        foundPerson?.name ||
+        providedName ||
+        (targetRecipients.length === 1 && recipientName ? recipientName : cleanEmail.split('@')[0]);
+
+      return {
+        email: cleanEmail,
+        name: resolvedName,
+      };
+    });
+
+    const recipientNamesList = matchedRecipientDetails.map((r) => r.name).filter(Boolean);
+    const finalRecipientName =
+      recipientNamesList.length > 0
+        ? recipientNamesList.length <= 3
+          ? recipientNamesList.join(', ')
+          : `${recipientNamesList.slice(0, 2).join(', ')} & ${recipientNamesList.length - 2} more`
+        : recipientName || companyName;
+
+    // Calculate FY start year
+    const fyStartYear = financialYear
+      ? Number(financialYear)
+      : Number(periodMonth) >= 4
+      ? Number(periodYear)
+      : Number(periodYear) - 1;
+
+    const fyEndYear = fyStartYear + 1;
+    const fyLabel = `FY ${fyStartYear}–${String(fyEndYear).slice(-2)}`;
+
+    const finalSubject =
+      customSubject?.trim() ||
+      `Statutory Compliance Heat Map - ${companyName} (${fyLabel})`;
 
     // 2. Fetch or Extract Items & Entries
     let items = itemsOverride;
@@ -129,7 +175,7 @@ export async function POST(request) {
     const totalCount = itemsWithEntries.length;
     const score = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
-    // 3. Build HTML Email Body with formatted table & status badges
+    // 3. Build HTML Email Body featuring the complete 12-Month Financial Year Heat Map
     const htmlBody = buildComplianceEmailHtml({
       companyName,
       clientName: finalRecipientName,
@@ -145,6 +191,10 @@ export async function POST(request) {
         overdue: overdueCount,
         score,
       },
+      fyStartYear,
+      monthlyEntries: allMonthlyEntries,
+      companyCreatedAt: company?.created_at,
+      includeHeatmap: true,
     });
 
     // 4. Send Email via ZeptoMail
@@ -154,8 +204,10 @@ export async function POST(request) {
 
     try {
       sendResult = await sendComplianceReportEmail({
-        recipientEmail: finalRecipientEmail,
+        recipientEmail: targetRecipients[0],
+        recipientEmails: matchedRecipientDetails,
         recipientName: finalRecipientName,
+        ccEmails,
         subject: finalSubject,
         htmlBody,
       });
@@ -169,8 +221,10 @@ export async function POST(request) {
     const logEntry = {
       id: `email-log-${Date.now()}`,
       sent_at: new Date().toISOString(),
-      recipient_email: finalRecipientEmail,
+      recipient_email: targetRecipients.join(', '),
       recipient_name: finalRecipientName,
+      cc_emails: Array.isArray(ccEmails) ? ccEmails.join(', ') : ccEmails,
+      financial_year: fyLabel,
       subject: finalSubject,
       status,
       items_count: totalCount,
@@ -198,7 +252,7 @@ export async function POST(request) {
 
     return NextResponse.json({
       success: true,
-      message: `Compliance calendar report sent to ${finalRecipientEmail}`,
+      message: `Compliance heat map emailed to ${targetRecipients.join(', ')}`,
       simulated: Boolean(sendResult?.simulated),
       logEntry,
     });

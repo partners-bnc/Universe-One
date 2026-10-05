@@ -209,12 +209,8 @@ export default function LeaveManagement() {
     const query = searchQuery.toLowerCase().trim();
     return (data?.pending || []).filter(
       (item) =>
-        item.employeeName.toLowerCase().includes(query) ||
-        item.employeeCode.toLowerCase().includes(query) ||
-        (item.reason && item.reason.toLowerCase().includes(query)) ||
-        (item.leaveTypeName && item.leaveTypeName.toLowerCase().includes(query)) ||
-        (item.startDate && item.startDate.includes(query)) ||
-        (item.endDate && item.endDate.includes(query))
+        (item.employeeName && item.employeeName.toLowerCase().includes(query)) ||
+        (item.employeeCode && item.employeeCode.toLowerCase().includes(query))
     );
   }, [data?.pending, searchQuery]);
 
@@ -223,13 +219,8 @@ export default function LeaveManagement() {
     const query = searchQuery.toLowerCase().trim();
     return (data?.history || []).filter(
       (item) =>
-        item.employeeName.toLowerCase().includes(query) ||
-        item.employeeCode.toLowerCase().includes(query) ||
-        (item.reason && item.reason.toLowerCase().includes(query)) ||
-        (item.leaveTypeName && item.leaveTypeName.toLowerCase().includes(query)) ||
-        (item.reviewedByName && item.reviewedByName.toLowerCase().includes(query)) ||
-        (item.startDate && item.startDate.includes(query)) ||
-        (item.endDate && item.endDate.includes(query))
+        (item.employeeName && item.employeeName.toLowerCase().includes(query)) ||
+        (item.employeeCode && item.employeeCode.toLowerCase().includes(query))
     );
   }, [data?.history, searchQuery]);
 
@@ -238,8 +229,8 @@ export default function LeaveManagement() {
     const query = searchQuery.toLowerCase().trim();
     return balanceRows.filter(
       (row) =>
-        row.employeeName.toLowerCase().includes(query) ||
-        row.employeeCode.toLowerCase().includes(query)
+        (row.employeeName && row.employeeName.toLowerCase().includes(query)) ||
+        (row.employeeCode && row.employeeCode.toLowerCase().includes(query))
     );
   }, [balanceRows, searchQuery]);
 

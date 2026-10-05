@@ -81,6 +81,123 @@ const HALFYEARLY_PRESETS = [
   '30th June & 31st December',
 ];
 
+const FY_MONTHS = [
+  { month: 4, name: 'Apr', label: 'April', yearOffset: 0 },
+  { month: 5, name: 'May', label: 'May', yearOffset: 0 },
+  { month: 6, name: 'Jun', label: 'June', yearOffset: 0 },
+  { month: 7, name: 'Jul', label: 'July', yearOffset: 0 },
+  { month: 8, name: 'Aug', label: 'August', yearOffset: 0 },
+  { month: 9, name: 'Sep', label: 'September', yearOffset: 0 },
+  { month: 10, name: 'Oct', label: 'October', yearOffset: 0 },
+  { month: 11, name: 'Nov', label: 'November', yearOffset: 0 },
+  { month: 12, name: 'Dec', label: 'December', yearOffset: 0 },
+  { month: 1, name: 'Jan', label: 'January', yearOffset: 1 },
+  { month: 2, name: 'Feb', label: 'February', yearOffset: 1 },
+  { month: 3, name: 'Mar', label: 'March', yearOffset: 1 },
+];
+
+function getCellComplianceState(item, mObj, fyStartYear, company, now = new Date()) {
+  const calcYear = fyStartYear + mObj.yearOffset;
+  const month = mObj.month;
+
+  // 1. Check pre-inception
+  if (company?.created_at) {
+    const cd = new Date(company.created_at);
+    if (!isNaN(cd.getTime())) {
+      const createdYear = cd.getFullYear();
+      const createdMonth = cd.getMonth() + 1;
+      if (calcYear < createdYear || (calcYear === createdYear && month < createdMonth)) {
+        return {
+          status: 'NA',
+          label: '—',
+          tooltip: `Pre-inception period (Entity onboarded ${formatPeriodLabel(createdMonth, createdYear)})`,
+          periodKey: `${calcYear}_${month}`,
+          entry: null,
+          isApplicable: false,
+          month,
+          year: calcYear,
+        };
+      }
+    }
+  }
+
+  // 2. Resolve entry using resolveEffectiveEntry
+  const entry = resolveEffectiveEntry(item, company?.monthly_entries, month, calcYear);
+  const freq = (item.frequency || 'Monthly').toLowerCase().trim();
+
+  // 3. Frequency Applicability rules
+  let isDueMonth = true;
+  if (freq === 'monthly') {
+    isDueMonth = true;
+  } else if (freq.includes('quarter')) {
+    const quarterEndMonths = [7, 10, 1, 4];
+    isDueMonth = quarterEndMonths.includes(month) || Boolean(entry?.actual_payment_date || entry?.status);
+  } else if (freq.includes('half')) {
+    const hyMonths = [9, 10, 3, 4];
+    isDueMonth = hyMonths.includes(month) || Boolean(entry?.actual_payment_date || entry?.status);
+  } else if (freq === 'annual' || freq === 'yearly' || freq.includes('year')) {
+    const statRaw = item.statutory_due_date || '';
+    const annualMatch = statRaw.match(/(\d{1,2}(?:st|nd|rd|th)?)\s+([A-Za-z]+)/i);
+    let targetDueMonth = 9; // default September
+    if (annualMatch) {
+      const foundIdx = MONTH_NAMES.findIndex((m) =>
+        m.toLowerCase().startsWith(annualMatch[2].toLowerCase().slice(0, 3))
+      );
+      if (foundIdx !== -1) targetDueMonth = foundIdx + 1;
+    }
+    isDueMonth = month === targetDueMonth || Boolean(entry?.actual_payment_date);
+  } else if (freq === 'one time' || freq === 'onetime' || freq === 'one-time') {
+    const statRaw = item.statutory_due_date || '';
+    const mMatch =
+      statRaw.match(/([A-Za-z]+)\s+(\d{4})/i) ||
+      statRaw.match(/(\d{1,2}(?:st|nd|rd|th)?)\s+([A-Za-z]+)/i);
+    let targetDueMonth = 9;
+    if (mMatch) {
+      const monthStr = mMatch[1] && isNaN(mMatch[1]) ? mMatch[1] : mMatch[2];
+      if (monthStr) {
+        const foundIdx = MONTH_NAMES.findIndex((m) =>
+          m.toLowerCase().startsWith(monthStr.toLowerCase().slice(0, 3))
+        );
+        if (foundIdx !== -1) targetDueMonth = foundIdx + 1;
+      }
+    }
+    isDueMonth = month === targetDueMonth || Boolean(entry?.actual_payment_date);
+  }
+
+  if (!isDueMonth && !entry?.actual_payment_date) {
+    return {
+      status: 'NA',
+      label: '—',
+      tooltip: `${item.frequency || 'Periodic'} – Not scheduled in ${mObj.name} ${calcYear}`,
+      periodKey: `${calcYear}_${month}`,
+      entry,
+      isApplicable: false,
+      month,
+      year: calcYear,
+    };
+  }
+
+  // 4. Compute effective status
+  const effectiveStatus = computeEffectiveStatus(item, entry, month, calcYear, now, company?.created_at);
+
+  let label = effectiveStatus;
+  let tooltip = `${item.compliance_nature} (${mObj.name} ${calcYear}): ${effectiveStatus}`;
+  if (entry?.actual_payment_date) {
+    tooltip += ` • Paid on ${entry.actual_payment_date}`;
+  }
+
+  return {
+    status: effectiveStatus,
+    label,
+    tooltip,
+    periodKey: `${calcYear}_${month}`,
+    entry,
+    isApplicable: true,
+    month,
+    year: calcYear,
+  };
+}
+
 function getResolvedDatesForForm(formState) {
   const freq = formState.frequency || 'Monthly';
   let statutory = '';
@@ -187,8 +304,10 @@ export default function CompanyComplianceWorkspace() {
   const [persons, setPersons] = useState([]);
   const [isAddPersonDrawerOpen, setIsAddPersonDrawerOpen] = useState(false);
   const [personForm, setPersonForm] = useState({
+    person_type: 'Director', // 'Director' | 'Team'
     name: '',
-    designation: '',
+    designation: 'Director',
+    company_directory: 'Company Director',
     email: '',
     phone: '',
     is_primary: false,
@@ -198,13 +317,32 @@ export default function CompanyComplianceWorkspace() {
   const [isEditPersonDrawerOpen, setIsEditPersonDrawerOpen] = useState(false);
   const [editingPerson, setEditingPerson] = useState(null);
   const [editPersonForm, setEditPersonForm] = useState({
+    person_type: 'Director',
     name: '',
-    designation: '',
+    designation: 'Director',
+    company_directory: 'Company Director',
     email: '',
     phone: '',
     is_primary: false,
   });
   const [savingPerson, setSavingPerson] = useState(false);
+
+  // Split persons into Company Directors and Team Members
+  const directors = useMemo(() => {
+    return persons.filter((p) => {
+      const dir = (p.company_directory || '').toLowerCase();
+      const des = (p.designation || '').toLowerCase();
+      return dir.includes('director') || des.includes('director');
+    });
+  }, [persons]);
+
+  const teamMembers = useMemo(() => {
+    return persons.filter((p) => {
+      const dir = (p.company_directory || '').toLowerCase();
+      const des = (p.designation || '').toLowerCase();
+      return !dir.includes('director') && !des.includes('director');
+    });
+  }, [persons]);
 
   // Items & Entries State
   const [items, setItems] = useState([]);
@@ -217,6 +355,76 @@ export default function CompanyComplianceWorkspace() {
   const [frequencyFilter, setFrequencyFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [dashboardFilter, setDashboardFilter] = useState('ALL');
+
+  // Heatmap State (Annual Financial Year Matrix: April to March)
+  const currentCalendarYear = new Date().getFullYear();
+  const currentCalendarMonth = new Date().getMonth() + 1;
+  const defaultFyStart = currentCalendarMonth >= 4 ? currentCalendarYear : currentCalendarYear - 1;
+  const [selectedFyYear, setSelectedFyYear] = useState(defaultFyStart);
+  const [heatmapSearchTerm, setHeatmapSearchTerm] = useState('');
+  const [heatmapFreqFilter, setHeatmapFreqFilter] = useState('ALL');
+
+  // FY Options list
+  const availableFyYears = useMemo(() => {
+    return [
+      defaultFyStart - 2,
+      defaultFyStart - 1,
+      defaultFyStart,
+      defaultFyStart + 1,
+      defaultFyStart + 2,
+    ];
+  }, [defaultFyStart]);
+
+  // Filtered Items for Heatmap
+  const heatmapItems = useMemo(() => {
+    return items.filter((item) => {
+      if (heatmapFreqFilter !== 'ALL') {
+        const itemFreq = (item.frequency || '').toLowerCase().trim();
+        const filterFreq = heatmapFreqFilter.toLowerCase().trim();
+        if (!itemFreq.includes(filterFreq)) return false;
+      }
+      if (heatmapSearchTerm.trim()) {
+        const q = heatmapSearchTerm.toLowerCase();
+        const matchName = item.compliance_nature?.toLowerCase().includes(q);
+        const matchStat = item.statutory_due_date?.toLowerCase().includes(q);
+        const matchFreq = item.frequency?.toLowerCase().includes(q);
+        if (!matchName && !matchStat && !matchFreq) return false;
+      }
+      return true;
+    });
+  }, [items, heatmapSearchTerm, heatmapFreqFilter]);
+
+  // Aggregate FY Stats
+  const fyStats = useMemo(() => {
+    let totalSlots = 0;
+    let completed = 0;
+    let inProgress = 0;
+    let overdue = 0;
+    let pending = 0;
+
+    items.forEach((item) => {
+      FY_MONTHS.forEach((mObj) => {
+        const cell = getCellComplianceState(item, mObj, selectedFyYear, company);
+        if (cell.isApplicable) {
+          totalSlots++;
+          if (cell.status === 'Completed') completed++;
+          else if (cell.status === 'In Progress') inProgress++;
+          else if (cell.status === 'Overdue') overdue++;
+          else pending++;
+        }
+      });
+    });
+
+    const completionPct = totalSlots > 0 ? Math.round((completed / totalSlots) * 100) : 0;
+    return {
+      totalSlots,
+      completed,
+      inProgress,
+      overdue,
+      pending,
+      completionPct,
+    };
+  }, [items, selectedFyYear, company]);
 
   // Slide-over Drawers
   const [isAddItemDrawerOpen, setIsAddItemDrawerOpen] = useState(false);
@@ -252,10 +460,16 @@ export default function CompanyComplianceWorkspace() {
     custom_internal_text: '',
   });
 
-  // Email Drawer
+  // Email Drawer (Supports multi-recipients, CC, FY selection, and Heat Map inclusion)
   const [isEmailDrawerOpen, setIsEmailDrawerOpen] = useState(false);
   const [emailSending, setEmailSending] = useState(false);
   const [selectedRecipientEmail, setSelectedRecipientEmail] = useState('');
+  const [selectedRecipientEmails, setSelectedRecipientEmails] = useState([]);
+  const [customToEmail, setCustomToEmail] = useState('');
+  const [selectedCcEmails, setSelectedCcEmails] = useState([]);
+  const [customCcEmail, setCustomCcEmail] = useState('');
+  const [emailFyYear, setEmailFyYear] = useState(defaultFyStart);
+  const [includeHeatmapInEmail, setIncludeHeatmapInEmail] = useState(true);
   const [emailSubject, setEmailSubject] = useState('');
   const [emailCustomMessage, setEmailCustomMessage] = useState('');
   const [emailSuccessMessage, setEmailSuccessMessage] = useState('');
@@ -393,6 +607,7 @@ export default function CompanyComplianceWorkspace() {
     if (loadedPersons.length > 0) {
       const primary = loadedPersons.find((p) => p.is_primary) || loadedPersons[0];
       setSelectedRecipientEmail(primary.email);
+      setSelectedRecipientEmails([primary.email]);
     }
 
     // Fetch Items
@@ -484,12 +699,24 @@ export default function CompanyComplianceWorkspace() {
 
   // Open Edit Drawer for a Row
   const handleOpenEditDrawer = (item, options = {}) => {
+    const targetMonth = options.targetMonth !== undefined ? options.targetMonth : activeMonth;
+    const targetYear = options.targetYear !== undefined ? options.targetYear : activeYear;
+
+    if (options.targetMonth !== undefined && options.targetMonth !== activeMonth) {
+      setActiveMonth(options.targetMonth);
+    }
+    if (options.targetYear !== undefined && options.targetYear !== activeYear) {
+      setActiveYear(options.targetYear);
+    }
+
     setEditingItem(item);
+    const targetPeriodKey = `${targetYear}_${targetMonth}`;
+    const periodEntries = company?.monthly_entries?.[targetPeriodKey] || {};
     const entry = {
-      ...(entries[item.id] || {}),
-      ...resolveEffectiveEntry(item, company?.monthly_entries, activeMonth, activeYear),
+      ...(periodEntries[item.id] || entries[item.id] || {}),
+      ...resolveEffectiveEntry(item, company?.monthly_entries, targetMonth, targetYear),
     };
-    const effectiveSt = computeEffectiveStatus(item, entry, activeMonth, activeYear, new Date(), company?.created_at);
+    const effectiveSt = computeEffectiveStatus(item, entry, targetMonth, targetYear, new Date(), company?.created_at);
     const initialStatus = options.forcedStatus || entry.status || effectiveSt || 'Pending';
 
     setEditFormWarning(options.warning || '');
@@ -870,11 +1097,40 @@ export default function CompanyComplianceWorkspace() {
     setPersonForm({
       name: '',
       designation: '',
+      company_directory: 'General Directory',
       email: '',
       phone: '',
       is_primary: false,
     });
     setIsAddPersonDrawerOpen(false);
+  };
+
+  // Open Add Director Drawer
+  const handleOpenAddDirector = () => {
+    setPersonForm({
+      person_type: 'Director',
+      name: '',
+      designation: 'Director',
+      company_directory: 'Company Director',
+      email: '',
+      phone: '',
+      is_primary: false,
+    });
+    setIsAddPersonDrawerOpen(true);
+  };
+
+  // Open Add Team Member Drawer
+  const handleOpenAddTeamMember = () => {
+    setPersonForm({
+      person_type: 'Team',
+      name: '',
+      designation: '',
+      company_directory: 'Team Member',
+      email: '',
+      phone: '',
+      is_primary: false,
+    });
+    setIsAddPersonDrawerOpen(true);
   };
 
   // Delete Person
@@ -896,10 +1152,13 @@ export default function CompanyComplianceWorkspace() {
 
   // Open Edit Person Drawer
   const handleOpenEditPerson = (person) => {
+    const isDir = (person.company_directory || '').toLowerCase().includes('director') || (person.designation || '').toLowerCase().includes('director');
     setEditingPerson(person);
     setEditPersonForm({
+      person_type: isDir ? 'Director' : 'Team',
       name: person.name || '',
-      designation: person.designation || '',
+      designation: person.designation || (isDir ? 'Director' : 'Team Member'),
+      company_directory: person.company_directory || (isDir ? 'Company Director' : 'Team Member'),
       email: person.email || '',
       phone: person.phone || '',
       is_primary: Boolean(person.is_primary),
@@ -922,6 +1181,7 @@ export default function CompanyComplianceWorkspace() {
       ...editingPerson,
       name: editPersonForm.name.trim(),
       designation: editPersonForm.designation.trim() || null,
+      company_directory: editPersonForm.company_directory?.trim() || 'General Directory',
       email: editPersonForm.email.trim().toLowerCase(),
       phone: editPersonForm.phone.trim() || null,
       is_primary: editPersonForm.is_primary,
@@ -1022,13 +1282,52 @@ export default function CompanyComplianceWorkspace() {
     setIsEditProfileDrawerOpen(false);
   };
 
-  // Send Email
+  // Send Email (Supports Multi-Recipients, CC, FY Selection, and Heat Map Table)
   const handleSendEmail = async (e) => {
     e.preventDefault();
-    if (!selectedRecipientEmail) {
-      alert('Please select a recipient email address.');
+
+    // Collect all TO recipients (checked persons + custom input)
+    const toList = new Set();
+    selectedRecipientEmails.forEach((em) => em && toList.add(em.trim()));
+    if (toList.size === 0 && selectedRecipientEmail) toList.add(selectedRecipientEmail.trim());
+    if (customToEmail.trim()) {
+      customToEmail
+        .split(/[,;\s]+/)
+        .map((x) => x.trim())
+        .filter(Boolean)
+        .forEach((em) => toList.add(em));
+    }
+
+    const finalRecipients = Array.from(toList);
+    if (finalRecipients.length === 0) {
+      alert('Please select or specify at least one recipient email address.');
       return;
     }
+
+    const recipientDetails = finalRecipients.map((email) => {
+      const found = persons.find((p) => p.email && p.email.toLowerCase() === email.toLowerCase());
+      return {
+        email,
+        name: found?.name || email.split('@')[0],
+      };
+    });
+    const finalRecipientNames = recipientDetails.map((r) => r.name);
+    const finalRecipientName =
+      finalRecipientNames.length > 0
+        ? (finalRecipientNames.length <= 3 ? finalRecipientNames.join(', ') : `${finalRecipientNames.slice(0, 2).join(', ')} & ${finalRecipientNames.length - 2} more`)
+        : (company?.company_name || 'Valued Client');
+
+    // Collect all CC recipients (checked persons + custom input)
+    const ccList = new Set();
+    selectedCcEmails.forEach((em) => em && ccList.add(em.trim()));
+    if (customCcEmail.trim()) {
+      customCcEmail
+        .split(/[,;\s]+/)
+        .map((x) => x.trim())
+        .filter(Boolean)
+        .forEach((em) => ccList.add(em));
+    }
+    const finalCcRecipients = Array.from(ccList).filter((em) => !toList.has(em));
 
     setEmailSending(true);
     setEmailSuccessMessage('');
@@ -1038,10 +1337,16 @@ export default function CompanyComplianceWorkspace() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           companyId,
-          recipientEmail: selectedRecipientEmail,
+          recipientEmails: finalRecipients,
+          recipientEmail: finalRecipients[0],
+          recipientName: finalRecipientName,
+          recipientNames: finalRecipientNames,
+          ccEmails: finalCcRecipients,
           subject: emailSubject,
           periodMonth: activeMonth,
           periodYear: activeYear,
+          financialYear: emailFyYear || selectedFyYear,
+          includeHeatmap: true,
           customMessage: emailCustomMessage,
           senderName: 'Universe One Finance Team',
           itemsOverride: items,
@@ -1060,8 +1365,12 @@ export default function CompanyComplianceWorkspace() {
         if (Array.isArray(elData.logs)) setEmailLogs(elData.logs);
       }
 
-      showToast('success', 'Report Dispatched', `Compliance calendar emailed to ${selectedRecipientEmail}`);
-      setEmailSuccessMessage(data.message || `Compliance report emailed to ${selectedRecipientEmail}`);
+      const sentSummary = finalCcRecipients.length > 0 
+        ? `${finalRecipients.join(', ')} (CC: ${finalCcRecipients.join(', ')})`
+        : finalRecipients.join(', ');
+
+      showToast('success', 'Report Dispatched', `Compliance calendar emailed to ${sentSummary}`);
+      setEmailSuccessMessage(data.message || `Compliance report emailed to ${sentSummary}`);
       setTimeout(() => {
         setIsEmailDrawerOpen(false);
         setEmailSuccessMessage('');
@@ -1692,145 +2001,299 @@ export default function CompanyComplianceWorkspace() {
                 </div>
               </div>
 
-              {/* 3. Action Center & Priority Compliances */}
-              <div className="bg-white/90 border border-slate-200/80 rounded-2xl p-6 shadow-xs backdrop-blur-xl space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div>
-                    <h3 className="text-base font-extrabold text-slate-900">
-                      Compliance Execution Center
+              {/* =========================================================================
+                  COMPLIANCE HEAT MAP (FY APRIL - MARCH MATRIX)
+                 ========================================================================= */}
+              <div className="bg-white/95 border border-slate-200/90 rounded-2xl p-6 shadow-xs backdrop-blur-xl space-y-4">
+                
+                {/* Header & Controls Bar (Strict Single Horizontal Line) */}
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5 shrink-0">
+                    <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold shrink-0">
+                      <Calendar className="w-4 h-4" />
+                    </div>
+                    <h3 className="text-base font-extrabold text-slate-900 whitespace-nowrap">
+                      Compliance heat map
                     </h3>
-                    <p className="text-xs text-slate-500">
-                      Click any row to open full details, update payment date, or adjust status
-                    </p>
                   </div>
 
-                  {/* Filter Pills */}
-                  <div className="flex flex-wrap items-center gap-1.5 bg-slate-100/90 p-1 rounded-xl border border-slate-200/60">
-                    <button
-                      onClick={() => setDashboardFilter('ALL')}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                        dashboardFilter === 'ALL'
-                          ? 'bg-white text-slate-900 shadow-xs'
-                          : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      All ({items.length})
-                    </button>
-                    <button
-                      onClick={() => setDashboardFilter('NEEDS_ACTION')}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                        dashboardFilter === 'NEEDS_ACTION'
-                          ? 'bg-white text-slate-900 shadow-xs'
-                          : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      Action Required ({stats.pending + stats.overdue})
-                    </button>
-                    <button
-                      onClick={() => setDashboardFilter('In Progress')}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                        dashboardFilter === 'In Progress'
-                          ? 'bg-white text-slate-900 shadow-xs'
-                          : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      In Progress ({stats.inProgress})
-                    </button>
-                    <button
-                      onClick={() => setDashboardFilter('Completed')}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                        dashboardFilter === 'Completed'
-                          ? 'bg-white text-slate-900 shadow-xs'
-                          : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      Completed ({stats.completed})
-                    </button>
-                    <button
-                      onClick={() => setDashboardFilter('Overdue')}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                        dashboardFilter === 'Overdue'
-                          ? 'bg-red-500 text-white shadow-xs'
-                          : 'text-red-600 hover:text-red-700 hover:bg-red-50'
-                      }`}
-                    >
-                      Overdue ({stats.overdue})
-                    </button>
+                  {/* Horizontal Controls: Search + Frequency Filter + FY Switcher */}
+                  <div className="flex items-center gap-2.5 flex-wrap lg:flex-nowrap">
+                    
+                    {/* Search Input */}
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="text"
+                        value={heatmapSearchTerm}
+                        onChange={(e) => setHeatmapSearchTerm(e.target.value)}
+                        placeholder="Search compliances..."
+                        className="pl-8.5 pr-7 py-1.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#3170c6]/20 focus:border-[#3170c6] w-36 sm:w-44"
+                      />
+                      {heatmapSearchTerm && (
+                        <button
+                          onClick={() => setHeatmapSearchTerm('')}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Frequency Filter */}
+                    <div className="flex items-center gap-0.5 bg-slate-100/90 p-1 rounded-xl border border-slate-200/80 text-xs shrink-0">
+                      {['ALL', 'Monthly', 'Quarterly', 'Annual', 'One time'].map((freq) => (
+                        <button
+                          key={freq}
+                          onClick={() => setHeatmapFreqFilter(freq)}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
+                            heatmapFreqFilter === freq
+                              ? 'bg-white text-slate-900 shadow-2xs font-bold'
+                              : 'text-slate-500 hover:text-slate-800'
+                          }`}
+                        >
+                          {freq}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* FY Switcher Pill */}
+                    <div className="flex items-center bg-slate-100/90 p-1 rounded-xl border border-slate-200/80 shadow-2xs shrink-0">
+                      <button
+                        onClick={() => setSelectedFyYear((y) => y - 1)}
+                        className="p-1.5 rounded-lg hover:bg-white text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+                        title="Previous Financial Year"
+                      >
+                        <ChevronLeft className="w-3.5 h-3.5" />
+                      </button>
+                      <span className="px-2 text-xs font-extrabold text-slate-800 tracking-wide font-mono select-none whitespace-nowrap">
+                        FY {selectedFyYear}–{String(selectedFyYear + 1).slice(-2)}
+                      </span>
+                      <button
+                        onClick={() => setSelectedFyYear((y) => y + 1)}
+                        className="p-1.5 rounded-lg hover:bg-white text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+                        title="Next Financial Year"
+                      >
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
 
-                {/* Items List */}
-                {dashboardItems.length === 0 ? (
-                  <div className="py-12 text-center text-slate-400 text-xs">
-                    No compliances match the selected filter.
-                  </div>
-                ) : (
-                  <div className="divide-y divide-slate-100">
-                    {dashboardItems.map((item, idx) => {
-                      const entry = {
-                        ...(entries[item.id] || {}),
-                        ...resolveEffectiveEntry(item, company?.monthly_entries, activeMonth, activeYear),
-                      };
-                      const st = computeEffectiveStatus(item, entry, activeMonth, activeYear, new Date(), company?.created_at);
-                      return (
-                        <div
-                          key={item.id}
-                          onClick={() => handleOpenEditDrawer(item)}
-                          className="py-3.5 px-3 -mx-3 rounded-xl hover:bg-blue-50/50 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer group"
-                        >
-                          <div className="flex items-center gap-3 min-w-0">
-                            <span className="w-8 h-8 rounded-xl bg-slate-100 text-slate-600 font-bold text-xs flex items-center justify-center shrink-0 group-hover:bg-[#3170c6] group-hover:text-white transition-colors">
-                              {item.s_no || idx + 1}
-                            </span>
-                            <div className="min-w-0">
-                              <span className="font-bold text-sm text-slate-900 block truncate group-hover:text-[#3170c6] transition-colors">
-                                {item.compliance_nature}
-                              </span>
-                              <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
-                                <span>Statutory Due: <strong className="text-slate-700">{item.statutory_due_date}</strong></span>
-                                <span>•</span>
-                                <span>Frequency: <strong className="text-slate-700">{item.frequency}</strong></span>
-                                {entry.actual_payment_date && (
-                                  <>
-                                    <span>•</span>
-                                    <span className="text-emerald-700 font-medium">Paid: {entry.actual_payment_date}</span>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-3 shrink-0 self-start sm:self-auto">
-                            <span
-                              className={`px-3 py-1 rounded-full text-xs font-bold border ${
-                                st === 'Completed'
-                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
-                                  : st === 'In Progress'
-                                  ? 'bg-amber-50 text-amber-700 border-amber-300'
-                                  : st === 'Overdue'
-                                  ? 'bg-red-50 text-red-700 border-red-300'
-                                  : 'bg-slate-100 text-slate-600 border-slate-200'
+                {/* Table Matrix Container (Compact single-screen layout) */}
+                <div className="overflow-x-auto rounded-xl border border-slate-200/90 shadow-2xs">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-slate-100/90 text-slate-700 font-bold border-b border-slate-200">
+                        <th className="py-2 px-1 w-7 min-w-[28px] max-w-[28px] text-center sticky left-0 bg-slate-100 z-10 font-bold text-slate-500 border-r border-slate-200 text-[10px]">
+                          #
+                        </th>
+                        <th className="py-2 px-2.5 w-44 sm:w-48 md:w-52 min-w-[170px] max-w-[210px] sticky left-7 bg-slate-100 z-10 font-extrabold text-slate-800 border-r border-slate-200 text-xs">
+                          Compliance Nature
+                        </th>
+                        <th className="py-2 px-1 w-16 min-w-[58px] max-w-[62px] text-center font-bold text-slate-700 border-r border-slate-200 text-[11px]">
+                          Frequency
+                        </th>
+                        {FY_MONTHS.map((mObj, mIdx) => {
+                          const mYear = selectedFyYear + mObj.yearOffset;
+                          const isCurrentCalMonth = currentCalendarMonth === mObj.month && currentCalendarYear === mYear;
+                          const nextMonthObj = FY_MONTHS[mIdx + 1];
+                          const isNextMonthCurrent = nextMonthObj && (currentCalendarMonth === nextMonthObj.month && currentCalendarYear === (selectedFyYear + nextMonthObj.yearOffset));
+                          return (
+                            <th
+                              key={mObj.month}
+                              className={`py-1.5 px-0.5 text-center min-w-[42px] max-w-[46px] last:border-r-0 ${
+                                isCurrentCalMonth
+                                  ? '!border-t !border-l !border-r !border-b !border-[#3170c6] bg-blue-100/90 text-[#3170c6] font-black shadow-xs relative z-20'
+                                  : isNextMonthCurrent
+                                  ? '!border-r !border-r-[#3170c6] text-slate-700 font-bold'
+                                  : 'border-r border-slate-200 text-slate-700 font-bold'
                               }`}
                             >
-                              {st}
-                            </span>
-
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleOpenEditDrawer(item);
-                              }}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-white transition-colors shadow-2xs"
-                              title="Edit Compliance"
+                              <div className="flex flex-col items-center">
+                                <span className="text-[11px] font-bold leading-tight">{mObj.name}</span>
+                                <span className="text-[9px] font-medium text-slate-400 font-mono leading-tight">
+                                  '{String(mYear).slice(-2)}
+                                </span>
+                                {isCurrentCalMonth && (
+                                  <span className="mt-0.5 text-[7px] font-black px-1.5 py-0.2 rounded-full bg-[#3170c6] text-white uppercase tracking-wider shadow-2xs">
+                                    Current
+                                  </span>
+                                )}
+                              </div>
+                            </th>
+                          );
+                        })}
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white">
+                      {heatmapItems.length === 0 ? (
+                        <tr>
+                          <td colSpan={15} className="py-12 text-center text-slate-400">
+                            <FileSpreadsheet className="w-8 h-8 mx-auto text-slate-300 mb-2" />
+                            <p className="text-xs font-semibold">No compliances matching filters</p>
+                          </td>
+                        </tr>
+                      ) : (
+                        heatmapItems.map((item, idx) => {
+                          const freq = item.frequency || 'Monthly';
+                          const isLastRow = idx === heatmapItems.length - 1;
+                          return (
+                            <tr
+                              key={item.id}
+                              className="group"
                             >
-                              <Edit3 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
+                              {/* S.No */}
+                              <td className="py-1 px-1 text-center sticky left-0 bg-white group-hover:bg-slate-50 z-10 font-mono text-[10px] text-slate-400 border-r border-b border-slate-200/80">
+                                {item.s_no || idx + 1}
+                              </td>
+
+                              {/* Compliance Nature */}
+                              <td className="py-1.5 px-2.5 sticky left-7 bg-white group-hover:bg-slate-50 z-10 border-r border-b border-slate-200/80">
+                                <div className="font-bold text-slate-900 text-xs line-clamp-1 group-hover:text-[#3170c6] transition-colors">
+                                  {item.compliance_nature}
+                                </div>
+                                {item.statutory_due_date && (
+                                  <div className="text-[9px] text-slate-400 mt-0.5 line-clamp-1">
+                                    Due: {item.statutory_due_date}
+                                  </div>
+                                )}
+                              </td>
+
+                              {/* Frequency */}
+                              <td className="py-1 px-1 text-center border-r border-b border-slate-200/80 bg-white group-hover:bg-slate-50">
+                                <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold whitespace-nowrap ${
+                                  freq === 'Monthly'
+                                    ? 'bg-blue-50 text-[#3170c6] border border-blue-200/60'
+                                    : freq === 'Quarterly'
+                                    ? 'bg-purple-50 text-purple-700 border border-purple-200/60'
+                                    : freq === 'Annual' || freq === 'Yearly'
+                                    ? 'bg-indigo-50 text-indigo-700 border border-indigo-200/60'
+                                    : freq === 'Half-Yearly'
+                                    ? 'bg-amber-50 text-amber-700 border border-amber-200/60'
+                                    : 'bg-slate-100 text-slate-700 border border-slate-200'
+                                }`}>
+                                  {freq}
+                                </span>
+                              </td>
+
+                              {/* 12 FY Month Cells (Compact Soft Pastels + Clean Thin Column Frame) */}
+                              {FY_MONTHS.map((mObj, mIdx) => {
+                                const cell = getCellComplianceState(item, mObj, selectedFyYear, company);
+                                const mYear = selectedFyYear + mObj.yearOffset;
+                                const isCurrentCalMonth = currentCalendarMonth === mObj.month && currentCalendarYear === mYear;
+                                const nextMonthObj = FY_MONTHS[mIdx + 1];
+                                const isNextMonthCurrent = nextMonthObj && (currentCalendarMonth === nextMonthObj.month && currentCalendarYear === (selectedFyYear + nextMonthObj.yearOffset));
+
+                                const colBorderClass = isCurrentCalMonth
+                                  ? isLastRow
+                                    ? '!border-l !border-r !border-b !border-l-[#3170c6] !border-r-[#3170c6] !border-b-[#3170c6] relative z-10'
+                                    : '!border-l !border-r !border-l-[#3170c6] !border-r-[#3170c6] border-b border-b-slate-200/80 relative z-10'
+                                  : isNextMonthCurrent
+                                  ? '!border-r !border-r-[#3170c6] border-b border-slate-200/80'
+                                  : 'border-r border-b border-slate-200/80 last:border-r-0';
+
+                                if (!cell.isApplicable || cell.status === 'NA') {
+                                  return (
+                                    <td
+                                      key={mObj.month}
+                                      className={`p-0 text-center ${isCurrentCalMonth ? 'bg-blue-50/20' : 'bg-slate-50/30'} text-slate-300 font-light select-none ${colBorderClass}`}
+                                      title={cell.tooltip}
+                                    >
+                                      <div className="w-full h-8 flex items-center justify-center text-[10px] font-light text-slate-300">
+                                        —
+                                      </div>
+                                    </td>
+                                  );
+                                }
+
+                                let cellBg = isCurrentCalMonth ? 'bg-blue-50/40 hover:bg-blue-100/60' : 'bg-slate-50/70 hover:bg-slate-100';
+                                let icon = <Clock className="w-2.5 h-2.5 text-slate-400 shrink-0" />;
+                                let shortText = 'Pending';
+                                let textColor = 'text-slate-600 font-medium';
+
+                                if (cell.status === 'Completed') {
+                                  cellBg = isCurrentCalMonth ? 'bg-emerald-50/90 hover:bg-emerald-100/90' : 'bg-emerald-50 hover:bg-emerald-100';
+                                  icon = <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600 shrink-0" />;
+                                  shortText = cell.entry?.actual_payment_date ? 'Paid' : 'Done';
+                                  textColor = 'text-emerald-800 font-bold';
+                                } else if (cell.status === 'In Progress') {
+                                  cellBg = isCurrentCalMonth ? 'bg-amber-50/90 hover:bg-amber-100/90' : 'bg-amber-50 hover:bg-amber-100';
+                                  icon = <Clock className="w-2.5 h-2.5 text-amber-600 shrink-0" />;
+                                  shortText = 'In Prog';
+                                  textColor = 'text-amber-800 font-bold';
+                                } else if (cell.status === 'Overdue') {
+                                  cellBg = isCurrentCalMonth ? 'bg-rose-50/90 hover:bg-rose-100/90' : 'bg-rose-50 hover:bg-rose-100';
+                                  icon = <AlertCircle className="w-2.5 h-2.5 text-rose-600 shrink-0" />;
+                                  shortText = 'Overdue';
+                                  textColor = 'text-rose-800 font-bold';
+                                }
+
+                                return (
+                                  <td
+                                    key={mObj.month}
+                                    className={`p-0 text-center transition-colors ${colBorderClass} ${cellBg}`}
+                                  >
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        handleOpenEditDrawer(item, {
+                                          targetMonth: cell.month,
+                                          targetYear: cell.year,
+                                        });
+                                      }}
+                                      title={`${cell.tooltip}\n(Click to view / edit for ${mObj.name} ${cell.year})`}
+                                      className={`w-full h-8 px-0.5 flex items-center justify-center gap-0.5 text-[10px] transition-transform active:scale-95 cursor-pointer ${textColor}`}
+                                    >
+                                      {icon}
+                                      <span className="truncate">{shortText}</span>
+                                    </button>
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Legend & Help Footer */}
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-2 text-xs text-slate-500">
+                  <div className="flex flex-wrap items-center gap-4 text-[11px]">
+                    <span className="font-bold text-slate-700">Status Legend:</span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-3.5 h-3.5 rounded bg-emerald-50 border border-emerald-300 flex items-center justify-center">
+                        <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
+                      </span>
+                      <strong className="text-emerald-800">Completed</strong>
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-3.5 h-3.5 rounded bg-amber-50 border border-amber-300 flex items-center justify-center">
+                        <Clock className="w-2.5 h-2.5 text-amber-600" />
+                      </span>
+                      <strong className="text-amber-800">In Progress</strong>
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-3.5 h-3.5 rounded bg-rose-50 border border-rose-300 flex items-center justify-center">
+                        <AlertCircle className="w-2.5 h-2.5 text-rose-600" />
+                      </span>
+                      <strong className="text-rose-800">Overdue</strong>
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-3.5 h-3.5 rounded bg-slate-50 border border-slate-300 flex items-center justify-center">
+                        <Clock className="w-2.5 h-2.5 text-slate-400" />
+                      </span>
+                      <strong className="text-slate-600">Pending / Scheduled</strong>
+                    </span>
+                    <span className="text-slate-400">— Not Applicable</span>
                   </div>
-                )}
+
+                  <div className="text-[11px] text-slate-400 italic">
+                    💡 Tip: Click any cell to inspect or update statutory filings for that month.
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -2074,112 +2537,258 @@ export default function CompanyComplianceWorkspace() {
             </div>
           )}
 
-          {/* TAB 3: COMPANY PEOPLE (CLEAN TABLE FORMAT) */}
+          {/* TAB 3: COMPANY PEOPLE (SPLIT INTO TWO TABLES: 1. DIRECTORS & 2. TEAM MEMBERS) */}
           {activeTab === 'people' && (
-            <div className="space-y-5 max-w-7xl mx-auto animate-fadeIn">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/90 border border-slate-200/80 rounded-2xl p-5 shadow-xs">
+            <div className="space-y-8 max-w-7xl mx-auto animate-fadeIn">
+              
+              {/* TOP ACTION BAR */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/90 border border-slate-200/80 rounded-2xl p-5 shadow-xs backdrop-blur-xl">
                 <div>
                   <h3 className="text-base font-extrabold text-slate-900">
-                    Company Contacts & Stakeholders
+                    Company Directory & People
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Directory of client members receiving statutory calendar reports
+                    Directory of company directors and key team stakeholders receiving statutory reports
                   </p>
                 </div>
-                <button
-                  onClick={() => setIsAddPersonDrawerOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#3170c6] hover:bg-[#2558a2] text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
-                >
-                  <UserPlus className="w-4 h-4" />
-                  Add Member / Contact
-                </button>
-              </div>
-
-              {/* Members Table */}
-              <div className="bg-white/95 border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden backdrop-blur-xl">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="bg-slate-50/90 border-b border-slate-200 text-slate-700 font-extrabold uppercase tracking-wider text-[11px]">
-                        <th className="py-3.5 px-4 w-12 text-center">#</th>
-                        <th className="py-3.5 px-4 min-w-[200px]">Member Name</th>
-                        <th className="py-3.5 px-4 min-w-[180px]">Designation / Role</th>
-                        <th className="py-3.5 px-4 min-w-[220px]">Email Address</th>
-                        <th className="py-3.5 px-4 min-w-[150px]">Phone</th>
-                        <th className="py-3.5 px-4 w-32 text-center">Primary POC</th>
-                        <th className="py-3.5 px-4 w-16 text-center">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 text-slate-700">
-                      {persons.length === 0 ? (
-                        <tr>
-                          <td colSpan={7} className="py-12 text-center text-slate-400">
-                            No team members registered yet. Click "Add Member / Contact" above.
-                          </td>
-                        </tr>
-                      ) : (
-                        persons.map((person, idx) => (
-                          <tr key={person.id} className="hover:bg-blue-50/40 transition-colors">
-                            <td className="py-3 px-4 text-center font-bold text-slate-400">
-                              {idx + 1}
-                            </td>
-
-                            <td className="py-3 px-4">
-                              <div className="flex items-center gap-2.5">
-                                <div className="w-7 h-7 rounded-lg bg-blue-50 text-[#3170c6] flex items-center justify-center font-extrabold text-xs shrink-0">
-                                  {person.name?.[0]?.toUpperCase() || 'M'}
-                                </div>
-                                <span className="font-bold text-slate-900">{person.name}</span>
-                              </div>
-                            </td>
-
-                            <td className="py-3 px-4 text-slate-600 font-medium">
-                              {person.designation || 'Team Member'}
-                            </td>
-
-                            <td className="py-3 px-4 text-slate-800 font-semibold">
-                              {person.email}
-                            </td>
-
-                            <td className="py-3 px-4 text-slate-600">
-                              {person.phone || '—'}
-                            </td>
-
-                            <td className="py-3 px-4 text-center">
-                              {person.is_primary ? (
-                                <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-50 text-[#3170c6] border border-blue-200">
-                                  Primary POC
-                                </span>
-                              ) : (
-                                <span className="text-slate-400 text-[11px]">—</span>
-                              )}
-                            </td>
-
-                            <td className="py-3 px-4 text-center">
-                              <div className="flex items-center justify-center gap-1.5">
-                                <button
-                                  onClick={() => handleOpenEditPerson(person)}
-                                  className="p-1 rounded-md text-slate-400 hover:text-[#3170c6] hover:bg-blue-50 transition-colors cursor-pointer"
-                                  title="Edit member details"
-                                >
-                                  <Edit3 className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() => handleDeletePerson(person.id)}
-                                  className="p-1 rounded-md text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
-                                  title="Remove member"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
+                <div className="flex items-center gap-2.5">
+                  <button
+                    onClick={handleOpenAddDirector}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
+                  >
+                    <ShieldCheck className="w-4 h-4" />
+                    Add Director
+                  </button>
+                  <button
+                    onClick={handleOpenAddTeamMember}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#3170c6] hover:bg-[#2558a2] text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    Add Team Member
+                  </button>
                 </div>
               </div>
+
+              {/* TABLE 1: COMPANY DIRECTORS */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-700 flex items-center justify-center font-extrabold text-xs">
+                      <ShieldCheck className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-extrabold text-slate-900">Company Directors</h4>
+                      <p className="text-[11px] text-slate-500">Statutory directors & legal signatories</p>
+                    </div>
+                  </div>
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                    {directors.length} {directors.length === 1 ? 'Director' : 'Directors'}
+                  </span>
+                </div>
+
+                <div className="bg-white/95 border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden backdrop-blur-xl">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50/90 border-b border-slate-200 text-slate-700 font-extrabold uppercase tracking-wider text-[11px]">
+                          <th className="py-3 px-4 w-12 text-center">#</th>
+                          <th className="py-3 px-4 min-w-[200px]">Director Name</th>
+                          <th className="py-3 px-4 min-w-[170px]">Designation / Role</th>
+                          <th className="py-3 px-4 min-w-[220px]">Email Address</th>
+                          <th className="py-3 px-4 min-w-[140px]">Phone</th>
+                          <th className="py-3 px-4 w-28 text-center">Primary POC</th>
+                          <th className="py-3 px-4 w-16 text-center">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-slate-700">
+                        {directors.length === 0 ? (
+                          <tr>
+                            <td colSpan={7} className="py-8 text-center text-slate-400">
+                              <p className="text-xs font-medium">No company directors added yet.</p>
+                              <button
+                                onClick={handleOpenAddDirector}
+                                className="mt-2 text-xs font-bold text-indigo-600 hover:text-indigo-800 underline cursor-pointer"
+                              >
+                                + Add Company Director
+                              </button>
+                            </td>
+                          </tr>
+                        ) : (
+                          directors.map((person, idx) => (
+                            <tr key={person.id} className="hover:bg-indigo-50/30 transition-colors">
+                              <td className="py-3 px-4 text-center font-bold text-slate-400">
+                                {idx + 1}
+                              </td>
+
+                              <td className="py-3 px-4">
+                                <div className="flex items-center gap-2.5">
+                                  <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-700 flex items-center justify-center font-extrabold text-xs shrink-0">
+                                    {person.name?.[0]?.toUpperCase() || 'D'}
+                                  </div>
+                                  <span className="font-bold text-slate-900">{person.name}</span>
+                                </div>
+                              </td>
+
+                              <td className="py-3 px-4">
+                                <span className="inline-block px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-indigo-50 text-indigo-800 border border-indigo-200/70">
+                                  {person.designation || 'Director'}
+                                </span>
+                              </td>
+
+                              <td className="py-3 px-4 text-slate-800 font-semibold">
+                                {person.email}
+                              </td>
+
+                              <td className="py-3 px-4 text-slate-600">
+                                {person.phone || '—'}
+                              </td>
+
+                              <td className="py-3 px-4 text-center">
+                                {person.is_primary ? (
+                                  <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-50 text-[#3170c6] border border-blue-200">
+                                    Primary POC
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-400 text-[11px]">—</span>
+                                )}
+                              </td>
+
+                              <td className="py-3 px-4 text-center">
+                                <div className="flex items-center justify-center gap-1.5">
+                                  <button
+                                    onClick={() => handleOpenEditPerson(person)}
+                                    className="p-1 rounded-md text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors cursor-pointer"
+                                    title="Edit director details"
+                                  >
+                                    <Edit3 className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeletePerson(person.id)}
+                                    className="p-1 rounded-md text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
+                                    title="Remove director"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              {/* TABLE 2: TEAM MEMBERS */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-lg bg-blue-50 text-[#3170c6] flex items-center justify-center font-extrabold text-xs">
+                      <Users className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-extrabold text-slate-900">Company Team Members</h4>
+                      <p className="text-[11px] text-slate-500">Finance, tax, accounting & operational key contacts</p>
+                    </div>
+                  </div>
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-[#3170c6] border border-blue-200">
+                    {teamMembers.length} {teamMembers.length === 1 ? 'Team Member' : 'Team Members'}
+                  </span>
+                </div>
+
+                <div className="bg-white/95 border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden backdrop-blur-xl">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50/90 border-b border-slate-200 text-slate-700 font-extrabold uppercase tracking-wider text-[11px]">
+                          <th className="py-3 px-4 w-12 text-center">#</th>
+                          <th className="py-3 px-4 min-w-[200px]">Member Name</th>
+                          <th className="py-3 px-4 min-w-[170px]">Designation / Role</th>
+                          <th className="py-3 px-4 min-w-[220px]">Email Address</th>
+                          <th className="py-3 px-4 min-w-[140px]">Phone</th>
+                          <th className="py-3 px-4 w-28 text-center">Primary POC</th>
+                          <th className="py-3 px-4 w-16 text-center">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-slate-700">
+                        {teamMembers.length === 0 ? (
+                          <tr>
+                            <td colSpan={7} className="py-8 text-center text-slate-400">
+                              <p className="text-xs font-medium">No operational team members added yet.</p>
+                              <button
+                                onClick={handleOpenAddTeamMember}
+                                className="mt-2 text-xs font-bold text-[#3170c6] hover:text-[#2558a2] underline cursor-pointer"
+                              >
+                                + Add Team Member
+                              </button>
+                            </td>
+                          </tr>
+                        ) : (
+                          teamMembers.map((person, idx) => (
+                            <tr key={person.id} className="hover:bg-blue-50/30 transition-colors">
+                              <td className="py-3 px-4 text-center font-bold text-slate-400">
+                                {idx + 1}
+                              </td>
+
+                              <td className="py-3 px-4">
+                                <div className="flex items-center gap-2.5">
+                                  <div className="w-7 h-7 rounded-lg bg-blue-50 text-[#3170c6] flex items-center justify-center font-extrabold text-xs shrink-0">
+                                    {person.name?.[0]?.toUpperCase() || 'M'}
+                                  </div>
+                                  <span className="font-bold text-slate-900">{person.name}</span>
+                                </div>
+                              </td>
+
+                              <td className="py-3 px-4 text-slate-600 font-medium">
+                                {person.designation || 'Team Member'}
+                              </td>
+
+                              <td className="py-3 px-4 text-slate-800 font-semibold">
+                                {person.email}
+                              </td>
+
+                              <td className="py-3 px-4 text-slate-600">
+                                {person.phone || '—'}
+                              </td>
+
+                              <td className="py-3 px-4 text-center">
+                                {person.is_primary ? (
+                                  <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-50 text-[#3170c6] border border-blue-200">
+                                    Primary POC
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-400 text-[11px]">—</span>
+                                )}
+                              </td>
+
+                              <td className="py-3 px-4 text-center">
+                                <div className="flex items-center justify-center gap-1.5">
+                                  <button
+                                    onClick={() => handleOpenEditPerson(person)}
+                                    className="p-1 rounded-md text-slate-400 hover:text-[#3170c6] hover:bg-blue-50 transition-colors cursor-pointer"
+                                    title="Edit member details"
+                                  >
+                                    <Edit3 className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeletePerson(person.id)}
+                                    className="p-1 rounded-md text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
+                                    title="Remove member"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
             </div>
           )}
 
@@ -3400,41 +4009,108 @@ export default function CompanyComplianceWorkspace() {
               {/* Form Content */}
               <div className="relative z-10 flex-1 overflow-y-auto p-6 space-y-4">
                 <form id="add-person-form" onSubmit={handleAddPerson} className="space-y-4 text-xs">
+                  
+                  {/* Directory Type Toggle: Company Director vs Team Member */}
+                  <div className="p-1 bg-slate-100 rounded-2xl border border-slate-200/80 flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPersonForm({
+                          ...personForm,
+                          person_type: 'Director',
+                          company_directory: 'Company Director',
+                          designation: 'Director',
+                        });
+                      }}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                        personForm.person_type === 'Director'
+                          ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                      }`}
+                    >
+                      <ShieldCheck className="w-4 h-4" />
+                      <span>Company Director</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPersonForm({
+                          ...personForm,
+                          person_type: 'Team',
+                          company_directory: 'Team Member',
+                          designation: personForm.designation === 'Director' ? 'Finance Controller' : personForm.designation,
+                        });
+                      }}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                        personForm.person_type === 'Team'
+                          ? 'bg-[#3170c6] text-white shadow-md shadow-[#3170c6]/20'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                      }`}
+                    >
+                      <Users className="w-4 h-4" />
+                      <span>Team Member</span>
+                    </button>
+                  </div>
+
+                  {/* Name Input */}
                   <div className="p-4 rounded-2xl border border-white/60 bg-white/50 backdrop-blur-2xl shadow-[inset_0_1.5px_2px_rgba(255,255,255,0.8),0_10px_30px_rgba(0,0,0,0.02)] space-y-1.5">
-                    <label className="font-bold text-slate-800">Full Name *</label>
+                    <label className="font-bold text-slate-800">
+                      {personForm.person_type === 'Director' ? 'Company Director Name *' : 'Team Member Name *'}
+                    </label>
                     <input
                       type="text"
                       required
-                      placeholder="e.g. Dave Smith"
+                      placeholder={personForm.person_type === 'Director' ? 'e.g. Rajesh Kumar (Director)' : 'e.g. Dave Smith (Finance Lead)'}
                       value={personForm.name}
                       onChange={(e) => setPersonForm({ ...personForm, name: e.target.value })}
                       className="w-full bg-white/80 hover:bg-white focus:bg-white border border-slate-200/80 focus:border-[#3170c6] rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#3170c6]/20 transition-all"
                     />
                   </div>
 
+                  {/* Designation / Role */}
                   <div className="p-4 rounded-2xl border border-white/60 bg-white/50 backdrop-blur-2xl shadow-[inset_0_1.5px_2px_rgba(255,255,255,0.8),0_10px_30px_rgba(0,0,0,0.02)] space-y-1.5">
-                    <label className="font-bold text-slate-800">Designation / Role</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Finance Controller, Tax Manager..."
-                      value={personForm.designation}
-                      onChange={(e) => setPersonForm({ ...personForm, designation: e.target.value })}
-                      className="w-full bg-white/80 hover:bg-white focus:bg-white border border-slate-200/80 focus:border-[#3170c6] rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#3170c6]/20 transition-all"
-                    />
+                    <label className="font-bold text-slate-800">
+                      {personForm.person_type === 'Director' ? 'Director Designation *' : 'Designation / Role *'}
+                    </label>
+                    {personForm.person_type === 'Director' ? (
+                      <select
+                        value={personForm.designation}
+                        onChange={(e) => setPersonForm({ ...personForm, designation: e.target.value })}
+                        className="w-full bg-white/80 hover:bg-white focus:bg-white border border-slate-200/80 focus:border-indigo-600 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-600/20 transition-all cursor-pointer"
+                      >
+                        <option value="Director">Director</option>
+                        <option value="Managing Director">Managing Director (MD)</option>
+                        <option value="Whole-Time Director">Whole-Time Director (WTD)</option>
+                        <option value="Executive Director">Executive Director</option>
+                        <option value="Independent Director">Independent Director</option>
+                        <option value="Additional Director">Additional Director</option>
+                        <option value="Nominee Director">Nominee Director</option>
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        placeholder="e.g. Finance Controller, Tax Manager, Chief Accountant..."
+                        value={personForm.designation}
+                        onChange={(e) => setPersonForm({ ...personForm, designation: e.target.value })}
+                        className="w-full bg-white/80 hover:bg-white focus:bg-white border border-slate-200/80 focus:border-[#3170c6] rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#3170c6]/20 transition-all"
+                      />
+                    )}
                   </div>
 
+                  {/* Email */}
                   <div className="p-4 rounded-2xl border border-white/60 bg-white/50 backdrop-blur-2xl shadow-[inset_0_1.5px_2px_rgba(255,255,255,0.8),0_10px_30px_rgba(0,0,0,0.02)] space-y-1.5">
                     <label className="font-bold text-slate-800">Email Address *</label>
                     <input
                       type="email"
                       required
-                      placeholder="e.g. dave@company.com"
+                      placeholder={personForm.person_type === 'Director' ? 'director@company.com' : 'finance@company.com'}
                       value={personForm.email}
                       onChange={(e) => setPersonForm({ ...personForm, email: e.target.value })}
                       className="w-full bg-white/80 hover:bg-white focus:bg-white border border-slate-200/80 focus:border-[#3170c6] rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#3170c6]/20 transition-all"
                     />
                   </div>
 
+                  {/* Phone */}
                   <div className="p-4 rounded-2xl border border-white/60 bg-white/50 backdrop-blur-2xl shadow-[inset_0_1.5px_2px_rgba(255,255,255,0.8),0_10px_30px_rgba(0,0,0,0.02)] space-y-1.5">
                     <label className="font-bold text-slate-800">Phone Number</label>
                     <input
@@ -3446,6 +4122,7 @@ export default function CompanyComplianceWorkspace() {
                     />
                   </div>
 
+                  {/* Primary POC */}
                   <div className="p-3.5 rounded-2xl border border-blue-200/60 bg-blue-50/50 backdrop-blur-xl flex items-center gap-3">
                     <input
                       type="checkbox"
@@ -3478,7 +4155,7 @@ export default function CompanyComplianceWorkspace() {
                   form="add-person-form"
                   className="px-6 py-2.5 rounded-xl bg-[#3170c6] hover:bg-[#2558a2] text-white text-xs font-bold shadow-md shadow-[#3170c6]/20 transition-all cursor-pointer"
                 >
-                  Add Contact
+                  {personForm.person_type === 'Director' ? 'Save Company Director' : 'Save Team Member'}
                 </button>
               </div>
             </div>
@@ -3505,7 +4182,9 @@ export default function CompanyComplianceWorkspace() {
                     <Edit3 className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="text-base font-extrabold text-slate-900">Edit Member Details</h3>
+                    <h3 className="text-base font-extrabold text-slate-900">
+                      Edit {editPersonForm.person_type === 'Director' ? 'Company Director' : 'Team Member'}
+                    </h3>
                     <p className="text-xs text-slate-500 font-medium">Update stakeholder contact info in database</p>
                   </div>
                 </div>
@@ -3522,41 +4201,108 @@ export default function CompanyComplianceWorkspace() {
               {/* Form Content */}
               <div className="relative z-10 flex-1 overflow-y-auto p-6 space-y-4">
                 <form id="edit-person-form" onSubmit={handleSaveEditPerson} className="space-y-4 text-xs">
+                  
+                  {/* Directory Type Toggle */}
+                  <div className="p-1 bg-slate-100 rounded-2xl border border-slate-200/80 flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditPersonForm({
+                          ...editPersonForm,
+                          person_type: 'Director',
+                          company_directory: 'Company Director',
+                          designation: editPersonForm.designation && !editPersonForm.designation.toLowerCase().includes('member') ? editPersonForm.designation : 'Director',
+                        });
+                      }}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                        editPersonForm.person_type === 'Director'
+                          ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                      }`}
+                    >
+                      <ShieldCheck className="w-4 h-4" />
+                      <span>Company Director</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditPersonForm({
+                          ...editPersonForm,
+                          person_type: 'Team',
+                          company_directory: 'Team Member',
+                          designation: editPersonForm.designation === 'Director' ? 'Finance Controller' : editPersonForm.designation,
+                        });
+                      }}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                        editPersonForm.person_type === 'Team'
+                          ? 'bg-[#3170c6] text-white shadow-md shadow-[#3170c6]/20'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                      }`}
+                    >
+                      <Users className="w-4 h-4" />
+                      <span>Team Member</span>
+                    </button>
+                  </div>
+
+                  {/* Name Input */}
                   <div className="p-4 rounded-2xl border border-white/60 bg-white/50 backdrop-blur-2xl shadow-[inset_0_1.5px_2px_rgba(255,255,255,0.8),0_10px_30px_rgba(0,0,0,0.02)] space-y-1.5">
-                    <label className="font-bold text-slate-800">Full Name *</label>
+                    <label className="font-bold text-slate-800">
+                      {editPersonForm.person_type === 'Director' ? 'Company Director Name *' : 'Team Member Name *'}
+                    </label>
                     <input
                       type="text"
                       required
-                      placeholder="e.g. Dave Smith"
+                      placeholder={editPersonForm.person_type === 'Director' ? 'e.g. Rajesh Kumar (Director)' : 'e.g. Dave Smith (Finance Lead)'}
                       value={editPersonForm.name}
                       onChange={(e) => setEditPersonForm({ ...editPersonForm, name: e.target.value })}
                       className="w-full bg-white/80 hover:bg-white focus:bg-white border border-slate-200/80 focus:border-[#3170c6] rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#3170c6]/20 transition-all"
                     />
                   </div>
 
+                  {/* Designation / Role */}
                   <div className="p-4 rounded-2xl border border-white/60 bg-white/50 backdrop-blur-2xl shadow-[inset_0_1.5px_2px_rgba(255,255,255,0.8),0_10px_30px_rgba(0,0,0,0.02)] space-y-1.5">
-                    <label className="font-bold text-slate-800">Designation / Role</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Finance Controller, Tax Manager..."
-                      value={editPersonForm.designation}
-                      onChange={(e) => setEditPersonForm({ ...editPersonForm, designation: e.target.value })}
-                      className="w-full bg-white/80 hover:bg-white focus:bg-white border border-slate-200/80 focus:border-[#3170c6] rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#3170c6]/20 transition-all"
-                    />
+                    <label className="font-bold text-slate-800">
+                      {editPersonForm.person_type === 'Director' ? 'Director Designation *' : 'Designation / Role *'}
+                    </label>
+                    {editPersonForm.person_type === 'Director' ? (
+                      <select
+                        value={editPersonForm.designation}
+                        onChange={(e) => setEditPersonForm({ ...editPersonForm, designation: e.target.value })}
+                        className="w-full bg-white/80 hover:bg-white focus:bg-white border border-slate-200/80 focus:border-indigo-600 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-600/20 transition-all cursor-pointer"
+                      >
+                        <option value="Director">Director</option>
+                        <option value="Managing Director">Managing Director (MD)</option>
+                        <option value="Whole-Time Director">Whole-Time Director (WTD)</option>
+                        <option value="Executive Director">Executive Director</option>
+                        <option value="Independent Director">Independent Director</option>
+                        <option value="Additional Director">Additional Director</option>
+                        <option value="Nominee Director">Nominee Director</option>
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        placeholder="e.g. Finance Controller, Tax Manager, Chief Accountant..."
+                        value={editPersonForm.designation}
+                        onChange={(e) => setEditPersonForm({ ...editPersonForm, designation: e.target.value })}
+                        className="w-full bg-white/80 hover:bg-white focus:bg-white border border-slate-200/80 focus:border-[#3170c6] rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#3170c6]/20 transition-all"
+                      />
+                    )}
                   </div>
 
+                  {/* Email */}
                   <div className="p-4 rounded-2xl border border-white/60 bg-white/50 backdrop-blur-2xl shadow-[inset_0_1.5px_2px_rgba(255,255,255,0.8),0_10px_30px_rgba(0,0,0,0.02)] space-y-1.5">
                     <label className="font-bold text-slate-800">Email Address *</label>
                     <input
                       type="email"
                       required
-                      placeholder="e.g. dave@company.com"
+                      placeholder={editPersonForm.person_type === 'Director' ? 'director@company.com' : 'finance@company.com'}
                       value={editPersonForm.email}
                       onChange={(e) => setEditPersonForm({ ...editPersonForm, email: e.target.value })}
                       className="w-full bg-white/80 hover:bg-white focus:bg-white border border-slate-200/80 focus:border-[#3170c6] rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#3170c6]/20 transition-all"
                     />
                   </div>
 
+                  {/* Phone */}
                   <div className="p-4 rounded-2xl border border-white/60 bg-white/50 backdrop-blur-2xl shadow-[inset_0_1.5px_2px_rgba(255,255,255,0.8),0_10px_30px_rgba(0,0,0,0.02)] space-y-1.5">
                     <label className="font-bold text-slate-800">Phone Number</label>
                     <input
@@ -3568,6 +4314,7 @@ export default function CompanyComplianceWorkspace() {
                     />
                   </div>
 
+                  {/* Primary POC */}
                   <div className="p-3.5 rounded-2xl border border-blue-200/60 bg-blue-50/50 backdrop-blur-xl flex items-center gap-3">
                     <input
                       type="checkbox"
@@ -3609,14 +4356,17 @@ export default function CompanyComplianceWorkspace() {
         </div>
       )}
 
-      {/* DRAWER 4: EMAIL CALENDAR TO CLIENT (WITH SUBJECT & HTML PREVIEW SUMMARY) */}
+      {/* DRAWER 4: EMAIL CALENDAR TO CLIENT (WITH MULTI-RECIPIENTS, CC, FY MATRIX SELECTION & HEAT MAP) */}
       {isEmailDrawerOpen && (
         <div className="fixed inset-0 z-50 overflow-hidden bg-slate-950/40 backdrop-blur-sm transition-opacity duration-300">
           <div className="absolute inset-0" onClick={() => setIsEmailDrawerOpen(false)} />
 
-          <div className="fixed inset-y-0 right-0 w-full max-w-full sm:max-w-lg flex pointer-events-auto">
+          <div className="fixed inset-y-0 right-0 w-full max-w-full sm:max-w-xl flex pointer-events-auto">
             <div className="relative w-full h-full bg-white/80 backdrop-blur-3xl border-l border-white/60 shadow-[-30px_0_70px_rgba(49,112,198,0.2)] flex flex-col justify-between animate-in slide-in-from-right duration-300 overflow-hidden">
               
+              {/* Ambient Glow */}
+              <div className="absolute -top-16 -right-16 w-72 h-72 bg-gradient-to-br from-[#3170c6]/20 via-sky-400/15 to-transparent rounded-full blur-3xl pointer-events-none" />
+
               {/* Header */}
               <div className="relative z-10 flex items-center justify-between px-6 py-5 border-b border-white/40 bg-white/30 backdrop-blur-2xl shadow-[0_4px_24px_rgba(0,0,0,0.02)] shrink-0">
                 <div className="flex items-center gap-3 min-w-0">
@@ -3624,8 +4374,8 @@ export default function CompanyComplianceWorkspace() {
                     <Mail className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="text-base font-extrabold text-slate-900">Email Calendar to Client</h3>
-                    <p className="text-xs text-slate-500 font-medium">Send monthly compliance HTML summary to recipient</p>
+                    <h3 className="text-base font-extrabold text-slate-900">Email Calendar & Heat Map to Client</h3>
+                    <p className="text-xs text-slate-500 font-medium">Send monthly statutory report & 12-month FY heat map matrix</p>
                   </div>
                 </div>
 
@@ -3650,26 +4400,179 @@ export default function CompanyComplianceWorkspace() {
                 ) : (
                   <form id="email-calendar-form" onSubmit={handleSendEmail} className="space-y-4 text-xs">
                     
-                    {/* Recipient select */}
-                    <div className="p-4 rounded-2xl border border-white/60 bg-white/50 backdrop-blur-2xl shadow-[inset_0_1.5px_2px_rgba(255,255,255,0.8),0_10px_30px_rgba(0,0,0,0.02)] space-y-1.5">
-                      <label className="font-bold text-slate-800">Recipient Contact *</label>
+                    {/* Primary & Multiple TO Recipients */}
+                    <div className="p-4 rounded-2xl border border-white/60 bg-white/50 backdrop-blur-2xl shadow-[inset_0_1.5px_2px_rgba(255,255,255,0.8),0_10px_30px_rgba(0,0,0,0.02)] space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <label className="font-bold text-slate-800">To: Recipients *</label>
+                        <span className="text-[10px] text-slate-400 font-medium">Select multiple or add email</span>
+                      </div>
+                      
                       {persons.length === 0 ? (
                         <div className="text-xs text-amber-700 bg-amber-50 p-3 rounded-xl border border-amber-200">
-                          No team members added yet. Please add a member in the "Company People" tab first.
+                          No team members registered yet in "Company People". You can type recipient email below.
                         </div>
                       ) : (
-                        <select
-                          value={selectedRecipientEmail}
-                          onChange={(e) => setSelectedRecipientEmail(e.target.value)}
-                          className="w-full bg-white/80 hover:bg-white focus:bg-white border border-slate-200/80 focus:border-[#3170c6] rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#3170c6]/20 transition-all cursor-pointer"
-                        >
-                          {persons.map((p) => (
-                            <option key={p.id} value={p.email}>
-                              {p.name} ({p.email}) {p.is_primary ? '• [Primary POC]' : ''}
-                            </option>
-                          ))}
-                        </select>
+                        <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                          {persons.map((p) => {
+                            const isSelected = selectedRecipientEmails.includes(p.email);
+                            return (
+                              <label
+                                key={p.id}
+                                className={`flex items-center justify-between p-2 rounded-xl border transition-all cursor-pointer ${
+                                  isSelected
+                                    ? 'bg-blue-50/80 border-[#3170c6]/50 text-slate-900 font-bold'
+                                    : 'bg-white/60 border-slate-200/80 text-slate-700 hover:bg-white'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setSelectedRecipientEmails((prev) => Array.from(new Set([...prev, p.email])));
+                                        setSelectedRecipientEmail(p.email);
+                                      } else {
+                                        const updated = selectedRecipientEmails.filter((em) => em !== p.email);
+                                        setSelectedRecipientEmails(updated);
+                                        setSelectedRecipientEmail(updated[0] || '');
+                                      }
+                                    }}
+                                    className="w-3.5 h-3.5 rounded border-slate-300 text-[#3170c6] focus:ring-[#3170c6]"
+                                  />
+                                  <div className="truncate text-xs">
+                                    <span>{p.name}</span>
+                                    <span className="text-slate-400 font-normal ml-1">({p.email})</span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0 ml-2">
+                                  {p.company_directory && (
+                                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-medium">
+                                      {p.company_directory}
+                                    </span>
+                                  )}
+                                  {p.is_primary && (
+                                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#3170c6] text-white font-bold">
+                                      Primary
+                                    </span>
+                                  )}
+                                </div>
+                              </label>
+                            );
+                          })}
+                        </div>
                       )}
+
+                      {/* Custom Additional TO Email */}
+                      <div>
+                        <input
+                          type="text"
+                          placeholder="Or type additional recipient email(s) (comma separated)..."
+                          value={customToEmail}
+                          onChange={(e) => setCustomToEmail(e.target.value)}
+                          className="w-full bg-white/80 hover:bg-white focus:bg-white border border-slate-200/80 focus:border-[#3170c6] rounded-xl px-3 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#3170c6]/20 transition-all"
+                        />
+                      </div>
+                    </div>
+
+                    {/* CC Recipients */}
+                    <div className="p-4 rounded-2xl border border-white/60 bg-white/50 backdrop-blur-2xl shadow-[inset_0_1.5px_2px_rgba(255,255,255,0.8),0_10px_30px_rgba(0,0,0,0.02)] space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <label className="font-bold text-slate-800">CC: Copy Recipients (Optional)</label>
+                        <span className="text-[10px] text-slate-400 font-medium">Carbon copy stakeholders</span>
+                      </div>
+
+                      {persons.length > 0 && (
+                        <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1">
+                          {persons.map((p) => {
+                            const isCc = selectedCcEmails.includes(p.email);
+                            return (
+                              <label
+                                key={`cc-${p.id}`}
+                                className={`flex items-center justify-between p-2 rounded-xl border transition-all cursor-pointer ${
+                                  isCc
+                                    ? 'bg-purple-50/80 border-purple-300 text-slate-900 font-bold'
+                                    : 'bg-white/60 border-slate-200/80 text-slate-700 hover:bg-white'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <input
+                                    type="checkbox"
+                                    checked={isCc}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setSelectedCcEmails((prev) => Array.from(new Set([...prev, p.email])));
+                                      } else {
+                                        setSelectedCcEmails((prev) => prev.filter((em) => em !== p.email));
+                                      }
+                                    }}
+                                    className="w-3.5 h-3.5 rounded border-slate-300 text-purple-600 focus:ring-purple-600"
+                                  />
+                                  <div className="truncate text-xs">
+                                    <span>{p.name}</span>
+                                    <span className="text-slate-400 font-normal ml-1">({p.email})</span>
+                                  </div>
+                                </div>
+                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-medium shrink-0 ml-2">
+                                  {p.company_directory || p.designation || 'Member'}
+                                </span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Custom Additional CC Email */}
+                      <div>
+                        <input
+                          type="text"
+                          placeholder="Type custom CC email(s) (e.g. audit@company.com, cfo@firm.com)..."
+                          value={customCcEmail}
+                          onChange={(e) => setCustomCcEmail(e.target.value)}
+                          className="w-full bg-white/80 hover:bg-white focus:bg-white border border-slate-200/80 focus:border-[#3170c6] rounded-xl px-3 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#3170c6]/20 transition-all"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Financial Year Selection & Heat Map Inclusion */}
+                    <div className="p-4 rounded-2xl border border-white/60 bg-white/50 backdrop-blur-2xl shadow-[inset_0_1.5px_2px_rgba(255,255,255,0.8),0_10px_30px_rgba(0,0,0,0.02)] space-y-3">
+                      <div className="flex items-center justify-between">
+                        <label className="font-bold text-slate-800">Financial Year Heat Map Matrix</label>
+                        <span className="text-[10px] text-slate-400 font-mono">12-Month Matrix</span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[11px] font-semibold text-slate-600 block mb-1">
+                            Target Financial Year
+                          </label>
+                          <select
+                            value={emailFyYear}
+                            onChange={(e) => setEmailFyYear(Number(e.target.value))}
+                            className="w-full bg-white/80 hover:bg-white focus:bg-white border border-slate-200/80 focus:border-[#3170c6] rounded-xl px-3 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#3170c6]/20 transition-all cursor-pointer"
+                          >
+                            {availableFyYears.map((yr) => (
+                              <option key={yr} value={yr}>
+                                FY {yr}–{String(yr + 1).slice(-2)} (Apr'{String(yr).slice(-2)} – Mar'{String(yr + 1).slice(-2)})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="flex items-center pt-5">
+                          <label className="flex items-center gap-2 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={includeHeatmapInEmail}
+                              onChange={(e) => setIncludeHeatmapInEmail(e.target.checked)}
+                              className="w-4 h-4 rounded border-slate-300 text-[#3170c6] focus:ring-[#3170c6]"
+                            />
+                            <span className="text-xs font-bold text-slate-800">
+                              Include 12-Month Heat Map Table
+                            </span>
+                          </label>
+                        </div>
+                      </div>
                     </div>
 
                     {/* Subject Line */}
@@ -3700,13 +4603,17 @@ export default function CompanyComplianceWorkspace() {
                         <strong className="text-slate-900">{activePeriodFull}</strong>
                       </div>
                       <div className="flex justify-between text-slate-600">
+                        <span>Heat Map Financial Year:</span>
+                        <strong className="text-slate-900">FY {emailFyYear}–{String(emailFyYear + 1).slice(-2)} (12 Months)</strong>
+                      </div>
+                      <div className="flex justify-between text-slate-600">
                         <span>Compliances Included:</span>
                         <strong className="text-slate-900">
                           {items.length} items ({stats.completed} Completed, {stats.inProgress} In Progress, {stats.pending} Pending)
                         </strong>
                       </div>
                       <p className="text-[11px] text-slate-400 italic pt-1 border-t border-slate-100">
-                        The full responsive spreadsheet with statutory due dates, payment records, and status badges is embedded directly into the HTML body.
+                        The email will include both the active monthly statutory breakdown and the complete 12-month FY heat map matrix.
                       </p>
                     </div>
 
@@ -3752,7 +4659,7 @@ export default function CompanyComplianceWorkspace() {
                   <button
                     type="submit"
                     form="email-calendar-form"
-                    disabled={emailSending || persons.length === 0 || isBeforeInception}
+                    disabled={emailSending || isBeforeInception}
                     className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#3170c6] hover:bg-[#2558a2] text-white text-xs font-bold shadow-md shadow-[#3170c6]/20 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {emailSending ? (
@@ -3763,7 +4670,7 @@ export default function CompanyComplianceWorkspace() {
                     ) : (
                       <>
                         <Send className="w-3.5 h-3.5" />
-                        <span>Dispatch HTML Report</span>
+                        <span>Dispatch Report & Heat Map</span>
                       </>
                     )}
                   </button>

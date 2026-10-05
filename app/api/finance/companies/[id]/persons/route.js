@@ -30,7 +30,7 @@ export async function POST(request, { params }) {
     if (!companyId) return NextResponse.json({ error: 'Company ID required' }, { status: 400 });
 
     const body = await request.json();
-    const { name, designation, email, phone, is_primary = false } = body;
+    const { name, designation, email, phone, is_primary = false, company_directory = '' } = body;
 
     if (!name?.trim() || !email?.trim()) {
       return NextResponse.json({ error: 'Name and Email are required' }, { status: 400 });
@@ -56,6 +56,7 @@ export async function POST(request, { params }) {
       id: `person-${Date.now()}`,
       name: name.trim(),
       designation: designation?.trim() || null,
+      company_directory: company_directory?.trim() || 'General Directory',
       email: email.trim().toLowerCase(),
       phone: phone?.trim() || null,
       is_primary: Boolean(is_primary) || adjustedPersons.length === 0,
@@ -87,7 +88,7 @@ export async function PUT(request, { params }) {
     if (!companyId) return NextResponse.json({ error: 'Company ID required' }, { status: 400 });
 
     const body = await request.json();
-    const { personId, name, designation, email, phone, is_primary } = body;
+    const { personId, name, designation, email, phone, is_primary, company_directory } = body;
 
     if (!personId) return NextResponse.json({ error: 'personId is required' }, { status: 400 });
 
@@ -108,6 +109,10 @@ export async function PUT(request, { params }) {
           ...p,
           name: name !== undefined ? name.trim() : p.name,
           designation: designation !== undefined ? designation?.trim() || null : p.designation,
+          company_directory:
+            company_directory !== undefined
+              ? company_directory?.trim() || 'General Directory'
+              : p.company_directory || 'General Directory',
           email: email !== undefined ? email.trim().toLowerCase() : p.email,
           phone: phone !== undefined ? phone?.trim() || null : p.phone,
           is_primary: is_primary !== undefined ? Boolean(is_primary) : p.is_primary,
