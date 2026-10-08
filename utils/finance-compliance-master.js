@@ -2,6 +2,7 @@
 export const DEFAULT_STANDARD_COMPLIANCES = [
   {
     s_no: 1,
+    category: 'TAX',
     compliance_nature: 'TDS - Salary Payments',
     frequency: 'Monthly',
     statutory_due_date: '7th of following month',
@@ -10,6 +11,7 @@ export const DEFAULT_STANDARD_COMPLIANCES = [
   },
   {
     s_no: 2,
+    category: 'TAX',
     compliance_nature: 'TDS - Vendor / Professional Payments',
     frequency: 'Monthly',
     statutory_due_date: '7th of following month',
@@ -18,6 +20,7 @@ export const DEFAULT_STANDARD_COMPLIANCES = [
   },
   {
     s_no: 3,
+    category: 'BRS',
     compliance_nature: 'Bank Reconciliation Statement',
     frequency: 'Monthly',
     statutory_due_date: '10th of following month',
@@ -26,6 +29,7 @@ export const DEFAULT_STANDARD_COMPLIANCES = [
   },
   {
     s_no: 4,
+    category: 'TAX',
     compliance_nature: 'Inter-Company Invoicing',
     frequency: 'Monthly',
     statutory_due_date: '9th of following month',
@@ -34,6 +38,7 @@ export const DEFAULT_STANDARD_COMPLIANCES = [
   },
   {
     s_no: 5,
+    category: 'TAX',
     compliance_nature: 'Intercompany Signed Invoices to be shared with Client',
     frequency: 'Monthly',
     statutory_due_date: '9th of following month',
@@ -42,6 +47,7 @@ export const DEFAULT_STANDARD_COMPLIANCES = [
   },
   {
     s_no: 6,
+    category: 'TAX',
     compliance_nature: 'Working capital computation for Sep.',
     frequency: 'Monthly',
     statutory_due_date: '2nd Sep',
@@ -50,6 +56,7 @@ export const DEFAULT_STANDARD_COMPLIANCES = [
   },
   {
     s_no: 7,
+    category: 'GST',
     compliance_nature: 'GST Return "1"',
     frequency: 'Monthly',
     statutory_due_date: '11th of following month',
@@ -58,6 +65,7 @@ export const DEFAULT_STANDARD_COMPLIANCES = [
   },
   {
     s_no: 8,
+    category: 'GST',
     compliance_nature: 'GST Return "3B"',
     frequency: 'Monthly',
     statutory_due_date: '20th of following month',
@@ -66,6 +74,7 @@ export const DEFAULT_STANDARD_COMPLIANCES = [
   },
   {
     s_no: 9,
+    category: 'GST',
     compliance_nature: 'GSTR Reco till date',
     frequency: 'Monthly',
     statutory_due_date: '20th of following month',
@@ -74,6 +83,7 @@ export const DEFAULT_STANDARD_COMPLIANCES = [
   },
   {
     s_no: 10,
+    category: 'TAX',
     compliance_nature: 'TDS Reco - Vendor till date',
     frequency: 'Monthly',
     statutory_due_date: '25th of following month',
@@ -82,6 +92,7 @@ export const DEFAULT_STANDARD_COMPLIANCES = [
   },
   {
     s_no: 11,
+    category: 'TAX',
     compliance_nature: 'TDS Reco - Salary till date',
     frequency: 'Monthly',
     statutory_due_date: '25th of following month',
@@ -90,6 +101,7 @@ export const DEFAULT_STANDARD_COMPLIANCES = [
   },
   {
     s_no: 12,
+    category: 'TAX',
     compliance_nature: 'Revise Q1 TDS Return',
     frequency: 'One time',
     statutory_due_date: '30th Sep 2026',
@@ -98,6 +110,7 @@ export const DEFAULT_STANDARD_COMPLIANCES = [
   },
   {
     s_no: 13,
+    category: 'Form 16',
     compliance_nature: 'Form 16 to be revised for FY 25-26',
     frequency: 'One time',
     statutory_due_date: '30th Sep 2026',
@@ -106,6 +119,7 @@ export const DEFAULT_STANDARD_COMPLIANCES = [
   },
   {
     s_no: 14,
+    category: 'TAX',
     compliance_nature: 'Lease Rental Payments',
     frequency: 'Monthly',
     statutory_due_date: '10th of following month',
@@ -114,6 +128,7 @@ export const DEFAULT_STANDARD_COMPLIANCES = [
   },
   {
     s_no: 15,
+    category: 'PF',
     compliance_nature: 'PF Working for Payment of employees',
     frequency: 'Monthly',
     statutory_due_date: '15th of following month',
@@ -122,6 +137,7 @@ export const DEFAULT_STANDARD_COMPLIANCES = [
   },
   {
     s_no: 16,
+    category: 'PF',
     compliance_nature: 'EPF Set up with PAM / Konark F&F',
     frequency: 'One time',
     statutory_due_date: '30th Sep 2026',
@@ -130,6 +146,7 @@ export const DEFAULT_STANDARD_COMPLIANCES = [
   },
   {
     s_no: 17,
+    category: 'ESI',
     compliance_nature: 'ESI Nil Returns to be filed',
     frequency: 'Monthly',
     statutory_due_date: '15th of following month',
@@ -138,6 +155,7 @@ export const DEFAULT_STANDARD_COMPLIANCES = [
   },
   {
     s_no: 18,
+    category: 'TAX',
     compliance_nature: 'Vendor Payments',
     frequency: 'Monthly',
     statutory_due_date: '20th of following month',
@@ -146,6 +164,7 @@ export const DEFAULT_STANDARD_COMPLIANCES = [
   },
   {
     s_no: 19,
+    category: 'Salary',
     compliance_nature: 'Salary and Reimbursements',
     frequency: 'Monthly',
     statutory_due_date: '28th of following month',
@@ -154,6 +173,7 @@ export const DEFAULT_STANDARD_COMPLIANCES = [
   },
   {
     s_no: 20,
+    category: 'Salary',
     compliance_nature: 'Performance Appraisal file to be completed',
     frequency: 'Annual',
     statutory_due_date: '15th Sep',
@@ -162,6 +182,7 @@ export const DEFAULT_STANDARD_COMPLIANCES = [
   },
   {
     s_no: 21,
+    category: 'Audit',
     compliance_nature: 'Monthly filing of Documents including Soft and Hard Copy',
     frequency: 'Monthly',
     statutory_due_date: '25th of following month',
@@ -170,6 +191,7 @@ export const DEFAULT_STANDARD_COMPLIANCES = [
   },
   {
     s_no: 22,
+    category: 'Audit',
     compliance_nature: 'Books of Accounts',
     frequency: 'Monthly',
     statutory_due_date: '25th of following month',
@@ -178,6 +200,7 @@ export const DEFAULT_STANDARD_COMPLIANCES = [
   },
   {
     s_no: 23,
+    category: 'Audit',
     compliance_nature: 'Fixed Asset Register',
     frequency: 'One time',
     statutory_due_date: '30th Sep 2026',
@@ -186,6 +209,7 @@ export const DEFAULT_STANDARD_COMPLIANCES = [
   },
   {
     s_no: 24,
+    category: 'GST',
     compliance_nature: 'GST Refund of Export of services',
     frequency: 'Quarterly',
     statutory_due_date: 'Quarterly - 30th',
@@ -194,6 +218,7 @@ export const DEFAULT_STANDARD_COMPLIANCES = [
   },
   {
     s_no: 25,
+    category: 'ROC / Secretarial',
     compliance_nature: 'Shops and Establishment Registration',
     frequency: 'One time',
     statutory_due_date: '4th Sep',
@@ -202,6 +227,7 @@ export const DEFAULT_STANDARD_COMPLIANCES = [
   },
   {
     s_no: 26,
+    category: 'BRS',
     compliance_nature: 'BIRC to be received from bank',
     frequency: 'Monthly',
     statutory_due_date: '30th of following month',
@@ -210,6 +236,7 @@ export const DEFAULT_STANDARD_COMPLIANCES = [
   },
   {
     s_no: 27,
+    category: 'ROC / Secretarial',
     compliance_nature: 'DSC of All Directors to be collected / Director KYC',
     frequency: 'Annual',
     statutory_due_date: '30th Sep',
@@ -218,6 +245,7 @@ export const DEFAULT_STANDARD_COMPLIANCES = [
   },
   {
     s_no: 28,
+    category: 'BRS',
     compliance_nature: 'e-BRC Generation',
     frequency: 'Monthly',
     statutory_due_date: '30th of following month',
@@ -226,6 +254,7 @@ export const DEFAULT_STANDARD_COMPLIANCES = [
   },
   {
     s_no: 29,
+    category: 'Salary',
     compliance_nature: 'GreytHR Implementation for Entire payroll processing',
     frequency: 'Monthly',
     statutory_due_date: 'Monthly',
@@ -234,6 +263,7 @@ export const DEFAULT_STANDARD_COMPLIANCES = [
   },
   {
     s_no: 30,
+    category: 'TAX',
     compliance_nature: 'Safe Harbor Rules Cost plus 15%',
     frequency: 'Annual',
     statutory_due_date: '30th Nov',

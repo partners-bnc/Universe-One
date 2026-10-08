@@ -81,6 +81,50 @@ const HALFYEARLY_PRESETS = [
   '30th June & 31st December',
 ];
 
+const CATEGORY_OPTIONS = [
+  'GST',
+  'TAX',
+  'BRS',
+  'Form 16',
+  'PF',
+  'Salary',
+  'ESI',
+  'ROC / Secretarial',
+  'Audit',
+  'Other',
+];
+
+export function resolveItemCategory(item) {
+  if (item?.category && typeof item.category === 'string' && item.category.trim()) {
+    return item.category.trim();
+  }
+  const text = `${item?.compliance_nature || ''} ${item?.statutory_due_date || ''}`.toLowerCase();
+  if (text.includes('gst')) return 'GST';
+  if (text.includes('tds') || text.includes('advance tax') || text.includes('income tax') || text.includes('tax') || text.includes('form 26qb') || text.includes('form 26qc')) return 'TAX';
+  if (text.includes('brs') || text.includes('bank') || text.includes('reconciliation')) return 'BRS';
+  if (text.includes('form 16') || text.includes('form-16') || text.includes('form16') || text.includes('24q') || text.includes('26q') || text.includes('27q')) return 'Form 16';
+  if (text.includes('pf') || text.includes('provident') || text.includes('epf') || text.includes('ecr')) return 'PF';
+  if (text.includes('esi') || text.includes('esic')) return 'ESI';
+  if (text.includes('salary') || text.includes('payroll') || text.includes('wages') || text.includes('bonus') || text.includes('gratuity') || text.includes('professional tax') || text.includes('ptax') || text.includes('p-tax')) return 'Salary';
+  if (text.includes('roc') || text.includes('mca') || text.includes('director') || text.includes('agm') || text.includes('aoc') || text.includes('mgt') || text.includes('din')) return 'ROC / Secretarial';
+  if (text.includes('audit') || text.includes('statutory audit') || text.includes('tax audit')) return 'Audit';
+  return 'Other';
+}
+
+export function getCategoryBadgeStyle(category) {
+  const cat = (category || 'Other').toUpperCase();
+  if (cat.includes('GST')) return 'bg-purple-100 text-purple-800 border-purple-300';
+  if (cat.includes('TAX') || cat.includes('TDS')) return 'bg-blue-100 text-[#3170c6] border-blue-300';
+  if (cat.includes('BRS') || cat.includes('BANK')) return 'bg-amber-100 text-amber-800 border-amber-300';
+  if (cat.includes('FORM 16')) return 'bg-cyan-100 text-cyan-800 border-cyan-300';
+  if (cat.includes('PF')) return 'bg-emerald-100 text-emerald-800 border-emerald-300';
+  if (cat.includes('SALARY')) return 'bg-indigo-100 text-indigo-800 border-indigo-300';
+  if (cat.includes('ESI')) return 'bg-teal-100 text-teal-800 border-teal-300';
+  if (cat.includes('ROC') || cat.includes('SECRETARIAL')) return 'bg-rose-100 text-rose-800 border-rose-300';
+  if (cat.includes('AUDIT')) return 'bg-orange-100 text-orange-800 border-orange-300';
+  return 'bg-slate-100 text-slate-700 border-slate-300';
+}
+
 const FY_MONTHS = [
   { month: 4, name: 'Apr', label: 'April', yearOffset: 0 },
   { month: 5, name: 'May', label: 'May', yearOffset: 0 },
@@ -121,61 +165,72 @@ function getCellComplianceState(item, mObj, fyStartYear, company, now = new Date
     }
   }
 
-  // 2. Resolve entry using resolveEffectiveEntry
-  const entry = resolveEffectiveEntry(item, company?.monthly_entries, month, calcYear);
+  // 2. Frequency Cadence / Applicability rules
   const freq = (item.frequency || 'Monthly').toLowerCase().trim();
+  const statRaw = item.statutory_due_date || '';
+  let isScheduledMonth = true;
 
-  // 3. Frequency Applicability rules
-  let isDueMonth = true;
   if (freq === 'monthly') {
-    isDueMonth = true;
+    isScheduledMonth = true;
   } else if (freq.includes('quarter')) {
-    const quarterEndMonths = [7, 10, 1, 4];
-    isDueMonth = quarterEndMonths.includes(month) || Boolean(entry?.actual_payment_date || entry?.status);
+    if (statRaw.toLowerCase().includes('end of quarter') || statRaw.toLowerCase().includes('last day of quarter')) {
+      isScheduledMonth = [6, 9, 12, 3].includes(month);
+    } else {
+      isScheduledMonth = [7, 10, 1, 4].includes(month);
+    }
   } else if (freq.includes('half')) {
-    const hyMonths = [9, 10, 3, 4];
-    isDueMonth = hyMonths.includes(month) || Boolean(entry?.actual_payment_date || entry?.status);
+    if (statRaw.toLowerCase().includes('oct') || statRaw.toLowerCase().includes('apr') || statRaw.toLowerCase().includes('following')) {
+      isScheduledMonth = [10, 4].includes(month);
+    } else {
+      isScheduledMonth = [9, 3].includes(month);
+    }
   } else if (freq === 'annual' || freq === 'yearly' || freq.includes('year')) {
-    const statRaw = item.statutory_due_date || '';
-    const annualMatch = statRaw.match(/(\d{1,2}(?:st|nd|rd|th)?)\s+([A-Za-z]+)/i);
     let targetDueMonth = 9; // default September
-    if (annualMatch) {
+    const monthMatch = statRaw.match(/(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)/i);
+    if (monthMatch) {
       const foundIdx = MONTH_NAMES.findIndex((m) =>
-        m.toLowerCase().startsWith(annualMatch[2].toLowerCase().slice(0, 3))
+        m.toLowerCase().startsWith(monthMatch[0].toLowerCase().slice(0, 3))
       );
       if (foundIdx !== -1) targetDueMonth = foundIdx + 1;
     }
-    isDueMonth = month === targetDueMonth || Boolean(entry?.actual_payment_date);
+    isScheduledMonth = (month === targetDueMonth);
   } else if (freq === 'one time' || freq === 'onetime' || freq === 'one-time') {
-    const statRaw = item.statutory_due_date || '';
-    const mMatch =
-      statRaw.match(/([A-Za-z]+)\s+(\d{4})/i) ||
-      statRaw.match(/(\d{1,2}(?:st|nd|rd|th)?)\s+([A-Za-z]+)/i);
     let targetDueMonth = 9;
-    if (mMatch) {
-      const monthStr = mMatch[1] && isNaN(mMatch[1]) ? mMatch[1] : mMatch[2];
-      if (monthStr) {
+    let targetDueYear = null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(statRaw.trim())) {
+      const [y, m] = statRaw.trim().split('-').map(Number);
+      targetDueYear = y;
+      targetDueMonth = m;
+    } else {
+      const yearMatch = statRaw.match(/\b(20\d{2})\b/);
+      if (yearMatch) targetDueYear = parseInt(yearMatch[1], 10);
+      const monthMatch = statRaw.match(/(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)/i);
+      if (monthMatch) {
         const foundIdx = MONTH_NAMES.findIndex((m) =>
-          m.toLowerCase().startsWith(monthStr.toLowerCase().slice(0, 3))
+          m.toLowerCase().startsWith(monthMatch[0].toLowerCase().slice(0, 3))
         );
         if (foundIdx !== -1) targetDueMonth = foundIdx + 1;
       }
     }
-    isDueMonth = month === targetDueMonth || Boolean(entry?.actual_payment_date);
+    isScheduledMonth = (month === targetDueMonth) && (targetDueYear === null || calcYear === targetDueYear);
   }
 
-  if (!isDueMonth && !entry?.actual_payment_date) {
+  // If not scheduled in this month, strictly return NA (blank dash)
+  if (!isScheduledMonth) {
     return {
       status: 'NA',
       label: '—',
       tooltip: `${item.frequency || 'Periodic'} – Not scheduled in ${mObj.name} ${calcYear}`,
       periodKey: `${calcYear}_${month}`,
-      entry,
+      entry: null,
       isApplicable: false,
       month,
       year: calcYear,
     };
   }
+
+  // 3. Resolve entry for this scheduled slot
+  const entry = resolveEffectiveEntry(item, company?.monthly_entries, month, calcYear);
 
   // 4. Compute effective status
   const effectiveStatus = computeEffectiveStatus(item, entry, month, calcYear, now, company?.created_at);
@@ -195,6 +250,119 @@ function getCellComplianceState(item, mObj, fyStartYear, company, now = new Date
     isApplicable: true,
     month,
     year: calcYear,
+  };
+}
+
+function getCategoryMonthRollupState(categoryItems, mObj, fyStartYear, company, now = new Date()) {
+  const calcYear = fyStartYear + mObj.yearOffset;
+  const month = mObj.month;
+
+  // Gather states of all items in this category for this month
+  const itemStates = categoryItems.map((item) => ({
+    item,
+    cell: getCellComplianceState(item, mObj, fyStartYear, company, now),
+  }));
+
+  // Filter to only those applicable / scheduled in this month
+  const applicableItems = itemStates.filter((s) => s.cell.isApplicable && s.cell.status !== 'NA');
+
+  if (applicableItems.length === 0) {
+    return {
+      status: 'NA',
+      label: '—',
+      tooltip: `No compliances scheduled in ${mObj.name} ${calcYear}`,
+      isApplicable: false,
+      totalCount: 0,
+      completedCount: 0,
+      overdueCount: 0,
+      inProgressCount: 0,
+      pendingCount: 0,
+      items: [],
+    };
+  }
+
+  const totalCount = applicableItems.length;
+  const completedCount = applicableItems.filter((s) => s.cell.status === 'Completed').length;
+  const overdueCount = applicableItems.filter((s) => s.cell.status === 'Overdue').length;
+  const inProgressCount = applicableItems.filter((s) => s.cell.status === 'In Progress').length;
+  const pendingCount = applicableItems.filter((s) => s.cell.status === 'Pending').length;
+
+  // RULE 1: If ANY is Overdue -> Overdue (Red)
+  if (overdueCount > 0) {
+    return {
+      status: 'Overdue',
+      label: overdueCount === 1 && totalCount === 1 ? 'Overdue' : `${overdueCount} Overdue`,
+      tooltip: `${overdueCount} of ${totalCount} Overdue (${completedCount} paid, ${pendingCount} pending) in ${mObj.name} ${calcYear}`,
+      isApplicable: true,
+      totalCount,
+      completedCount,
+      overdueCount,
+      inProgressCount,
+      pendingCount,
+      items: applicableItems,
+    };
+  }
+
+  // RULE 2: If ALL are Paid / Completed -> Paid (Green)
+  if (completedCount === totalCount) {
+    return {
+      status: 'Completed',
+      label: totalCount > 1 ? `Paid (${totalCount})` : 'Paid',
+      tooltip: `All ${totalCount} compliances Paid in ${mObj.name} ${calcYear}`,
+      isApplicable: true,
+      totalCount,
+      completedCount,
+      overdueCount,
+      inProgressCount,
+      pendingCount,
+      items: applicableItems,
+    };
+  }
+
+  // RULE 3: If SOME are Paid and some are Pending/In Progress -> In Progress / Partial (Amber / Yellow)
+  if (completedCount > 0 && completedCount < totalCount) {
+    return {
+      status: 'In Progress',
+      label: `${completedCount}/${totalCount} Paid`,
+      tooltip: `${completedCount} of ${totalCount} Paid (${pendingCount + inProgressCount} remaining) in ${mObj.name} ${calcYear}`,
+      isApplicable: true,
+      totalCount,
+      completedCount,
+      overdueCount,
+      inProgressCount,
+      pendingCount,
+      items: applicableItems,
+    };
+  }
+
+  // RULE 4: If any In Progress -> In Progress (Amber)
+  if (inProgressCount > 0) {
+    return {
+      status: 'In Progress',
+      label: 'In Prog',
+      tooltip: `${inProgressCount} in progress in ${mObj.name} ${calcYear}`,
+      isApplicable: true,
+      totalCount,
+      completedCount,
+      overdueCount,
+      inProgressCount,
+      pendingCount,
+      items: applicableItems,
+    };
+  }
+
+  // RULE 5: Default Pending (None completed, none overdue)
+  return {
+    status: 'Pending',
+    label: 'Pending',
+    tooltip: `${pendingCount} compliances pending in ${mObj.name} ${calcYear}`,
+    isApplicable: true,
+    totalCount,
+    completedCount,
+    overdueCount,
+    inProgressCount,
+    pendingCount,
+    items: applicableItems,
   };
 }
 
@@ -352,9 +520,22 @@ export default function CompanyComplianceWorkspace() {
 
   // Search & Filter State
   const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [frequencyFilter, setFrequencyFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [dashboardFilter, setDashboardFilter] = useState('ALL');
+
+  // Dynamic Category Options for Calendar Tab Filter
+  const calendarCategoryOptions = useMemo(() => {
+    const list = [...CATEGORY_OPTIONS];
+    items.forEach((it) => {
+      const c = it.category || resolveItemCategory(it);
+      if (c && !list.some((existing) => existing.toUpperCase() === c.toUpperCase())) {
+        list.push(c);
+      }
+    });
+    return list;
+  }, [items]);
 
   // Heatmap State (Annual Financial Year Matrix: April to March)
   const currentCalendarYear = new Date().getFullYear();
@@ -363,6 +544,9 @@ export default function CompanyComplianceWorkspace() {
   const [selectedFyYear, setSelectedFyYear] = useState(defaultFyStart);
   const [heatmapSearchTerm, setHeatmapSearchTerm] = useState('');
   const [heatmapFreqFilter, setHeatmapFreqFilter] = useState('ALL');
+  const [heatmapMonthSubFilter, setHeatmapMonthSubFilter] = useState('ALL');
+  const [heatmapQuarterSubFilter, setHeatmapQuarterSubFilter] = useState('ALL');
+  const [heatmapHalfYearSubFilter, setHeatmapHalfYearSubFilter] = useState('ALL');
 
   // FY Options list
   const availableFyYears = useMemo(() => {
@@ -375,24 +559,140 @@ export default function CompanyComplianceWorkspace() {
     ];
   }, [defaultFyStart]);
 
-  // Filtered Items for Heatmap
+  // Dynamic Visible Columns for Heatmap based on frequency & sub-filters
+  const visibleHeatmapMonths = useMemo(() => {
+    if (heatmapFreqFilter === 'Monthly' && heatmapMonthSubFilter !== 'ALL') {
+      const targetM = Number(heatmapMonthSubFilter);
+      return FY_MONTHS.filter((m) => m.month === targetM);
+    }
+    if (heatmapFreqFilter === 'Quarterly' && heatmapQuarterSubFilter !== 'ALL') {
+      if (heatmapQuarterSubFilter === 'Q1') return FY_MONTHS.filter((m) => [4, 5, 6].includes(m.month));
+      if (heatmapQuarterSubFilter === 'Q2') return FY_MONTHS.filter((m) => [7, 8, 9].includes(m.month));
+      if (heatmapQuarterSubFilter === 'Q3') return FY_MONTHS.filter((m) => [10, 11, 12].includes(m.month));
+      if (heatmapQuarterSubFilter === 'Q4') return FY_MONTHS.filter((m) => [1, 2, 3].includes(m.month));
+    }
+    if (heatmapFreqFilter === 'Half-Yearly' && heatmapHalfYearSubFilter !== 'ALL') {
+      if (heatmapHalfYearSubFilter === 'H1') return FY_MONTHS.filter((m) => [4, 5, 6, 7, 8, 9].includes(m.month));
+      if (heatmapHalfYearSubFilter === 'H2') return FY_MONTHS.filter((m) => [10, 11, 12, 1, 2, 3].includes(m.month));
+    }
+    return FY_MONTHS;
+  }, [heatmapFreqFilter, heatmapMonthSubFilter, heatmapQuarterSubFilter, heatmapHalfYearSubFilter]);
+
+  // Filtered Items for Heatmap (Sorted by Category in Ascending Order)
   const heatmapItems = useMemo(() => {
-    return items.filter((item) => {
+    const filtered = items.filter((item) => {
       if (heatmapFreqFilter !== 'ALL') {
         const itemFreq = (item.frequency || '').toLowerCase().trim();
         const filterFreq = heatmapFreqFilter.toLowerCase().trim();
-        if (!itemFreq.includes(filterFreq)) return false;
+        if (filterFreq === 'one time' || filterFreq === 'onetime' || filterFreq === 'one-time') {
+          if (!itemFreq.includes('one') && !itemFreq.includes('onetime')) return false;
+        } else if (filterFreq === 'monthly') {
+          if (!itemFreq.includes('monthly') && !itemFreq.includes('month')) return false;
+        } else if (filterFreq === 'quarterly') {
+          if (!itemFreq.includes('quarter')) return false;
+        } else if (filterFreq === 'annual') {
+          if (!itemFreq.includes('annual') && !itemFreq.includes('yearly') && !itemFreq.includes('year')) return false;
+        } else if (filterFreq === 'half-yearly' || filterFreq === 'half yearly') {
+          if (!itemFreq.includes('half')) return false;
+        } else if (!itemFreq.includes(filterFreq)) {
+          return false;
+        }
       }
       if (heatmapSearchTerm.trim()) {
         const q = heatmapSearchTerm.toLowerCase();
         const matchName = item.compliance_nature?.toLowerCase().includes(q);
         const matchStat = item.statutory_due_date?.toLowerCase().includes(q);
         const matchFreq = item.frequency?.toLowerCase().includes(q);
-        if (!matchName && !matchStat && !matchFreq) return false;
+        const matchCat = (item.category || resolveItemCategory(item)).toLowerCase().includes(q);
+        if (!matchName && !matchStat && !matchFreq && !matchCat) return false;
       }
       return true;
     });
+
+    // Sort by Category in Ascending Order (A to Z)
+    return [...filtered].sort((a, b) => {
+      const catA = (a.category || resolveItemCategory(a)).toUpperCase();
+      const catB = (b.category || resolveItemCategory(b)).toUpperCase();
+      if (catA < catB) return -1;
+      if (catA > catB) return 1;
+      return (a.s_no || 0) - (b.s_no || 0);
+    });
   }, [items, heatmapSearchTerm, heatmapFreqFilter]);
+
+  // Grouped Unique Categories with Priority Sorting: GST, TAX, BRS, Form 16, PF, Salary, ESI, etc.
+  const groupedHeatmapCategories = useMemo(() => {
+    const priorityList = [
+      'GST',
+      'TAX',
+      'BRS',
+      'FORM 16',
+      'PF',
+      'SALARY',
+      'ESI',
+      'ROC / SECRETARIAL',
+      'AUDIT',
+      'OTHER',
+    ];
+    const priorityMap = {};
+    priorityList.forEach((cat, idx) => {
+      priorityMap[cat] = idx;
+    });
+
+    const map = new Map();
+    heatmapItems.forEach((item) => {
+      const cat = item.category || resolveItemCategory(item);
+      if (!map.has(cat)) {
+        map.set(cat, []);
+      }
+      map.get(cat).push(item);
+    });
+
+    const groups = Array.from(map.entries()).map(([category, catItems]) => {
+      const sortedItems = [...catItems].sort((a, b) => (a.s_no || 0) - (b.s_no || 0));
+      return {
+        category,
+        items: sortedItems,
+      };
+    });
+
+    groups.sort((a, b) => {
+      const keyA = a.category.toUpperCase().trim();
+      const keyB = b.category.toUpperCase().trim();
+      const pA = priorityMap[keyA] !== undefined ? priorityMap[keyA] : 900;
+      const pB = priorityMap[keyB] !== undefined ? priorityMap[keyB] : 900;
+      if (pA !== pB) return pA - pB;
+      return a.category.localeCompare(b.category);
+    });
+
+    return groups;
+  }, [heatmapItems]);
+
+  // Accordion State for Categories in Heat Map
+  const [expandedCategories, setExpandedCategories] = useState({});
+
+  const toggleCategory = (catName) => {
+    setExpandedCategories((prev) => ({
+      ...prev,
+      [catName]: !prev[catName],
+    }));
+  };
+
+  const handleExpandAllCategories = () => {
+    const all = {};
+    groupedHeatmapCategories.forEach((g) => {
+      all[g.category] = true;
+    });
+    setExpandedCategories(all);
+  };
+
+  const handleCollapseAllCategories = () => {
+    setExpandedCategories({});
+  };
+
+  const isAllCategoriesExpanded = useMemo(() => {
+    if (groupedHeatmapCategories.length === 0) return false;
+    return groupedHeatmapCategories.every((g) => Boolean(expandedCategories[g.category]));
+  }, [groupedHeatmapCategories, expandedCategories]);
 
   // Aggregate FY Stats
   const fyStats = useMemo(() => {
@@ -494,6 +794,9 @@ export default function CompanyComplianceWorkspace() {
   // Dynamic Add Item Form
   const [itemForm, setItemForm] = useState({
     compliance_nature: '',
+    category: 'GST',
+    use_custom_category: false,
+    custom_category: '',
     frequency: 'Monthly',
     monthly_statutory_day: '7th',
     monthly_statutory_timing: 'of following month',
@@ -629,6 +932,23 @@ export default function CompanyComplianceWorkspace() {
       }
     }
 
+    // Ensure all items have persistent category property
+    let hasUpdatedCat = false;
+    loadedItems = loadedItems.map((it) => {
+      if (!it.category || typeof it.category !== 'string' || !it.category.trim()) {
+        hasUpdatedCat = true;
+        return {
+          ...it,
+          category: resolveItemCategory(it),
+        };
+      }
+      return it;
+    });
+
+    if (hasUpdatedCat && typeof window !== 'undefined') {
+      localStorage.setItem(`${STORAGE_ITEMS_PREFIX}${targetId}`, JSON.stringify(loadedItems));
+    }
+
     // Fetch Entries for Period
     let loadedEntries = {};
     try {
@@ -761,8 +1081,12 @@ export default function CompanyComplianceWorkspace() {
           : `${internalMatch[1]}th`;
     }
 
+    const resolvedCategory = item.category || resolveItemCategory(item);
     setEditForm({
       compliance_nature: item.compliance_nature || '',
+      category: resolvedCategory,
+      use_custom_category: !CATEGORY_OPTIONS.includes(resolvedCategory),
+      custom_category: resolvedCategory,
       frequency: freq,
       statutory_due_date: statRaw,
       internal_control_due_date: internalRaw,
@@ -819,6 +1143,7 @@ export default function CompanyComplianceWorkspace() {
         return {
           ...it,
           compliance_nature: editForm.compliance_nature.trim(),
+          category: editForm.category?.trim() || 'Other',
           frequency: editForm.frequency,
           statutory_due_date: finalStatutory,
           internal_control_due_date: finalInternal,
@@ -879,6 +1204,7 @@ export default function CompanyComplianceWorkspace() {
             company_id: companyId,
             item_id: editingItem.id,
             compliance_nature: editForm.compliance_nature.trim(),
+            category: editForm.category?.trim() || 'Other',
             frequency: editForm.frequency,
             statutory_due_date: finalStatutory,
             internal_control_due_date: finalInternal,
@@ -1005,6 +1331,7 @@ export default function CompanyComplianceWorkspace() {
           company_id: companyId,
           s_no: nextSNo,
           compliance_nature: itemForm.compliance_nature.trim(),
+          category: itemForm.category?.trim() || 'GST',
           frequency: itemForm.frequency,
           statutory_due_date: finalStatutory,
           internal_control_due_date: finalInternal,
@@ -1023,6 +1350,7 @@ export default function CompanyComplianceWorkspace() {
         company_id: companyId,
         s_no: nextSNo,
         compliance_nature: itemForm.compliance_nature.trim(),
+        category: itemForm.category?.trim() || 'GST',
         frequency: itemForm.frequency,
         statutory_due_date: finalStatutory,
         internal_control_due_date: finalInternal,
@@ -1039,6 +1367,9 @@ export default function CompanyComplianceWorkspace() {
 
     setItemForm({
       compliance_nature: '',
+      category: 'GST',
+      use_custom_category: false,
+      custom_category: '',
       frequency: 'Monthly',
       monthly_statutory_day: '7th',
       monthly_statutory_timing: 'of following month',
@@ -1450,21 +1781,24 @@ export default function CompanyComplianceWorkspace() {
         ...resolveEffectiveEntry(item, company?.monthly_entries, activeMonth, activeYear),
       };
       const effectiveSt = computeEffectiveStatus(item, entry, activeMonth, activeYear, new Date(), company?.created_at);
+      const cat = item.category || resolveItemCategory(item);
 
       if (searchTerm.trim()) {
         const term = searchTerm.toLowerCase();
         const natureMatch = item.compliance_nature?.toLowerCase().includes(term);
         const dueMatch = item.statutory_due_date?.toLowerCase().includes(term);
+        const catMatch = cat.toLowerCase().includes(term);
         const remarkMatch = entry.remarks?.toLowerCase().includes(term);
-        if (!natureMatch && !dueMatch && !remarkMatch) return false;
+        if (!natureMatch && !dueMatch && !catMatch && !remarkMatch) return false;
       }
+      if (categoryFilter !== 'ALL' && cat.toUpperCase() !== categoryFilter.toUpperCase()) return false;
       if (frequencyFilter !== 'ALL' && item.frequency !== frequencyFilter) return false;
       if (statusFilter !== 'ALL') {
         if (effectiveSt !== statusFilter) return false;
       }
       return true;
     });
-  }, [items, entries, activeMonth, activeYear, searchTerm, frequencyFilter, statusFilter, company?.created_at, company?.monthly_entries]);
+  }, [items, entries, activeMonth, activeYear, searchTerm, categoryFilter, frequencyFilter, statusFilter, company?.created_at, company?.monthly_entries]);
 
   // Dashboard filtered list
   const dashboardItems = useMemo(() => {
@@ -2006,22 +2340,129 @@ export default function CompanyComplianceWorkspace() {
                  ========================================================================= */}
               <div className="bg-white/95 border border-slate-200/90 rounded-2xl p-6 shadow-xs backdrop-blur-xl space-y-4">
                 
-                {/* Header & Controls Bar (Strict Single Horizontal Line) */}
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-                  <div className="flex items-center gap-2.5 shrink-0">
-                    <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold shrink-0">
-                      <Calendar className="w-4 h-4" />
-                    </div>
-                    <h3 className="text-base font-extrabold text-slate-900 whitespace-nowrap">
-                      Compliance heat map
-                    </h3>
+                {/* 1. Centered Heading */}
+                <div className="text-center pb-2 border-b border-slate-100/90">
+                  <h3 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
+                    Statutory Compliance Category Heat Map
+                  </h3>
+                </div>
+
+                {/* 2. Controls Bar: Left (FY) | Middle (Frequency + Sub-Filter Dropdown) | Right (Search) */}
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pt-1">
+                  
+                  {/* Left: Financial Year Switcher */}
+                  <div className="flex items-center bg-slate-100/90 p-1 rounded-xl border border-slate-200/80 shadow-2xs shrink-0 self-start lg:self-auto">
+                    <button
+                      onClick={() => setSelectedFyYear((y) => y - 1)}
+                      className="p-1.5 rounded-lg hover:bg-white text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+                      title="Previous Financial Year"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                    </button>
+                    <span className="px-2.5 text-xs font-extrabold text-slate-800 tracking-wide font-mono select-none whitespace-nowrap">
+                      FY {selectedFyYear}–{String(selectedFyYear + 1).slice(-2)}
+                    </span>
+                    <button
+                      onClick={() => setSelectedFyYear((y) => y + 1)}
+                      className="p-1.5 rounded-lg hover:bg-white text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+                      title="Next Financial Year"
+                    >
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
                   </div>
 
-                  {/* Horizontal Controls: Search + Frequency Filter + FY Switcher */}
-                  <div className="flex items-center gap-2.5 flex-wrap lg:flex-nowrap">
-                    
-                    {/* Search Input */}
-                    <div className="relative">
+                  {/* Middle: Frequency Filter Pills & Cascading Sub-Option Dropdown */}
+                  <div className="flex items-center gap-2 flex-wrap justify-center">
+                    {/* Period Pills */}
+                    <div className="flex items-center gap-0.5 bg-slate-100/90 p-1 rounded-xl border border-slate-200/80 text-xs shrink-0">
+                      {['ALL', 'Monthly', 'Quarterly', 'Half-Yearly', 'Annual', 'One time'].map((freq) => (
+                        <button
+                          key={freq}
+                          onClick={() => {
+                            setHeatmapFreqFilter(freq);
+                            if (freq === 'Monthly') setHeatmapMonthSubFilter('ALL');
+                            if (freq === 'Quarterly') setHeatmapQuarterSubFilter('ALL');
+                            if (freq === 'Half-Yearly') setHeatmapHalfYearSubFilter('ALL');
+                          }}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
+                            heatmapFreqFilter === freq
+                              ? 'bg-white text-slate-900 shadow-2xs font-bold'
+                              : 'text-slate-500 hover:text-slate-800'
+                          }`}
+                        >
+                          {freq}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Monthly Sub-Option Dropdown */}
+                    {heatmapFreqFilter === 'Monthly' && (
+                      <div className="animate-in fade-in duration-200 shrink-0">
+                        <select
+                          value={heatmapMonthSubFilter}
+                          onChange={(e) => setHeatmapMonthSubFilter(e.target.value)}
+                          className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-800 focus:outline-none focus:border-[#3170c6] shadow-2xs cursor-pointer"
+                        >
+                          <option value="ALL">All Months (Apr - Mar)</option>
+                          {FY_MONTHS.map((m) => (
+                            <option key={m.month} value={m.month}>
+                              {m.label} ({m.name})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    {/* Quarterly Sub-Option Dropdown */}
+                    {heatmapFreqFilter === 'Quarterly' && (
+                      <div className="animate-in fade-in duration-200 shrink-0">
+                        <select
+                          value={heatmapQuarterSubFilter}
+                          onChange={(e) => setHeatmapQuarterSubFilter(e.target.value)}
+                          className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-800 focus:outline-none focus:border-[#3170c6] shadow-2xs cursor-pointer"
+                        >
+                          <option value="ALL">All Quarters (Q1 - Q4)</option>
+                          <option value="Q1">Q1 (Apr – Jun)</option>
+                          <option value="Q2">Q2 (Jul – Sep)</option>
+                          <option value="Q3">Q3 (Oct – Dec)</option>
+                          <option value="Q4">Q4 (Jan – Mar)</option>
+                        </select>
+                      </div>
+                    )}
+
+                    {/* Half-Yearly Sub-Option Dropdown */}
+                    {heatmapFreqFilter === 'Half-Yearly' && (
+                      <div className="animate-in fade-in duration-200 shrink-0">
+                        <select
+                          value={heatmapHalfYearSubFilter}
+                          onChange={(e) => setHeatmapHalfYearSubFilter(e.target.value)}
+                          className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-800 focus:outline-none focus:border-[#3170c6] shadow-2xs cursor-pointer"
+                        >
+                          <option value="ALL">All Half-Years (H1 & H2)</option>
+                          <option value="H1">H1 (Apr – Sep)</option>
+                          <option value="H2">H2 (Oct – Mar)</option>
+                        </select>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Expand / Collapse All & Search */}
+                  <div className="flex items-center gap-2.5 shrink-0 self-end lg:self-auto">
+                    <button
+                      type="button"
+                      onClick={isAllCategoriesExpanded ? handleCollapseAllCategories : handleExpandAllCategories}
+                      className="px-2.5 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/90 text-xs font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer active:scale-95 shrink-0"
+                      title={isAllCategoriesExpanded ? 'Collapse all categories' : 'Expand all categories'}
+                    >
+                      <ChevronDown
+                        className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                          isAllCategoriesExpanded ? 'rotate-180 text-[#3170c6]' : 'text-slate-500'
+                        }`}
+                      />
+                      <span>{isAllCategoriesExpanded ? 'Collapse All' : 'Expand All'}</span>
+                    </button>
+
+                    <div className="relative shrink-0">
                       <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                       <input
                         type="text"
@@ -2039,70 +2480,32 @@ export default function CompanyComplianceWorkspace() {
                         </button>
                       )}
                     </div>
-
-                    {/* Frequency Filter */}
-                    <div className="flex items-center gap-0.5 bg-slate-100/90 p-1 rounded-xl border border-slate-200/80 text-xs shrink-0">
-                      {['ALL', 'Monthly', 'Quarterly', 'Annual', 'One time'].map((freq) => (
-                        <button
-                          key={freq}
-                          onClick={() => setHeatmapFreqFilter(freq)}
-                          className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
-                            heatmapFreqFilter === freq
-                              ? 'bg-white text-slate-900 shadow-2xs font-bold'
-                              : 'text-slate-500 hover:text-slate-800'
-                          }`}
-                        >
-                          {freq}
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* FY Switcher Pill */}
-                    <div className="flex items-center bg-slate-100/90 p-1 rounded-xl border border-slate-200/80 shadow-2xs shrink-0">
-                      <button
-                        onClick={() => setSelectedFyYear((y) => y - 1)}
-                        className="p-1.5 rounded-lg hover:bg-white text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
-                        title="Previous Financial Year"
-                      >
-                        <ChevronLeft className="w-3.5 h-3.5" />
-                      </button>
-                      <span className="px-2 text-xs font-extrabold text-slate-800 tracking-wide font-mono select-none whitespace-nowrap">
-                        FY {selectedFyYear}–{String(selectedFyYear + 1).slice(-2)}
-                      </span>
-                      <button
-                        onClick={() => setSelectedFyYear((y) => y + 1)}
-                        className="p-1.5 rounded-lg hover:bg-white text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
-                        title="Next Financial Year"
-                      >
-                        <ChevronRight className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
                   </div>
                 </div>
 
-                {/* Table Matrix Container (Compact single-screen layout) */}
+                {/* Table Matrix Container (Compact layout, dynamic visible months) */}
                 <div className="overflow-x-auto rounded-xl border border-slate-200/90 shadow-2xs">
                   <table className="w-full text-left border-collapse text-xs">
                     <thead>
                       <tr className="bg-slate-100/90 text-slate-700 font-bold border-b border-slate-200">
-                        <th className="py-2 px-1 w-7 min-w-[28px] max-w-[28px] text-center sticky left-0 bg-slate-100 z-10 font-bold text-slate-500 border-r border-slate-200 text-[10px]">
+                        <th className="py-2.5 px-2 w-8 min-w-[34px] max-w-[38px] text-center sticky left-0 bg-slate-100 z-10 font-bold text-slate-500 border-r border-slate-200 text-[10px]">
                           #
                         </th>
-                        <th className="py-2 px-2.5 w-44 sm:w-48 md:w-52 min-w-[170px] max-w-[210px] sticky left-7 bg-slate-100 z-10 font-extrabold text-slate-800 border-r border-slate-200 text-xs">
-                          Compliance Nature
+                        <th className="py-2.5 px-3 w-56 min-w-[180px] max-w-[260px] sticky left-8 bg-slate-100 z-10 font-extrabold text-slate-800 border-r border-slate-200 text-xs">
+                          Category / Compliance
                         </th>
-                        <th className="py-2 px-1 w-16 min-w-[58px] max-w-[62px] text-center font-bold text-slate-700 border-r border-slate-200 text-[11px]">
+                        <th className="py-2.5 px-2 w-20 min-w-[70px] max-w-[80px] text-center font-bold text-slate-700 border-r border-slate-200 text-[11px]">
                           Frequency
                         </th>
-                        {FY_MONTHS.map((mObj, mIdx) => {
+                        {visibleHeatmapMonths.map((mObj, mIdx) => {
                           const mYear = selectedFyYear + mObj.yearOffset;
                           const isCurrentCalMonth = currentCalendarMonth === mObj.month && currentCalendarYear === mYear;
-                          const nextMonthObj = FY_MONTHS[mIdx + 1];
+                          const nextMonthObj = visibleHeatmapMonths[mIdx + 1];
                           const isNextMonthCurrent = nextMonthObj && (currentCalendarMonth === nextMonthObj.month && currentCalendarYear === (selectedFyYear + nextMonthObj.yearOffset));
                           return (
                             <th
                               key={mObj.month}
-                              className={`py-1.5 px-0.5 text-center min-w-[42px] max-w-[46px] last:border-r-0 ${
+                              className={`py-2 px-0.5 text-center min-w-[44px] max-w-[50px] last:border-r-0 ${
                                 isCurrentCalMonth
                                   ? '!border-t !border-l !border-r !border-b !border-[#3170c6] bg-blue-100/90 text-[#3170c6] font-black shadow-xs relative z-20'
                                   : isNextMonthCurrent
@@ -2112,9 +2515,6 @@ export default function CompanyComplianceWorkspace() {
                             >
                               <div className="flex flex-col items-center">
                                 <span className="text-[11px] font-bold leading-tight">{mObj.name}</span>
-                                <span className="text-[9px] font-medium text-slate-400 font-mono leading-tight">
-                                  '{String(mYear).slice(-2)}
-                                </span>
                                 {isCurrentCalMonth && (
                                   <span className="mt-0.5 text-[7px] font-black px-1.5 py-0.2 rounded-full bg-[#3170c6] text-white uppercase tracking-wider shadow-2xs">
                                     Current
@@ -2127,131 +2527,256 @@ export default function CompanyComplianceWorkspace() {
                       </tr>
                     </thead>
                     <tbody className="bg-white">
-                      {heatmapItems.length === 0 ? (
+                      {groupedHeatmapCategories.length === 0 ? (
                         <tr>
-                          <td colSpan={15} className="py-12 text-center text-slate-400">
+                          <td colSpan={3 + visibleHeatmapMonths.length} className="py-12 text-center text-slate-400">
                             <FileSpreadsheet className="w-8 h-8 mx-auto text-slate-300 mb-2" />
                             <p className="text-xs font-semibold">No compliances matching filters</p>
                           </td>
                         </tr>
                       ) : (
-                        heatmapItems.map((item, idx) => {
-                          const freq = item.frequency || 'Monthly';
-                          const isLastRow = idx === heatmapItems.length - 1;
+                        groupedHeatmapCategories.map((group, gIdx) => {
+                          const isExpanded = Boolean(expandedCategories[group.category]);
+                          const isLastGroup = gIdx === groupedHeatmapCategories.length - 1 && (!isExpanded || group.items.length === 0);
+
+                          // Summarize frequency
+                          const uniqueFreqs = Array.from(new Set(group.items.map((it) => it.frequency || 'Monthly')));
+                          const summaryFreq = uniqueFreqs.length === 1 ? uniqueFreqs[0] : 'Multiple';
+
                           return (
-                            <tr
-                              key={item.id}
-                              className="group"
-                            >
-                              {/* S.No */}
-                              <td className="py-1 px-1 text-center sticky left-0 bg-white group-hover:bg-slate-50 z-10 font-mono text-[10px] text-slate-400 border-r border-b border-slate-200/80">
-                                {item.s_no || idx + 1}
-                              </td>
+                            <React.Fragment key={`group-${group.category}`}>
+                              {/* Parent Unique Category Row */}
+                              <tr className="bg-slate-50/80 hover:bg-blue-50/40 transition-colors border-b border-slate-200/80 group">
+                                {/* S.No */}
+                                <td className="py-2.5 px-1 text-center sticky left-0 bg-slate-50 group-hover:bg-blue-50/40 z-10 font-bold text-[11px] text-slate-600 border-r border-slate-200/80">
+                                  {gIdx + 1}
+                                </td>
 
-                              {/* Compliance Nature */}
-                              <td className="py-1.5 px-2.5 sticky left-7 bg-white group-hover:bg-slate-50 z-10 border-r border-b border-slate-200/80">
-                                <div className="font-bold text-slate-900 text-xs line-clamp-1 group-hover:text-[#3170c6] transition-colors">
-                                  {item.compliance_nature}
-                                </div>
-                                {item.statutory_due_date && (
-                                  <div className="text-[9px] text-slate-400 mt-0.5 line-clamp-1">
-                                    Due: {item.statutory_due_date}
+                                {/* Category Title with Expand/Collapse Icon & Count */}
+                                <td
+                                  onClick={() => toggleCategory(group.category)}
+                                  className="py-2.5 px-3 sticky left-8 bg-slate-50 group-hover:bg-blue-50/40 z-10 border-r border-slate-200/80 cursor-pointer select-none"
+                                >
+                                  <div className="flex items-center gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        toggleCategory(group.category);
+                                      }}
+                                      className="p-1 rounded hover:bg-slate-200/80 text-slate-600 transition-colors cursor-pointer"
+                                      title={isExpanded ? 'Collapse category' : 'Expand category'}
+                                    >
+                                      {isExpanded ? (
+                                        <ChevronDown className="w-3.5 h-3.5 text-[#3170c6]" />
+                                      ) : (
+                                        <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                                      )}
+                                    </button>
+                                    <span className="font-extrabold text-slate-900 text-xs">
+                                      {group.category}
+                                    </span>
+                                    <span className="ml-1 inline-flex items-center justify-center min-w-[14px] h-3.5 px-1 rounded-full text-[8px] font-bold bg-slate-200/60 text-slate-500 border border-slate-300/40 leading-none">
+                                      {group.items.length}
+                                    </span>
                                   </div>
-                                )}
-                              </td>
+                                </td>
 
-                              {/* Frequency */}
-                              <td className="py-1 px-1 text-center border-r border-b border-slate-200/80 bg-white group-hover:bg-slate-50">
-                                <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold whitespace-nowrap ${
-                                  freq === 'Monthly'
-                                    ? 'bg-blue-50 text-[#3170c6] border border-blue-200/60'
-                                    : freq === 'Quarterly'
-                                    ? 'bg-purple-50 text-purple-700 border border-purple-200/60'
-                                    : freq === 'Annual' || freq === 'Yearly'
-                                    ? 'bg-indigo-50 text-indigo-700 border border-indigo-200/60'
-                                    : freq === 'Half-Yearly'
-                                    ? 'bg-amber-50 text-amber-700 border border-amber-200/60'
-                                    : 'bg-slate-100 text-slate-700 border border-slate-200'
-                                }`}>
-                                  {freq}
-                                </span>
-                              </td>
+                                {/* Frequency Summary */}
+                                <td className="py-2 px-1 text-center border-r border-slate-200/80 bg-slate-50 group-hover:bg-blue-50/40 font-semibold text-slate-600 text-[10px]">
+                                  {summaryFreq}
+                                </td>
 
-                              {/* 12 FY Month Cells (Compact Soft Pastels + Clean Thin Column Frame) */}
-                              {FY_MONTHS.map((mObj, mIdx) => {
-                                const cell = getCellComplianceState(item, mObj, selectedFyYear, company);
-                                const mYear = selectedFyYear + mObj.yearOffset;
-                                const isCurrentCalMonth = currentCalendarMonth === mObj.month && currentCalendarYear === mYear;
-                                const nextMonthObj = FY_MONTHS[mIdx + 1];
-                                const isNextMonthCurrent = nextMonthObj && (currentCalendarMonth === nextMonthObj.month && currentCalendarYear === (selectedFyYear + nextMonthObj.yearOffset));
+                                {/* Rollup Month Cells */}
+                                {visibleHeatmapMonths.map((mObj, mIdx) => {
+                                  const rollup = getCategoryMonthRollupState(group.items, mObj, selectedFyYear, company);
+                                  const mYear = selectedFyYear + mObj.yearOffset;
+                                  const isCurrentCalMonth = currentCalendarMonth === mObj.month && currentCalendarYear === mYear;
+                                  const nextMonthObj = visibleHeatmapMonths[mIdx + 1];
+                                  const isNextMonthCurrent = nextMonthObj && (currentCalendarMonth === nextMonthObj.month && currentCalendarYear === (selectedFyYear + nextMonthObj.yearOffset));
 
-                                const colBorderClass = isCurrentCalMonth
-                                  ? isLastRow
-                                    ? '!border-l !border-r !border-b !border-l-[#3170c6] !border-r-[#3170c6] !border-b-[#3170c6] relative z-10'
-                                    : '!border-l !border-r !border-l-[#3170c6] !border-r-[#3170c6] border-b border-b-slate-200/80 relative z-10'
-                                  : isNextMonthCurrent
-                                  ? '!border-r !border-r-[#3170c6] border-b border-slate-200/80'
-                                  : 'border-r border-b border-slate-200/80 last:border-r-0';
+                                  const colBorderClass = isCurrentCalMonth
+                                    ? isLastGroup
+                                      ? '!border-l !border-r !border-b !border-l-[#3170c6] !border-r-[#3170c6] !border-b-[#3170c6] relative z-10'
+                                      : '!border-l !border-r !border-l-[#3170c6] !border-r-[#3170c6] border-b border-b-slate-200/80 relative z-10'
+                                    : isNextMonthCurrent
+                                    ? '!border-r !border-r-[#3170c6] border-b border-slate-200/80'
+                                    : 'border-r border-b border-slate-200/80 last:border-r-0';
 
-                                if (!cell.isApplicable || cell.status === 'NA') {
+                                  if (!rollup.isApplicable || rollup.status === 'NA') {
+                                    return (
+                                      <td
+                                        key={mObj.month}
+                                        className={`p-0 text-center ${isCurrentCalMonth ? 'bg-blue-50/20' : 'bg-slate-50/40'} text-slate-300 font-light select-none ${colBorderClass}`}
+                                        title={rollup.tooltip}
+                                      >
+                                        <div className="w-full h-8 flex items-center justify-center text-[10px] font-light text-slate-300">
+                                          —
+                                        </div>
+                                      </td>
+                                    );
+                                  }
+
+                                  let cellBg = isCurrentCalMonth ? 'bg-slate-400 hover:bg-slate-500' : 'bg-slate-400 hover:bg-slate-500';
+                                  let icon = <Clock className="w-2.5 h-2.5 text-white shrink-0" />;
+                                  let textColor = 'text-white font-semibold';
+
+                                  if (rollup.status === 'Completed') {
+                                    cellBg = 'bg-emerald-600 hover:bg-emerald-700';
+                                    icon = <CheckCircle2 className="w-2.5 h-2.5 text-white shrink-0" />;
+                                    textColor = 'text-white font-bold';
+                                  } else if (rollup.status === 'In Progress') {
+                                    cellBg = 'bg-amber-500 hover:bg-amber-600';
+                                    icon = <Clock className="w-2.5 h-2.5 text-slate-950 shrink-0" />;
+                                    textColor = 'text-slate-950 font-bold';
+                                  } else if (rollup.status === 'Overdue') {
+                                    cellBg = 'bg-rose-600 hover:bg-rose-700';
+                                    icon = <AlertCircle className="w-2.5 h-2.5 text-white shrink-0" />;
+                                    textColor = 'text-white font-bold';
+                                  }
+
                                   return (
                                     <td
                                       key={mObj.month}
-                                      className={`p-0 text-center ${isCurrentCalMonth ? 'bg-blue-50/20' : 'bg-slate-50/30'} text-slate-300 font-light select-none ${colBorderClass}`}
-                                      title={cell.tooltip}
+                                      className={`p-0 text-center transition-colors ${colBorderClass} ${cellBg}`}
                                     >
-                                      <div className="w-full h-8 flex items-center justify-center text-[10px] font-light text-slate-300">
-                                        —
-                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          if (group.items.length === 1) {
+                                            handleOpenEditDrawer(group.items[0], {
+                                              targetMonth: mObj.month,
+                                              targetYear: mYear,
+                                            });
+                                          } else {
+                                            toggleCategory(group.category);
+                                          }
+                                        }}
+                                        title={`${group.category} (${mObj.name} ${mYear})\n${rollup.tooltip}\n(Click to ${group.items.length === 1 ? 'view/edit compliance' : 'expand child compliances'})`}
+                                        className={`w-full h-8 px-0.5 flex items-center justify-center gap-0.5 text-[10px] transition-transform active:scale-95 cursor-pointer ${textColor}`}
+                                      >
+                                        {icon}
+                                        <span className="truncate">{rollup.label}</span>
+                                      </button>
                                     </td>
                                   );
-                                }
+                                })}
+                              </tr>
 
-                                let cellBg = isCurrentCalMonth ? 'bg-blue-50/40 hover:bg-blue-100/60' : 'bg-slate-50/70 hover:bg-slate-100';
-                                let icon = <Clock className="w-2.5 h-2.5 text-slate-400 shrink-0" />;
-                                let shortText = 'Pending';
-                                let textColor = 'text-slate-600 font-medium';
+                              {/* Collapsible Child Rows (Individual Compliance Items) */}
+                              {isExpanded &&
+                                group.items.map((item, iIdx) => {
+                                  const freq = item.frequency || 'Monthly';
+                                  const isLastChildOfLastGroup = gIdx === groupedHeatmapCategories.length - 1 && iIdx === group.items.length - 1;
 
-                                if (cell.status === 'Completed') {
-                                  cellBg = isCurrentCalMonth ? 'bg-emerald-50/90 hover:bg-emerald-100/90' : 'bg-emerald-50 hover:bg-emerald-100';
-                                  icon = <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600 shrink-0" />;
-                                  shortText = cell.entry?.actual_payment_date ? 'Paid' : 'Done';
-                                  textColor = 'text-emerald-800 font-bold';
-                                } else if (cell.status === 'In Progress') {
-                                  cellBg = isCurrentCalMonth ? 'bg-amber-50/90 hover:bg-amber-100/90' : 'bg-amber-50 hover:bg-amber-100';
-                                  icon = <Clock className="w-2.5 h-2.5 text-amber-600 shrink-0" />;
-                                  shortText = 'In Prog';
-                                  textColor = 'text-amber-800 font-bold';
-                                } else if (cell.status === 'Overdue') {
-                                  cellBg = isCurrentCalMonth ? 'bg-rose-50/90 hover:bg-rose-100/90' : 'bg-rose-50 hover:bg-rose-100';
-                                  icon = <AlertCircle className="w-2.5 h-2.5 text-rose-600 shrink-0" />;
-                                  shortText = 'Overdue';
-                                  textColor = 'text-rose-800 font-bold';
-                                }
-
-                                return (
-                                  <td
-                                    key={mObj.month}
-                                    className={`p-0 text-center transition-colors ${colBorderClass} ${cellBg}`}
-                                  >
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        handleOpenEditDrawer(item, {
-                                          targetMonth: cell.month,
-                                          targetYear: cell.year,
-                                        });
-                                      }}
-                                      title={`${cell.tooltip}\n(Click to view / edit for ${mObj.name} ${cell.year})`}
-                                      className={`w-full h-8 px-0.5 flex items-center justify-center gap-0.5 text-[10px] transition-transform active:scale-95 cursor-pointer ${textColor}`}
+                                  return (
+                                    <tr
+                                      key={item.id}
+                                      className="bg-white hover:bg-blue-50/30 transition-colors border-b border-slate-100 group"
                                     >
-                                      {icon}
-                                      <span className="truncate">{shortText}</span>
-                                    </button>
-                                  </td>
-                                );
-                              })}
-                            </tr>
+                                      {/* Sub-number */}
+                                      <td className="py-2 px-1 text-center sticky left-0 bg-white group-hover:bg-blue-50/30 z-10 font-mono text-[9px] text-slate-400 border-r border-slate-200/80">
+                                        {gIdx + 1}.{iIdx + 1}
+                                      </td>
+
+                                      {/* Indented Compliance Nature */}
+                                      <td className="py-2 px-3 pl-6 sticky left-8 bg-white group-hover:bg-blue-50/30 z-10 border-r border-slate-200/80 font-medium text-slate-800 text-xs">
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="text-slate-300 select-none text-[10px]">↳</span>
+                                          <span
+                                            className="hover:text-[#3170c6] transition-colors truncate max-w-[220px]"
+                                            title={item.compliance_nature}
+                                          >
+                                            {item.compliance_nature}
+                                          </span>
+                                        </div>
+                                      </td>
+
+                                      {/* Individual Frequency */}
+                                      <td className="py-2 px-1 text-center border-r border-slate-200/80 bg-white group-hover:bg-blue-50/30 font-medium text-slate-500 text-[10px]">
+                                        <span className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200/60 text-[9px]">
+                                          {freq}
+                                        </span>
+                                      </td>
+
+                                      {/* Visible Month Cells for this specific item */}
+                                      {visibleHeatmapMonths.map((mObj, mIdx) => {
+                                        const cell = getCellComplianceState(item, mObj, selectedFyYear, company);
+                                        const mYear = selectedFyYear + mObj.yearOffset;
+                                        const isCurrentCalMonth = currentCalendarMonth === mObj.month && currentCalendarYear === mYear;
+                                        const nextMonthObj = visibleHeatmapMonths[mIdx + 1];
+                                        const isNextMonthCurrent = nextMonthObj && (currentCalendarMonth === nextMonthObj.month && currentCalendarYear === (selectedFyYear + nextMonthObj.yearOffset));
+
+                                        const colBorderClass = isCurrentCalMonth
+                                          ? isLastChildOfLastGroup
+                                            ? '!border-l !border-r !border-b !border-l-[#3170c6] !border-r-[#3170c6] !border-b-[#3170c6] relative z-10'
+                                            : '!border-l !border-r !border-l-[#3170c6] !border-r-[#3170c6] border-b border-b-slate-200/80 relative z-10'
+                                          : isNextMonthCurrent
+                                          ? '!border-r !border-r-[#3170c6] border-b border-slate-200/80'
+                                          : 'border-r border-b border-slate-200/80 last:border-r-0';
+
+                                        if (!cell.isApplicable || cell.status === 'NA') {
+                                          return (
+                                            <td
+                                              key={mObj.month}
+                                              className={`p-0 text-center ${isCurrentCalMonth ? 'bg-blue-50/20' : 'bg-slate-50/40'} text-slate-300 font-light select-none ${colBorderClass}`}
+                                              title={cell.tooltip}
+                                            >
+                                              <div className="w-full h-8 flex items-center justify-center text-[10px] font-light text-slate-300">
+                                                —
+                                              </div>
+                                            </td>
+                                          );
+                                        }
+
+                                        let cellBg = isCurrentCalMonth ? 'bg-slate-400 hover:bg-slate-500' : 'bg-slate-400 hover:bg-slate-500';
+                                        let icon = <Clock className="w-2.5 h-2.5 text-white shrink-0" />;
+                                        let shortText = 'Pending';
+                                        let textColor = 'text-white font-semibold';
+
+                                        if (cell.status === 'Completed') {
+                                          cellBg = 'bg-emerald-600 hover:bg-emerald-700';
+                                          icon = <CheckCircle2 className="w-2.5 h-2.5 text-white shrink-0" />;
+                                          shortText = cell.entry?.actual_payment_date ? 'Paid' : 'Done';
+                                          textColor = 'text-white font-bold';
+                                        } else if (cell.status === 'In Progress') {
+                                          cellBg = 'bg-amber-500 hover:bg-amber-600';
+                                          icon = <Clock className="w-2.5 h-2.5 text-slate-950 shrink-0" />;
+                                          shortText = 'In Prog';
+                                          textColor = 'text-slate-950 font-bold';
+                                        } else if (cell.status === 'Overdue') {
+                                          cellBg = 'bg-rose-600 hover:bg-rose-700';
+                                          icon = <AlertCircle className="w-2.5 h-2.5 text-white shrink-0" />;
+                                          shortText = 'Overdue';
+                                          textColor = 'text-white font-bold';
+                                        }
+
+                                        return (
+                                          <td
+                                            key={mObj.month}
+                                            className={`p-0 text-center transition-colors ${colBorderClass} ${cellBg}`}
+                                          >
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                handleOpenEditDrawer(item, {
+                                                  targetMonth: cell.month,
+                                                  targetYear: cell.year,
+                                                });
+                                              }}
+                                              title={`${cell.tooltip}\n(Click to view / edit for ${mObj.name} ${cell.year})`}
+                                              className={`w-full h-8 px-0.5 flex items-center justify-center gap-0.5 text-[10px] transition-transform active:scale-95 cursor-pointer ${textColor}`}
+                                            >
+                                              {icon}
+                                              <span className="truncate">{shortText}</span>
+                                            </button>
+                                          </td>
+                                        );
+                                      })}
+                                    </tr>
+                                  );
+                                })}
+                            </React.Fragment>
                           );
                         })
                       )}
@@ -2264,28 +2789,28 @@ export default function CompanyComplianceWorkspace() {
                   <div className="flex flex-wrap items-center gap-4 text-[11px]">
                     <span className="font-bold text-slate-700">Status Legend:</span>
                     <span className="flex items-center gap-1.5">
-                      <span className="w-3.5 h-3.5 rounded bg-emerald-50 border border-emerald-300 flex items-center justify-center">
-                        <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
+                      <span className="w-3.5 h-3.5 rounded bg-emerald-600 border border-emerald-700 flex items-center justify-center">
+                        <CheckCircle2 className="w-2.5 h-2.5 text-white" />
                       </span>
-                      <strong className="text-emerald-800">Completed</strong>
+                      <strong className="text-emerald-800">Completed / Paid</strong>
                     </span>
                     <span className="flex items-center gap-1.5">
-                      <span className="w-3.5 h-3.5 rounded bg-amber-50 border border-amber-300 flex items-center justify-center">
-                        <Clock className="w-2.5 h-2.5 text-amber-600" />
+                      <span className="w-3.5 h-3.5 rounded bg-amber-500 border border-amber-600 flex items-center justify-center">
+                        <Clock className="w-2.5 h-2.5 text-slate-950" />
                       </span>
-                      <strong className="text-amber-800">In Progress</strong>
+                      <strong className="text-amber-800">In Progress / Partial</strong>
                     </span>
                     <span className="flex items-center gap-1.5">
-                      <span className="w-3.5 h-3.5 rounded bg-rose-50 border border-rose-300 flex items-center justify-center">
-                        <AlertCircle className="w-2.5 h-2.5 text-rose-600" />
+                      <span className="w-3.5 h-3.5 rounded bg-rose-600 border border-rose-700 flex items-center justify-center">
+                        <AlertCircle className="w-2.5 h-2.5 text-white" />
                       </span>
                       <strong className="text-rose-800">Overdue</strong>
                     </span>
                     <span className="flex items-center gap-1.5">
-                      <span className="w-3.5 h-3.5 rounded bg-slate-50 border border-slate-300 flex items-center justify-center">
-                        <Clock className="w-2.5 h-2.5 text-slate-400" />
+                      <span className="w-3.5 h-3.5 rounded bg-slate-400 border border-slate-500 flex items-center justify-center">
+                        <Clock className="w-2.5 h-2.5 text-white" />
                       </span>
-                      <strong className="text-slate-600">Pending / Scheduled</strong>
+                      <strong className="text-slate-700">Pending / Scheduled</strong>
                     </span>
                     <span className="text-slate-400">— Not Applicable</span>
                   </div>
@@ -2319,35 +2844,60 @@ export default function CompanyComplianceWorkspace() {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Search Input on left of filters */}
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
                     <input
                       type="text"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       placeholder="Search compliances..."
-                      className="bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#3170c6]"
+                      className="bg-slate-50 border border-slate-200/90 rounded-xl pl-8 pr-7 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#3170c6]/20 focus:border-[#3170c6] w-36 sm:w-44 shadow-2xs"
                     />
+                    {searchTerm && (
+                      <button
+                        onClick={() => setSearchTerm('')}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
                   </div>
 
+                  {/* Category Filter */}
+                  <select
+                    value={categoryFilter}
+                    onChange={(e) => setCategoryFilter(e.target.value)}
+                    className="bg-slate-50 hover:bg-slate-100/70 border border-slate-200/90 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-slate-700 focus:outline-none focus:border-[#3170c6] cursor-pointer shadow-2xs transition-colors"
+                  >
+                    <option value="ALL">All Categories</option>
+                    {calendarCategoryOptions.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
+
+                  {/* Frequency Filter */}
                   <select
                     value={frequencyFilter}
                     onChange={(e) => setFrequencyFilter(e.target.value)}
-                    className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#3170c6] cursor-pointer"
+                    className="bg-slate-50 hover:bg-slate-100/70 border border-slate-200/90 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-slate-700 focus:outline-none focus:border-[#3170c6] cursor-pointer shadow-2xs transition-colors"
                   >
                     <option value="ALL">All Frequencies</option>
                     <option value="Monthly">Monthly</option>
                     <option value="Quarterly">Quarterly</option>
+                    <option value="Half-Yearly">Half-Yearly</option>
                     <option value="Annual">Annual</option>
                     <option value="One time">One time</option>
-                    <option value="Half-Yearly">Half-Yearly</option>
                   </select>
 
+                  {/* Status Filter */}
                   <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
-                    className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#3170c6] cursor-pointer"
+                    className="bg-slate-50 hover:bg-slate-100/70 border border-slate-200/90 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-slate-700 focus:outline-none focus:border-[#3170c6] cursor-pointer shadow-2xs transition-colors"
                   >
                     <option value="ALL">All Status</option>
                     <option value="Completed">Completed</option>
@@ -2356,9 +2906,10 @@ export default function CompanyComplianceWorkspace() {
                     <option value="Overdue">Overdue</option>
                   </select>
 
+                  {/* Add Row Button */}
                   <button
                     onClick={() => setIsAddItemDrawerOpen(true)}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#3170c6] hover:bg-[#2558a2] text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#3170c6] hover:bg-[#2558a2] text-white text-xs font-bold shadow-2xs transition-all active:scale-95 cursor-pointer shrink-0"
                   >
                     <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
                     Add Row
@@ -2412,7 +2963,8 @@ export default function CompanyComplianceWorkspace() {
                       <thead>
                         <tr className="bg-slate-50/90 border-b border-slate-200 text-slate-700 font-extrabold uppercase tracking-wider text-[11px]">
                           <th className="py-3.5 px-3 w-12 text-center">S.No</th>
-                          <th className="py-3.5 px-4 min-w-[260px]">Compliance Nature</th>
+                          <th className="py-3.5 px-4 min-w-[240px]">Compliance Nature</th>
+                          <th className="py-3.5 px-3 w-28 text-center">Category</th>
                           <th className="py-3.5 px-3 w-28 text-center">Frequency</th>
                           <th className="py-3.5 px-4 min-w-[180px]">Statutory Due Date</th>
                           <th className="py-3.5 px-4 min-w-[180px]">Internal Control Date</th>
@@ -2428,7 +2980,7 @@ export default function CompanyComplianceWorkspace() {
                       <tbody className="divide-y divide-slate-100 text-slate-700">
                         {filteredItems.length === 0 ? (
                           <tr>
-                            <td colSpan={9} className="py-12 text-center text-slate-400">
+                            <td colSpan={10} className="py-12 text-center text-slate-400">
                               No compliance items recorded yet. Click "Add Row" above to add your first compliance item.
                             </td>
                           </tr>
@@ -2439,6 +2991,7 @@ export default function CompanyComplianceWorkspace() {
                               ...resolveEffectiveEntry(item, company?.monthly_entries, activeMonth, activeYear),
                             };
                             const status = computeEffectiveStatus(item, entry, activeMonth, activeYear, new Date(), company?.created_at);
+                            const cat = item.category || resolveItemCategory(item);
 
                           return (
                             <tr
@@ -2451,9 +3004,16 @@ export default function CompanyComplianceWorkspace() {
                                 {item.s_no || index + 1}
                               </td>
 
-                              {/* Nature */}
+                              {/* Compliance Nature */}
                               <td className="py-3 px-4 font-semibold text-slate-900 group-hover:text-[#3170c6] transition-colors">
                                 {item.compliance_nature}
+                              </td>
+
+                              {/* Category (After Compliance Nature, Before Frequency) */}
+                              <td className="py-3 px-3 text-center">
+                                <span className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-bold border whitespace-nowrap ${getCategoryBadgeStyle(cat)}`}>
+                                  {cat}
+                                </span>
                               </td>
 
                               {/* Frequency */}
@@ -3173,6 +3733,47 @@ export default function CompanyComplianceWorkspace() {
                     />
                   </div>
 
+                  {/* Category Selector */}
+                  <div className="p-4 rounded-2xl border border-white/60 bg-white/50 backdrop-blur-2xl shadow-[inset_0_1.5px_2px_rgba(255,255,255,0.8),0_10px_30px_rgba(0,0,0,0.02)] space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="font-bold text-slate-800">Compliance Category *</label>
+                      <button
+                        type="button"
+                        onClick={() => setEditForm({ ...editForm, use_custom_category: !editForm.use_custom_category })}
+                        className="text-[11px] font-semibold text-[#3170c6] hover:underline cursor-pointer"
+                      >
+                        {editForm.use_custom_category ? '⚡ Preset Options' : '✍️ Custom Category'}
+                      </button>
+                    </div>
+                    {editForm.use_custom_category ? (
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. GST, TAX, BRS, Form 16, PF, Salary, ESI..."
+                        value={editForm.custom_category || editForm.category}
+                        onChange={(e) => setEditForm({ ...editForm, custom_category: e.target.value, category: e.target.value })}
+                        className="w-full bg-white/80 hover:bg-white focus:bg-white border border-slate-200/80 focus:border-[#3170c6] rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#3170c6]/20 transition-all"
+                      />
+                    ) : (
+                      <select
+                        value={editForm.category || 'GST'}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === 'Other') {
+                            setEditForm({ ...editForm, category: val, use_custom_category: true, custom_category: '' });
+                          } else {
+                            setEditForm({ ...editForm, category: val });
+                          }
+                        }}
+                        className="w-full bg-white/80 hover:bg-white focus:bg-white border border-slate-200/80 focus:border-[#3170c6] rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#3170c6]/20 transition-all cursor-pointer"
+                      >
+                        {CATEGORY_OPTIONS.map((cat) => (
+                          <option key={cat} value={cat}>{cat}</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+
                   {/* Frequency */}
                   <div className="p-4 rounded-2xl border border-white/60 bg-white/50 backdrop-blur-2xl shadow-[inset_0_1.5px_2px_rgba(255,255,255,0.8),0_10px_30px_rgba(0,0,0,0.02)] space-y-1.5">
                     <label className="font-bold text-slate-800">Frequency</label>
@@ -3609,6 +4210,47 @@ export default function CompanyComplianceWorkspace() {
                       onChange={(e) => setItemForm({ ...itemForm, compliance_nature: e.target.value })}
                       className="w-full bg-white/80 hover:bg-white focus:bg-white border border-slate-200/80 focus:border-[#3170c6] rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#3170c6]/20 transition-all"
                     />
+                  </div>
+
+                  {/* Category Selector */}
+                  <div className="p-4 rounded-2xl border border-white/60 bg-white/50 backdrop-blur-2xl shadow-[inset_0_1.5px_2px_rgba(255,255,255,0.8),0_10px_30px_rgba(0,0,0,0.02)] space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="font-bold text-slate-800">Compliance Category *</label>
+                      <button
+                        type="button"
+                        onClick={() => setItemForm({ ...itemForm, use_custom_category: !itemForm.use_custom_category })}
+                        className="text-[11px] font-semibold text-[#3170c6] hover:underline cursor-pointer"
+                      >
+                        {itemForm.use_custom_category ? '⚡ Preset Options' : '✍️ Custom Category'}
+                      </button>
+                    </div>
+                    {itemForm.use_custom_category ? (
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. GST, TAX, BRS, Form 16, PF, Salary, ESI..."
+                        value={itemForm.custom_category || itemForm.category}
+                        onChange={(e) => setItemForm({ ...itemForm, custom_category: e.target.value, category: e.target.value })}
+                        className="w-full bg-white/80 hover:bg-white focus:bg-white border border-slate-200/80 focus:border-[#3170c6] rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#3170c6]/20 transition-all"
+                      />
+                    ) : (
+                      <select
+                        value={itemForm.category || 'GST'}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === 'Other') {
+                            setItemForm({ ...itemForm, category: val, use_custom_category: true, custom_category: '' });
+                          } else {
+                            setItemForm({ ...itemForm, category: val });
+                          }
+                        }}
+                        className="w-full bg-white/80 hover:bg-white focus:bg-white border border-slate-200/80 focus:border-[#3170c6] rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#3170c6]/20 transition-all cursor-pointer"
+                      >
+                        {CATEGORY_OPTIONS.map((cat) => (
+                          <option key={cat} value={cat}>{cat}</option>
+                        ))}
+                      </select>
+                    )}
                   </div>
 
                   <div className="p-4 rounded-2xl border border-white/60 bg-white/50 backdrop-blur-2xl shadow-[inset_0_1.5px_2px_rgba(255,255,255,0.8),0_10px_30px_rgba(0,0,0,0.02)] space-y-1.5">

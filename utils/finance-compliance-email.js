@@ -44,53 +44,62 @@ function getCellStateForEmail(item, mObj, fyStartYear, monthlyEntries = {}, comp
     }
   }
 
-  // 2. Resolve entry
-  const entry = resolveEffectiveEntry(item, monthlyEntries, month, calcYear);
+  // 2. Frequency cadence check
   const freq = (item.frequency || 'Monthly').toLowerCase().trim();
+  const statRaw = item.statutory_due_date || '';
+  let isScheduledMonth = true;
 
-  // 3. Frequency cadence check
-  let isDueMonth = true;
   if (freq === 'monthly') {
-    isDueMonth = true;
+    isScheduledMonth = true;
   } else if (freq.includes('quarter')) {
-    const quarterEndMonths = [7, 10, 1, 4];
-    isDueMonth = quarterEndMonths.includes(month) || Boolean(entry?.actual_payment_date || entry?.status);
+    if (statRaw.toLowerCase().includes('end of quarter') || statRaw.toLowerCase().includes('last day of quarter')) {
+      isScheduledMonth = [6, 9, 12, 3].includes(month);
+    } else {
+      isScheduledMonth = [7, 10, 1, 4].includes(month);
+    }
   } else if (freq.includes('half')) {
-    const hyMonths = [9, 10, 3, 4];
-    isDueMonth = hyMonths.includes(month) || Boolean(entry?.actual_payment_date || entry?.status);
+    if (statRaw.toLowerCase().includes('oct') || statRaw.toLowerCase().includes('apr') || statRaw.toLowerCase().includes('following')) {
+      isScheduledMonth = [10, 4].includes(month);
+    } else {
+      isScheduledMonth = [9, 3].includes(month);
+    }
   } else if (freq === 'annual' || freq === 'yearly' || freq.includes('year')) {
-    const statRaw = item.statutory_due_date || '';
-    const annualMatch = statRaw.match(/(\d{1,2}(?:st|nd|rd|th)?)\s+([A-Za-z]+)/i);
     let targetDueMonth = 9;
-    if (annualMatch) {
+    const monthMatch = statRaw.match(/(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)/i);
+    if (monthMatch) {
       const foundIdx = MONTH_NAMES.findIndex((m) =>
-        m.toLowerCase().startsWith(annualMatch[2].toLowerCase().slice(0, 3))
+        m.toLowerCase().startsWith(monthMatch[0].toLowerCase().slice(0, 3))
       );
       if (foundIdx !== -1) targetDueMonth = foundIdx + 1;
     }
-    isDueMonth = month === targetDueMonth || Boolean(entry?.actual_payment_date);
+    isScheduledMonth = (month === targetDueMonth);
   } else if (freq === 'one time' || freq === 'onetime' || freq === 'one-time') {
-    const statRaw = item.statutory_due_date || '';
-    const mMatch =
-      statRaw.match(/([A-Za-z]+)\s+(\d{4})/i) ||
-      statRaw.match(/(\d{1,2}(?:st|nd|rd|th)?)\s+([A-Za-z]+)/i);
     let targetDueMonth = 9;
-    if (mMatch) {
-      const monthStr = mMatch[1] && isNaN(mMatch[1]) ? mMatch[1] : mMatch[2];
-      if (monthStr) {
+    let targetDueYear = null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(statRaw.trim())) {
+      const [y, m] = statRaw.trim().split('-').map(Number);
+      targetDueYear = y;
+      targetDueMonth = m;
+    } else {
+      const yearMatch = statRaw.match(/\b(20\d{2})\b/);
+      if (yearMatch) targetDueYear = parseInt(yearMatch[1], 10);
+      const monthMatch = statRaw.match(/(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)/i);
+      if (monthMatch) {
         const foundIdx = MONTH_NAMES.findIndex((m) =>
-          m.toLowerCase().startsWith(monthStr.toLowerCase().slice(0, 3))
+          m.toLowerCase().startsWith(monthMatch[0].toLowerCase().slice(0, 3))
         );
         if (foundIdx !== -1) targetDueMonth = foundIdx + 1;
       }
     }
-    isDueMonth = month === targetDueMonth || Boolean(entry?.actual_payment_date);
+    isScheduledMonth = (month === targetDueMonth) && (targetDueYear === null || calcYear === targetDueYear);
   }
 
-  if (!isDueMonth && !entry?.actual_payment_date) {
+  if (!isScheduledMonth) {
     return { status: 'NA', label: '—', isApplicable: false };
   }
 
+  // 3. Resolve entry for this scheduled slot
+  const entry = resolveEffectiveEntry(item, monthlyEntries, month, calcYear);
   const effectiveStatus = computeEffectiveStatus(item, entry, month, calcYear, now, companyCreatedAt);
   let shortText = 'Pending';
   if (effectiveStatus === 'Completed') {
