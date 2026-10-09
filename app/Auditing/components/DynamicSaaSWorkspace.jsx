@@ -26,6 +26,7 @@ import {
   FileSpreadsheet,
   Download,
   AlertCircle,
+  AlertTriangle,
   Info,
   FolderOpen,
   LayoutGrid,
@@ -128,6 +129,15 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
     return Array.from(new Set(calendarItems.map(item => item.week_name).filter(Boolean)));
   }, [calendarItems]);
 
+  // Memoized operating plants for selected audit project
+  const projectPlants = useMemo(() => {
+    return Array.isArray(selectedProject?.plants) && selectedProject.plants.length > 0
+      ? selectedProject.plants.filter(Boolean)
+      : (Array.isArray(selectedProject?.meta_json?.plants) && selectedProject.meta_json.plants.length > 0
+          ? selectedProject.meta_json.plants.filter(Boolean)
+          : []);
+  }, [selectedProject?.plants, selectedProject?.meta_json?.plants]);
+
   // Stage 2 State
   const [processCategory, setProcessCategory] = useState("P2P Audit");
   const [stage2SubTab, setStage2SubTab] = useState("programme"); // programme | tracker | mom | testing
@@ -163,6 +173,7 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
   const [viewingFileItem, setViewingFileItem] = useState(null);
   const [showEmailPipelineModal, setShowEmailPipelineModal] = useState(false);
   const [pipelineItem, setPipelineItem] = useState(null);
+  const [deleteFileConfirmState, setDeleteFileConfirmState] = useState(null); // { file, fIdx, type: 'tracker'|'procedure', matchingTrackerId, drawerRowId, step: 1|2, isDeleting: boolean }
 
   // Dynamic Column Customizer State
   const DEFAULT_PROGRAMME_COLUMNS = useMemo(() => [
@@ -1241,43 +1252,47 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
         setProgrammeRows(data.programme || []);
 
         let trackerItems = Array.isArray(data.data_tracker) ? [...data.data_tracker] : [];
-        const existingDocs = new Set(trackerItems.map(t => String(t.data_requirement || '').trim().toLowerCase()));
+        if (trackerItems.length > 0) {
+          setDataTrackerRows(trackerItems);
+        } else {
+          // If no tracker items saved in database yet, initialize from programme rows
+          const existingDocs = new Set();
+          (data.programme || []).forEach(p => {
+            const rawReq = p.row_data?.data_requirement || '';
+            if (rawReq) {
+              const rawParts = rawReq.split(/,|\n/).map(s => s.trim()).filter(Boolean);
+              const cleanSubs = rawParts.map(part => {
+                return part
+                  .replace(/^(\d+[\.\)]\s*)+/g, '')
+                  .replace(/^[a-zA-Z][\.\)]\s*/g, '')
+                  .replace(/^[-•*]\s*/, '')
+                  .trim();
+              }).filter(Boolean);
 
-        (data.programme || []).forEach(p => {
-          const rawReq = p.row_data?.data_requirement || '';
-          if (rawReq) {
-            const rawParts = rawReq.split(/,|\n/).map(s => s.trim()).filter(Boolean);
-            const cleanSubs = rawParts.map(part => {
-              return part
-                .replace(/^(\d+[\.\)]\s*)+/g, '')
-                .replace(/^[a-zA-Z][\.\)]\s*/g, '')
-                .replace(/^[-•*]\s*/, '')
-                .trim();
-            }).filter(Boolean);
-
-            const finalDocs = cleanSubs.length > 0 ? cleanSubs : [rawReq.trim()];
-            finalDocs.forEach((docTitle, docIdx) => {
-              const docLower = docTitle.toLowerCase();
-              if (!existingDocs.has(docLower)) {
-                existingDocs.add(docLower);
-                trackerItems.push({
-                  id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `tracker_${p.id}_${docIdx}`,
-                  programme_id: p.id,
-                  data_requirement: docTitle,
-                  procedure: p.row_data?.procedure || '',
-                  sub_process: p.row_data?.sub_process || '',
-                  client_person_id: '',
-                  status_json: { document_status: 'Pending' },
-                  plants_status: {},
-                  remarks: '',
-                  attachments: []
-                });
-              }
-            });
-          }
-        });
-
-        setDataTrackerRows(trackerItems);
+              const finalDocs = cleanSubs.length > 0 ? cleanSubs : [rawReq.trim()];
+              finalDocs.forEach((docTitle, docIdx) => {
+                const docLower = docTitle.toLowerCase();
+                if (!existingDocs.has(docLower)) {
+                  existingDocs.add(docLower);
+                  trackerItems.push({
+                    id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `tracker_${p.id}_${docIdx}`,
+                    programme_id: p.id,
+                    data_requirement: docTitle,
+                    procedure: p.row_data?.procedure || '',
+                    sub_process: p.row_data?.sub_process || '',
+                    client_person_id: '',
+                    document_status: 'Pending',
+                    status_json: { document_status: 'Pending', remarks: '' },
+                    plants_status: {},
+                    remarks: '',
+                    attachments: []
+                  });
+                }
+              });
+            }
+          });
+          setDataTrackerRows(trackerItems);
+        }
         if (Array.isArray(data.all_processes)) {
           setProjectDbProcesses(data.all_processes);
         }
@@ -2598,6 +2613,77 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
     setSelectedDrawerRow(null);
   };
 
+  // Double-Confirmation Database File Deletion Handler
+  const handleExecuteDeleteFile = async () => {
+    if (!deleteFileConfirmState?.file) return;
+    const { file, fIdx, type, matchingTrackerId, drawerRowId } = deleteFileConfirmState;
+    const fileName = file.name || "this file";
+
+    setDeleteFileConfirmState(prev => ({ ...prev, isDeleting: true }));
+
+    try {
+      if (type === 'tracker' && matchingTrackerId) {
+        const targetTracker = dataTrackerRows.find(r => r.id === matchingTrackerId);
+        if (targetTracker) {
+          const updatedAttachments = (targetTracker.attachments || []).filter((_, idx) => idx !== fIdx);
+          const updatedTracker = dataTrackerRows.map(r => {
+            if (r.id === matchingTrackerId) {
+              return {
+                ...r,
+                attachments: updatedAttachments,
+                status_json: {
+                  ...(r.status_json || {}),
+                  attachments: updatedAttachments
+                }
+              };
+            }
+            return r;
+          });
+
+          setDataTrackerRows(updatedTracker);
+
+          if (selectedProject?.id) {
+            await fetch(`/Auditing/api/dynamic/projects/${selectedProject.id}/stage2`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'save_data_tracker', data_tracker: updatedTracker })
+            });
+          }
+        }
+      } else if (type === 'procedure' && drawerRowId) {
+        const updatedAttachments = (drawerData.attachments || []).filter((_, idx) => idx !== fIdx);
+        setDrawerData(prev => ({ ...prev, attachments: updatedAttachments }));
+
+        const updatedRowData = {
+          ...(selectedDrawerRow?.row_data || {}),
+          ...drawerData,
+          attachments: updatedAttachments,
+          _comments_feed: drawerComments
+        };
+
+        if (selectedProject?.id) {
+          await fetch(`/Auditing/api/dynamic/projects/${selectedProject.id}/stage2`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "update_step",
+              row_id: drawerRowId,
+              row_data: updatedRowData
+            })
+          });
+
+          setProgrammeRows(programmeRows.map(r => r.id === drawerRowId ? { ...r, row_data: updatedRowData } : r));
+        }
+      }
+
+      showToast(`File "${fileName}" deleted permanently from database.`, "success", "File Deleted");
+      setDeleteFileConfirmState(null);
+    } catch (err) {
+      showToast("Error deleting file: " + err.message, "error", "Delete Failed");
+      setDeleteFileConfirmState(prev => ({ ...prev, isDeleting: false }));
+    }
+  };
+
   const handleAddDrawerComment = () => {
     if (!newCommentText.trim()) return;
     const comment = {
@@ -2916,9 +3002,95 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
     }
   };
 
+  // Helper to check if a Data Tracker item has uploaded files or a Google Sheet/Drive URL
+  const hasFileOrSheetUrl = (item, prog) => {
+    if (!item) return false;
+
+    // 1. Direct or nested attachments array
+    const directFiles = Array.isArray(item.attachments) ? item.attachments.filter(Boolean) : [];
+    const statusFiles = Array.isArray(item.status_json?.attachments) ? item.status_json.attachments.filter(Boolean) : [];
+    const progFiles = Array.isArray(prog?.row_data?.attachments) ? prog.row_data.attachments.filter(Boolean) : [];
+    if (directFiles.length > 0 || statusFiles.length > 0 || progFiles.length > 0) return true;
+
+    // 2. Drive / Google Sheet / Cloud link properties
+    const candidateUrls = [
+      item.client_submission?.drive_url,
+      item.client_submission?.url,
+      item.client_submission?.sheet_url,
+      item.status_json?.client_submission?.drive_url,
+      item.status_json?.client_submission?.url,
+      item.status_json?.client_submission?.sheet_url,
+      item.status_json?.drive_url,
+      item.status_json?.google_sheet_url,
+      item.status_json?.sheet_url,
+      item.status_json?.link,
+      item.drive_url,
+      item.google_sheet_url,
+      item.sheet_url,
+      item.link,
+      prog?.row_data?.drive_url,
+      prog?.row_data?.google_sheet_url,
+      prog?.row_data?.sheet_url
+    ];
+
+    for (const url of candidateUrls) {
+      if (typeof url === 'string' && url.trim().length > 3) {
+        return true;
+      }
+    }
+
+    // 3. Check communication trail history for past uploaded files or drive submissions
+    const trail = Array.isArray(item.communication_trail)
+      ? item.communication_trail
+      : (Array.isArray(item.status_json?.communication_trail) ? item.status_json.communication_trail : []);
+    const hasTrailEvidence = trail.some(t =>
+      (t.type === 'CLIENT_UPLOAD' && ((t.files_count && t.files_count > 0) || (Array.isArray(t.files) && t.files.length > 0))) ||
+      (t.type === 'CLIENT_DRIVE_SUBMISSION' && t.drive_url && t.drive_url.trim().length > 3) ||
+      (Array.isArray(t.files) && t.files.length > 0) ||
+      (typeof t.drive_url === 'string' && t.drive_url.trim().length > 3)
+    );
+    if (hasTrailEvidence) return true;
+
+    // 4. Check if remarks/notes contain a link (e.g. docs.google.com, drive.google.com, or https link)
+    const remarks = `${item.remarks || ''} ${item.status_json?.remarks || ''}`.trim();
+    if (remarks && /(https?:\/\/[^\s]+)|(docs\.google\.com)|(drive\.google\.com)/i.test(remarks)) {
+      return true;
+    }
+
+    return false;
+  };
+
   // Update Data Tracker Item Status (Document Status) directly from Table
   const handleUpdateTrackerStatus = async (trId, newStatus) => {
+    const targetItem = dataTrackerRows.find(r => r.id === trId);
+    if (!targetItem) return;
+
+    const linkedProg = programmeRows.find(p => p.id === targetItem.programme_id);
+
+    // Validation: When marking as "Received", verify if files or Google Sheet/Drive URL are available
+    if (newStatus === 'Received') {
+      const hasEvidence = hasFileOrSheetUrl(targetItem, linkedProg);
+      if (!hasEvidence) {
+        showToast(
+          "Cannot mark as 'Received': No document files or Google Sheet / Drive link are available for this requirement.",
+          "warning",
+          "Evidence Required"
+        );
+        return;
+      }
+    }
+
     const nowIso = new Date().toISOString();
+
+    // If status is marked Received, auto-mark all plant location columns as done (true)
+    let autoPlants = null;
+    if (newStatus === 'Received' && Array.isArray(projectPlants) && projectPlants.length > 0) {
+      autoPlants = { ...(targetItem.plants_status || targetItem.status_json?.plants_status || {}) };
+      projectPlants.forEach(plant => {
+        autoPlants[plant] = true;
+      });
+    }
+
     const updated = dataTrackerRows.map(r => {
       if (r.id === trId) {
         const prevTrail = Array.isArray(r.communication_trail)
@@ -2935,14 +3107,17 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
         };
 
         const updatedTrail = [...prevTrail, statusEvent];
+        const newPlantsStatus = autoPlants || r.plants_status || r.status_json?.plants_status || {};
 
         return {
           ...r,
           document_status: newStatus,
+          plants_status: newPlantsStatus,
           communication_trail: updatedTrail,
           status_json: {
             ...(r.status_json || {}),
             document_status: newStatus,
+            plants_status: newPlantsStatus,
             communication_trail: updatedTrail
           }
         };
@@ -2958,7 +3133,11 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'save_data_tracker', data_tracker: updated })
         });
-        showToast(`Document status changed to "${newStatus}"`, "success", "Status Saved");
+        if (newStatus === 'Received') {
+          showToast(`Marked as "Received" & all plant locations marked as done!`, "success", "Received & Completed");
+        } else {
+          showToast(`Document status changed to "${newStatus}"`, "success", "Status Saved");
+        }
       } catch (err) {
         showToast("Status updated locally", "info", "Updated");
       }
@@ -3023,8 +3202,31 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
     }
 
     const currentStatus = selectedTrackerDrawerItem.document_status || selectedTrackerDrawerItem.status_json?.document_status || 'Pending';
+    const linkedProg = programmeRows.find(p => p.id === selectedTrackerDrawerItem.programme_id);
+
+    // Validation: When marking as "Received", check file / sheet URL presence
+    if (currentStatus === 'Received') {
+      const hasEvidence = hasFileOrSheetUrl(selectedTrackerDrawerItem, linkedProg);
+      if (!hasEvidence) {
+        showToast(
+          "Cannot mark as 'Received': No document files or Google Sheet / Drive link are available for this requirement.",
+          "warning",
+          "Evidence Required"
+        );
+        return;
+      }
+    }
+
     const currentRemarks = selectedTrackerDrawerItem.remarks || selectedTrackerDrawerItem.status_json?.remarks || '';
-    const currentPlants = selectedTrackerDrawerItem.plants_status || {};
+    let currentPlants = { ...(selectedTrackerDrawerItem.plants_status || selectedTrackerDrawerItem.status_json?.plants_status || {}) };
+
+    // If marked Received, auto-mark all plant locations as done (true)
+    if (currentStatus === 'Received' && Array.isArray(projectPlants) && projectPlants.length > 0) {
+      projectPlants.forEach(plant => {
+        currentPlants[plant] = true;
+      });
+    }
+
     const currentClientPerson = selectedTrackerDrawerItem.client_person_id || '';
     const currentSubProcess = selectedTrackerDrawerItem.sub_process || '';
     const currentAttachments = selectedTrackerDrawerItem.attachments || [];
@@ -3037,6 +3239,7 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
       remarks: currentRemarks,
       plants_status: currentPlants,
       attachments: currentAttachments,
+      document_status: currentStatus,
       status_json: {
         ...(r.status_json || {}),
         document_name: docTitle,
@@ -3049,7 +3252,11 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
 
     setDataTrackerRows(updated);
     setSelectedTrackerDrawerItem(null);
-    showToast("Requirement updated successfully!", "success", "Tracker Saved");
+    if (currentStatus === 'Received') {
+      showToast("Requirement saved as Received & all plant locations marked as done!", "success", "Tracker Saved");
+    } else {
+      showToast("Requirement updated successfully!", "success", "Tracker Saved");
+    }
 
     try {
       await fetch(`/Auditing/api/dynamic/projects/${selectedProject.id}/stage2`, {
@@ -3109,18 +3316,30 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
         throw new Error(data.error || 'Failed to upload document to Supabase storage');
       }
 
+      const autoPlants = {};
+      if (Array.isArray(projectPlants) && projectPlants.length > 0) {
+        projectPlants.forEach(plant => {
+          autoPlants[plant] = true;
+        });
+      }
+
       const updated = dataTrackerRows.map(r => {
         if (r.id === trId) {
           const existing = r.attachments || [];
+          const newAttachments = [...existing, ...data.files];
+          const newPlants = Object.keys(autoPlants).length > 0 ? autoPlants : (r.plants_status || {});
+
           return {
             ...r,
-            document_status: 'Under Review',
+            document_status: 'Received',
+            plants_status: newPlants,
             status_json: {
               ...(r.status_json || {}),
-              document_status: 'Under Review',
+              document_status: 'Received',
+              plants_status: newPlants,
               received_at: new Date().toISOString()
             },
-            attachments: [...existing, ...data.files]
+            attachments: newAttachments
           };
         }
         return r;
@@ -3218,7 +3437,7 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
               onClick={handleOpenAddCompanyModal}
               style={{ padding: "9px 18px", backgroundColor: C.teal, color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 8, boxShadow: "0 2px 6px rgba(13,148,136,0.2)" }}
             >
-              <Plus size={16} /> (+) Add Company
+              <Plus size={16} /> Add Company
             </button>
           )}
         </div>
@@ -3644,7 +3863,7 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
                     borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6
                   }}
                 >
-                  <Plus size={14} /> (+) Add Company
+                  <Plus size={14} /> Add Company
                 </button>
               )}
 
@@ -3845,13 +4064,23 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
                 </div>
 
                 {/* 4 STAGES DROPDOWN SELECTOR & DROP COMPANY ACTION */}
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: C.text2 }}>Select Stage:</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 600, color: C.text2, whiteSpace: "nowrap" }}>Select Stage:</div>
                   <select
                     value={currentStage}
                     onChange={e => handleUpdateProjectStage(e.target.value)}
                     style={{
-                      padding: "10px 16px", borderRadius: 8, border: `1px solid ${C.teal}`, backgroundColor: C.surface, fontSize: 13, fontWeight: 700, color: C.teal, cursor: "pointer"
+                      height: 36,
+                      padding: "0 12px",
+                      borderRadius: 8,
+                      border: `1.5px solid ${C.tealBorder}`,
+                      backgroundColor: C.tealBg,
+                      fontSize: 12.5,
+                      fontWeight: 700,
+                      color: C.teal,
+                      cursor: "pointer",
+                      outline: "none",
+                      boxShadow: "0 1px 2px rgba(0,0,0,0.04)"
                     }}
                   >
                     <option value={0}>Company Profile</option>
@@ -3866,14 +4095,24 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
                     title="Drop & Delete Company"
                     onClick={(e) => handleInitiateDeleteCompany(selectedProject, e)}
                     style={{
-                      padding: "9px 11px", borderRadius: 8, border: `1px solid ${C.redBorder}`, backgroundColor: C.redBg, color: C.red,
-                      cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                      boxShadow: "0 1px 3px rgba(220,38,38,0.1)", transition: "all 0.15s ease"
+                      width: 36,
+                      height: 36,
+                      borderRadius: 8,
+                      border: `1px solid ${C.redBorder}`,
+                      backgroundColor: C.redBg,
+                      color: C.red,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      boxShadow: "0 1px 3px rgba(220,38,38,0.1)",
+                      transition: "all 0.15s ease",
+                      flexShrink: 0
                     }}
                     onMouseEnter={e => e.currentTarget.style.backgroundColor = C.red}
                     onMouseLeave={e => e.currentTarget.style.backgroundColor = C.redBg}
                   >
-                    <Trash2 size={16} />
+                    <Trash2 size={15} />
                   </button>
                 </div>
               </div>
@@ -5106,12 +5345,6 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
 
                   {/* Sub-Tab 2: Data Tracker / IDR */}
                   {stage2SubTab === "tracker" && (() => {
-                    const projectPlants = Array.isArray(selectedProject?.plants) && selectedProject.plants.length > 0
-                      ? selectedProject.plants.filter(Boolean)
-                      : (Array.isArray(selectedProject?.meta_json?.plants) && selectedProject.meta_json.plants.length > 0
-                          ? selectedProject.meta_json.plants.filter(Boolean)
-                          : []);
-
                     // Compute ordered list matching the exact sequence of the Audit Programme Table
                     const progOrderMap = new Map();
                     (programmeRows || []).forEach((p, pIdx) => {
@@ -5132,16 +5365,13 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
                     return (
                       <div style={{ padding: 24 }}>
                         {/* Control Bar */}
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, gap: 16 }}>
                           <div>
                             <div style={{ fontSize: 16, fontWeight: 800, color: C.text1 }}>Information Document Request (IDR) Data Tracker</div>
-                            <div style={{ fontSize: 12, color: C.text3, marginTop: 2 }}>
-                              Track unique requested documents, plant receipts, direct evidence uploads, and client transmissions ({dataTrackerRows.length} items)
-                            </div>
                           </div>
 
-                          {/* Actions: Re-sync from Programme & + Add Data Requirement */}
-                          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                          {/* Actions: Re-sync from Programme & Add Data Requirement - Always Right Aligned */}
+                          <div style={{ display: "flex", gap: 10, alignItems: "center", marginLeft: "auto", flexShrink: 0 }}>
                             <button
                               onClick={handleRefetchTrackerFromProgramme}
                               disabled={loadingStage2}
@@ -5149,7 +5379,7 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
                               style={{
                                 padding: "8px 15px", borderRadius: 8, fontSize: 12.5, fontWeight: 700, cursor: loadingStage2 ? "not-allowed" : "pointer",
                                 backgroundColor: C.surface, color: C.teal, border: `1.5px solid ${C.tealBorder}`, display: "flex", alignItems: "center", gap: 6,
-                                transition: "all 0.15s ease"
+                                transition: "all 0.15s ease", whiteSpace: "nowrap"
                               }}
                             >
                               <RefreshCw size={13} className={loadingStage2 ? "animate-spin" : ""} /> Re-sync from Programme
@@ -5163,10 +5393,10 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
                               style={{
                                 padding: "8px 18px", borderRadius: 8, fontSize: 12.5, fontWeight: 700, cursor: "pointer",
                                 backgroundColor: C.teal, color: "#fff", border: "none", display: "flex", alignItems: "center", gap: 6,
-                                boxShadow: "0 2px 6px rgba(13,148,136,0.3)"
+                                boxShadow: "0 2px 6px rgba(13,148,136,0.3)", whiteSpace: "nowrap"
                               }}
                             >
-                              <Plus size={15} /> + Add Data Requirement
+                              <Plus size={15} /> Add Data Requirement
                             </button>
                           </div>
                         </div>
@@ -5271,7 +5501,7 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
                               {orderedTrackerRows.length === 0 ? (
                                 <tr>
                                   <td colSpan={9 + projectPlants.length} style={{ padding: 36, textAlign: "center", color: C.text3, fontSize: 13 }}>
-                                    No data requirements requested yet. Click "+ Add Data Requirement" above or define data requirements in Stage 2 Audit Programme Table to auto-populate the tracker.
+                                    No data requirements requested yet. Click &quot;+ Add Data Requirement&quot; above or define data requirements in Stage 2 Audit Programme Table to auto-populate the tracker.
                                   </td>
                                 </tr>
                               ) : (
@@ -5439,7 +5669,12 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
 
                                       {/* Dynamic Plant Checkbox Cells */}
                                       {projectPlants.map((plant, pIdx) => {
-                                        const isPlantReceived = !!(tr.plants_status && tr.plants_status[plant]);
+                                        const isPlantReceived = !!(tr.plants_status && (
+                                          tr.plants_status[plant] ||
+                                          tr.plants_status[plant.toUpperCase()] ||
+                                          tr.plants_status[plant.toLowerCase()] ||
+                                          Object.keys(tr.plants_status).some(k => k.toLowerCase() === plant.toLowerCase() && tr.plants_status[k])
+                                        ));
                                         return (
                                           <td
                                             key={pIdx}
@@ -6590,15 +6825,15 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
                               }}
                             >
                               <Plus size={14} />
-                              <span>+ Add Query</span>
+                              <span>Add Query</span>
                             </button>
                           </div>
                         </div>
 
                         {/* TABLE */}
                         {allQueries.length === 0 ? (
-                          <div style={{ padding: "48px 20px", textAlign: "center", backgroundColor: C.bg2, borderRadius: 12, border: `1px dashed ${C.border}` }}>
-                            <AlertCircle size={36} color="#e11d48" style={{ opacity: 0.7, marginBottom: 12 }} />
+                          <div style={{ padding: "48px 20px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", backgroundColor: C.bg2, borderRadius: 12, border: `1px dashed ${C.border}` }}>
+                            <AlertCircle size={38} color="#e11d48" style={{ opacity: 0.8, display: "block", margin: "0 auto 12px" }} />
                             <div style={{ fontSize: 15, fontWeight: 700, color: C.text1, marginBottom: 6 }}>No Audit Queries or Exceptions Recorded</div>
                             <div style={{ fontSize: 12.5, color: C.text3, maxWidth: 520, margin: "0 auto 16px", lineHeight: 1.5 }}>
                               Any test marked as <strong>Exception / Query Raised</strong> in <strong>4. Testing</strong> will automatically appear here. You can also log manual queries directly.
@@ -6623,7 +6858,7 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
                                 }}
                               >
                                 <Plus size={14} />
-                                <span>+ Add Query Manually</span>
+                                <span>Add Query Manually</span>
                               </button>
                             </div>
                           </div>
@@ -8392,7 +8627,7 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
                               <FileCheck size={16} /> Client Portal / Data Requirement Uploads ({trackerFiles.length})
                             </div>
                             <div style={{ fontSize: 11.5, color: C.text3, marginTop: 2 }}>
-                              Files uploaded by client recipient for: <strong>"{matchingTrackerItem?.data_requirement || drawerData.data_requirement || 'Data Requirement'}"</strong>
+                              Files uploaded by client recipient for: <strong>&quot;{matchingTrackerItem?.data_requirement || drawerData.data_requirement || 'Data Requirement'}&quot;</strong>
                             </div>
                           </div>
                           <span style={{ fontSize: 11, fontWeight: 700, backgroundColor: C.tealBg, color: C.teal, border: `1px solid ${C.tealBorder}`, padding: "3px 10px", borderRadius: 12 }}>
@@ -8412,17 +8647,110 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
                                   </div>
                                 </div>
                               </div>
-                              {file.dataUrl && (
-                                <a
-                                  href={file.dataUrl}
-                                  download={file.name}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  style={{ padding: "6px 12px", backgroundColor: C.surface, color: C.teal, border: `1px solid ${C.tealBorder}`, borderRadius: 6, fontSize: 11.5, fontWeight: 700, textDecoration: "none", flexShrink: 0, marginLeft: 10 }}
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, marginLeft: 10 }}>
+                                {file.dataUrl && (
+                                  <a
+                                    href={file.dataUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    title={`View / Open ${file.name}`}
+                                    style={{
+                                      width: 32,
+                                      height: 32,
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      borderRadius: 8,
+                                      backgroundColor: C.surface,
+                                      border: `1px solid ${C.border}`,
+                                      color: C.teal,
+                                      cursor: "pointer",
+                                      textDecoration: "none",
+                                      transition: "all 0.15s ease"
+                                    }}
+                                    onMouseEnter={e => {
+                                      e.currentTarget.style.backgroundColor = C.tealBg;
+                                      e.currentTarget.style.borderColor = C.tealBorder;
+                                    }}
+                                    onMouseLeave={e => {
+                                      e.currentTarget.style.backgroundColor = C.surface;
+                                      e.currentTarget.style.borderColor = C.border;
+                                    }}
+                                  >
+                                    <Eye size={15} />
+                                  </a>
+                                )}
+
+                                {file.dataUrl && (
+                                  <a
+                                    href={file.dataUrl}
+                                    download={file.name || "download"}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    title={`Download ${file.name}`}
+                                    style={{
+                                      width: 32,
+                                      height: 32,
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      borderRadius: 8,
+                                      backgroundColor: C.surface,
+                                      border: `1px solid ${C.border}`,
+                                      color: C.blue,
+                                      cursor: "pointer",
+                                      textDecoration: "none",
+                                      transition: "all 0.15s ease"
+                                    }}
+                                    onMouseEnter={e => {
+                                      e.currentTarget.style.backgroundColor = C.blueBg;
+                                      e.currentTarget.style.borderColor = C.blueBorder;
+                                    }}
+                                    onMouseLeave={e => {
+                                      e.currentTarget.style.backgroundColor = C.surface;
+                                      e.currentTarget.style.borderColor = C.border;
+                                    }}
+                                  >
+                                    <Download size={15} />
+                                  </a>
+                                )}
+
+                                <button
+                                  type="button"
+                                  onClick={() => setDeleteFileConfirmState({
+                                    file,
+                                    fIdx,
+                                    type: 'tracker',
+                                    matchingTrackerId: matchingTrackerItem?.id,
+                                    step: 1,
+                                    isDeleting: false
+                                  })}
+                                  title={`Delete ${file.name}`}
+                                  style={{
+                                    width: 32,
+                                    height: 32,
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    borderRadius: 8,
+                                    backgroundColor: C.redBg,
+                                    border: `1px solid ${C.redBorder}`,
+                                    color: C.red,
+                                    cursor: "pointer",
+                                    transition: "all 0.15s ease"
+                                  }}
+                                  onMouseEnter={e => {
+                                    e.currentTarget.style.backgroundColor = C.red;
+                                    e.currentTarget.style.color = "#fff";
+                                  }}
+                                  onMouseLeave={e => {
+                                    e.currentTarget.style.backgroundColor = C.redBg;
+                                    e.currentTarget.style.color = C.red;
+                                  }}
                                 >
-                                  Download / View
-                                </a>
-                              )}
+                                  <Trash2 size={15} />
+                                </button>
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -8448,27 +8776,108 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
                                   </div>
                                 </div>
                               </div>
-                              <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0, marginLeft: 10 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, marginLeft: 10 }}>
                                 {file.dataUrl && (
                                   <a
                                     href={file.dataUrl}
-                                    download={file.name}
                                     target="_blank"
                                     rel="noreferrer"
-                                    style={{ padding: "6px 12px", backgroundColor: C.surface, color: C.purple, border: `1px solid ${C.purpleBorder}`, borderRadius: 6, fontSize: 11.5, fontWeight: 700, textDecoration: "none" }}
+                                    title={`View / Open ${file.name}`}
+                                    style={{
+                                      width: 32,
+                                      height: 32,
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      borderRadius: 8,
+                                      backgroundColor: C.surface,
+                                      border: `1px solid ${C.border}`,
+                                      color: C.purple,
+                                      cursor: "pointer",
+                                      textDecoration: "none",
+                                      transition: "all 0.15s ease"
+                                    }}
+                                    onMouseEnter={e => {
+                                      e.currentTarget.style.backgroundColor = C.purpleBg;
+                                      e.currentTarget.style.borderColor = C.purpleBorder;
+                                    }}
+                                    onMouseLeave={e => {
+                                      e.currentTarget.style.backgroundColor = C.surface;
+                                      e.currentTarget.style.borderColor = C.border;
+                                    }}
                                   >
-                                    Download
+                                    <Eye size={15} />
                                   </a>
                                 )}
+
+                                {file.dataUrl && (
+                                  <a
+                                    href={file.dataUrl}
+                                    download={file.name || "download"}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    title={`Download ${file.name}`}
+                                    style={{
+                                      width: 32,
+                                      height: 32,
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      borderRadius: 8,
+                                      backgroundColor: C.surface,
+                                      border: `1px solid ${C.border}`,
+                                      color: C.blue,
+                                      cursor: "pointer",
+                                      textDecoration: "none",
+                                      transition: "all 0.15s ease"
+                                    }}
+                                    onMouseEnter={e => {
+                                      e.currentTarget.style.backgroundColor = C.blueBg;
+                                      e.currentTarget.style.borderColor = C.blueBorder;
+                                    }}
+                                    onMouseLeave={e => {
+                                      e.currentTarget.style.backgroundColor = C.surface;
+                                      e.currentTarget.style.borderColor = C.border;
+                                    }}
+                                  >
+                                    <Download size={15} />
+                                  </a>
+                                )}
+
                                 <button
                                   type="button"
-                                  onClick={() => {
-                                    const updated = procedureFiles.filter((_, idx) => idx !== fIdx);
-                                    setDrawerData(prev => ({ ...prev, attachments: updated }));
+                                  onClick={() => setDeleteFileConfirmState({
+                                    file,
+                                    fIdx,
+                                    type: 'procedure',
+                                    drawerRowId: selectedDrawerRow?.id,
+                                    step: 1,
+                                    isDeleting: false
+                                  })}
+                                  title={`Delete ${file.name}`}
+                                  style={{
+                                    width: 32,
+                                    height: 32,
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    borderRadius: 8,
+                                    backgroundColor: C.redBg,
+                                    border: `1px solid ${C.redBorder}`,
+                                    color: C.red,
+                                    cursor: "pointer",
+                                    transition: "all 0.15s ease"
                                   }}
-                                  style={{ padding: 6, border: `1px solid ${C.redBorder}`, backgroundColor: C.redBg, color: C.red, borderRadius: 6, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                                  onMouseEnter={e => {
+                                    e.currentTarget.style.backgroundColor = C.red;
+                                    e.currentTarget.style.color = "#fff";
+                                  }}
+                                  onMouseLeave={e => {
+                                    e.currentTarget.style.backgroundColor = C.redBg;
+                                    e.currentTarget.style.color = C.red;
+                                  }}
                                 >
-                                  <Trash2 size={13} />
+                                  <Trash2 size={15} />
                                 </button>
                               </div>
                             </div>
@@ -10030,6 +10439,296 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
         </div>
       )}
 
+      {/* 10. DOUBLE CONFIRMATION MODAL CARD FOR FILE DELETION */}
+      {deleteFileConfirmState && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(15, 23, 42, 0.65)",
+            backdropFilter: "blur(6px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1300,
+            padding: 20
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !deleteFileConfirmState.isDeleting) {
+              setDeleteFileConfirmState(null);
+            }
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: "#ffffff",
+              borderRadius: 20,
+              width: 490,
+              maxWidth: "100%",
+              boxShadow: "0 25px 60px -12px rgba(15, 23, 42, 0.35), 0 0 0 1px rgba(226, 232, 240, 0.8)",
+              overflow: "hidden",
+              position: "relative"
+            }}
+          >
+            {/* Ambient indicator stripe */}
+            <div
+              style={{
+                height: 6,
+                width: "100%",
+                background: deleteFileConfirmState.step === 1
+                  ? "linear-gradient(90deg, #f59e0b, #d97706)"
+                  : "linear-gradient(90deg, #ef4444, #b91c1c)"
+              }}
+            />
+
+            <div style={{ padding: "26px 28px 24px 28px" }}>
+              {/* Header Icon + Title */}
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 14, marginBottom: 18 }}>
+                <div
+                  style={{
+                    width: 46,
+                    height: 46,
+                    borderRadius: 14,
+                    backgroundColor: deleteFileConfirmState.step === 1 ? "#fffbeb" : "#fef2f2",
+                    border: `1px solid ${deleteFileConfirmState.step === 1 ? "#fde68a" : "#fecaca"}`,
+                    color: deleteFileConfirmState.step === 1 ? "#d97706" : "#dc2626",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0
+                  }}
+                >
+                  {deleteFileConfirmState.step === 1 ? (
+                    <AlertTriangle size={24} />
+                  ) : (
+                    <AlertCircle size={24} />
+                  )}
+                </div>
+
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                    <span
+                      style={{
+                        fontSize: 10.5,
+                        fontWeight: 800,
+                        textTransform: "uppercase",
+                        letterSpacing: 0.5,
+                        padding: "2px 8px",
+                        borderRadius: 6,
+                        backgroundColor: deleteFileConfirmState.step === 1 ? "#fef3c7" : "#fee2e2",
+                        color: deleteFileConfirmState.step === 1 ? "#b45309" : "#b91c1c"
+                      }}
+                    >
+                      Confirmation {deleteFileConfirmState.step} of 2
+                    </span>
+                  </div>
+                  <h3 style={{ fontSize: 17, fontWeight: 800, color: C.text1, margin: 0, lineHeight: 1.3 }}>
+                    {deleteFileConfirmState.step === 1
+                      ? "Delete File Attachment?"
+                      : "Permanent Database Deletion"}
+                  </h3>
+                </div>
+
+                {!deleteFileConfirmState.isDeleting && (
+                  <button
+                    type="button"
+                    onClick={() => setDeleteFileConfirmState(null)}
+                    style={{
+                      border: "none",
+                      background: "transparent",
+                      color: C.text3,
+                      cursor: "pointer",
+                      padding: 4,
+                      borderRadius: 6
+                    }}
+                  >
+                    <X size={18} />
+                  </button>
+                )}
+              </div>
+
+              {/* File Info Box */}
+              <div
+                style={{
+                  backgroundColor: C.bg2,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 12,
+                  padding: "12px 14px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  marginBottom: 16
+                }}
+              >
+                <div
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 10,
+                    backgroundColor: "#ffffff",
+                    border: `1px solid ${C.border}`,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0
+                  }}
+                >
+                  <FileSpreadsheet
+                    size={20}
+                    color={deleteFileConfirmState.type === 'tracker' ? C.teal : C.purple}
+                  />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: C.text1,
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis"
+                    }}
+                  >
+                    {deleteFileConfirmState.file?.name || "Evidence File"}
+                  </div>
+                  <div style={{ fontSize: 11, color: C.text3, marginTop: 1 }}>
+                    {deleteFileConfirmState.file?.size ? `${(deleteFileConfirmState.file.size / 1024).toFixed(1)} KB • ` : ""}
+                    {deleteFileConfirmState.type === 'tracker' ? 'Client Portal Upload' : 'Procedure Evidence'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Message Description */}
+              {deleteFileConfirmState.step === 1 ? (
+                <div style={{ fontSize: 13, color: C.text2, lineHeight: 1.5, marginBottom: 20 }}>
+                  Are you sure you want to remove this file attachment from this audit step? You will be prompted once more to verify permanent database removal.
+                </div>
+              ) : (
+                <div
+                  style={{
+                    backgroundColor: "#fef2f2",
+                    border: "1px solid #fecaca",
+                    borderRadius: 12,
+                    padding: "12px 14px",
+                    color: "#991b1b",
+                    fontSize: 12.5,
+                    lineHeight: 1.5,
+                    marginBottom: 20,
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 10
+                  }}
+                >
+                  <AlertCircle size={18} style={{ color: "#dc2626", flexShrink: 0, marginTop: 1 }} />
+                  <div>
+                    <strong style={{ display: "block", color: "#7f1d1d", marginBottom: 2 }}>
+                      Final Warning — Action is Irreversible:
+                    </strong>
+                    Clicking <strong>&quot;Yes, Permanently Delete&quot;</strong> will completely purge this file record from the database.
+                  </div>
+                </div>
+              )}
+
+              {/* Footer Actions */}
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  alignItems: "center",
+                  gap: 10,
+                  borderTop: `1px solid ${C.border}`,
+                  paddingTop: 16
+                }}
+              >
+                <button
+                  type="button"
+                  disabled={deleteFileConfirmState.isDeleting}
+                  onClick={() => setDeleteFileConfirmState(null)}
+                  style={{
+                    padding: "9px 18px",
+                    borderRadius: 10,
+                    border: `1px solid ${C.border}`,
+                    backgroundColor: "#ffffff",
+                    color: C.text2,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: deleteFileConfirmState.isDeleting ? "not-allowed" : "pointer"
+                  }}
+                >
+                  Cancel
+                </button>
+
+                {deleteFileConfirmState.step === 1 ? (
+                  <button
+                    type="button"
+                    onClick={() => setDeleteFileConfirmState(prev => ({ ...prev, step: 2 }))}
+                    style={{
+                      padding: "9px 20px",
+                      borderRadius: 10,
+                      border: "none",
+                      backgroundColor: "#d97706",
+                      color: "#ffffff",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      boxShadow: "0 4px 12px rgba(217, 119, 6, 0.25)"
+                    }}
+                  >
+                    <span>Proceed to Confirm</span>
+                    <ArrowRight size={15} />
+                  </button>
+                ) : (
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      type="button"
+                      disabled={deleteFileConfirmState.isDeleting}
+                      onClick={() => setDeleteFileConfirmState(prev => ({ ...prev, step: 1 }))}
+                      style={{
+                        padding: "9px 14px",
+                        borderRadius: 10,
+                        border: `1px solid ${C.border}`,
+                        backgroundColor: C.bg2,
+                        color: C.text2,
+                        fontSize: 13,
+                        fontWeight: 600,
+                        cursor: deleteFileConfirmState.isDeleting ? "not-allowed" : "pointer"
+                      }}
+                    >
+                      ← Back
+                    </button>
+                    <button
+                      type="button"
+                      disabled={deleteFileConfirmState.isDeleting}
+                      onClick={handleExecuteDeleteFile}
+                      style={{
+                        padding: "9px 22px",
+                        borderRadius: 10,
+                        border: "none",
+                        backgroundColor: "#dc2626",
+                        color: "#ffffff",
+                        fontSize: 13,
+                        fontWeight: 800,
+                        cursor: deleteFileConfirmState.isDeleting ? "not-allowed" : "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        boxShadow: "0 4px 14px rgba(220, 38, 38, 0.3)"
+                      }}
+                    >
+                      <Trash2 size={15} />
+                      <span>{deleteFileConfirmState.isDeleting ? "Deleting from DB..." : "Yes, Permanently Delete"}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── 10. EMAIL & COMMUNICATION PIPELINE TIMELINE MODAL ── */}
       {showEmailPipelineModal && pipelineItem && (() => {
         const linkedProg = programmeRows.find(p => String(p.id) === String(pipelineItem.programme_id) || String(p.id) === String(pipelineItem.id));
@@ -11195,12 +11894,6 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
 
       {/* ── 8. DATA TRACKER / IDR SLIDE-OVER DRAWER ── */}
       {selectedTrackerDrawerItem && (() => {
-        const projectPlants = Array.isArray(selectedProject?.plants) && selectedProject.plants.length > 0
-          ? selectedProject.plants.filter(Boolean)
-          : (Array.isArray(selectedProject?.meta_json?.plants) && selectedProject.meta_json.plants.length > 0
-              ? selectedProject.meta_json.plants.filter(Boolean)
-              : []);
-
         const STATUS_OPTIONS = [
           { val: "Pending", label: "Pending", bg: "#fef3c7", color: "#d97706", border: "#fde68a" },
           { val: "Under Review", label: "Under Review", bg: "#ede9fe", color: "#6d28d9", border: "#ddd6fe" },
@@ -11359,7 +12052,12 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
                     </label>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: 8, padding: 12, borderRadius: 8, backgroundColor: C.bg2, border: `1px solid ${C.border}` }}>
                       {projectPlants.map((plant, pIdx) => {
-                        const isRcvd = !!currentPlants[plant];
+                        const isRcvd = !!(currentPlants && (
+                          currentPlants[plant] ||
+                          currentPlants[plant.toUpperCase()] ||
+                          currentPlants[plant.toLowerCase()] ||
+                          Object.keys(currentPlants).some(k => k.toLowerCase() === plant.toLowerCase() && currentPlants[k])
+                        ));
                         return (
                           <label
                             key={pIdx}

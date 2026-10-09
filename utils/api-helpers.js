@@ -654,3 +654,42 @@ export async function syncTaskSubtasks(supabase, taskId, subtasks) {
   }
 }
 
+export async function getTaskWorkLogsMap(taskIds = null) {
+  const workLogsMap = new Map();
+  const PAGE_SIZE = 1000;
+  let from = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    let query = adminClient
+      .from('hrm_daily_work_logs')
+      .select('task_id, hours_spent')
+      .not('task_id', 'is', null);
+
+    if (Array.isArray(taskIds) && taskIds.length > 0 && taskIds.length <= 500) {
+      query = query.in('task_id', taskIds);
+    }
+
+    const { data: logs, error } = await query.range(from, from + PAGE_SIZE - 1);
+
+    if (error || !logs || logs.length === 0) {
+      break;
+    }
+
+    for (const log of logs) {
+      if (log.task_id) {
+        const current = workLogsMap.get(log.task_id) || 0;
+        workLogsMap.set(log.task_id, current + (parseFloat(log.hours_spent) || 0));
+      }
+    }
+
+    if (logs.length < PAGE_SIZE) {
+      hasMore = false;
+    } else {
+      from += PAGE_SIZE;
+    }
+  }
+
+  return workLogsMap;
+}
+

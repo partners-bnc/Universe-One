@@ -446,7 +446,7 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const [employees, assignmentActivity, commentsResult, labelsResult, taskRatings] = await Promise.all([
+    const [employees, assignmentActivity, commentsResult, labelsResult, taskRatings, workLogsResult] = await Promise.all([
       fetchEmployeeDirectory(adminClient, { taskManagerOnly: true }),
       fetchAssignmentActivity(taskId, adminClient),
       adminClient
@@ -459,7 +459,60 @@ export async function GET(request, { params }) {
         .select('id, name, created_at')
         .order('name', { ascending: true }),
       fetchTaskEmployeeRatings(taskId),
+      adminClient
+        .from('hrm_daily_work_logs')
+        .select(`
+          id,
+          task_id,
+          employee_id,
+          client_name,
+          task_name_snapshot,
+          hours_spent,
+          remarks,
+          log_date,
+          created_at,
+          employee:hrm_employees (
+            id,
+            name,
+            email,
+            role,
+            profile_picture_url
+          )
+        `)
+        .eq('task_id', taskId)
+        .order('log_date', { ascending: false })
+        .order('created_at', { ascending: false }),
     ]);
+
+    const workLogs = Array.isArray(workLogsResult.data) ? workLogsResult.data : [];
+    const totalLoggedHours = workLogs.reduce((acc, log) => acc + (parseFloat(log.hours_spent) || 0), 0);
+
+    const employeeSummaryMap = new Map();
+    for (const log of workLogs) {
+      const empId = log.employee_id || 'unknown';
+      const hours = parseFloat(log.hours_spent) || 0;
+      if (!employeeSummaryMap.has(empId)) {
+        employeeSummaryMap.set(empId, {
+          employeeId: empId,
+          employee: log.employee || (employees || []).find((e) => e.id === empId) || null,
+          totalHours: 0,
+          logCount: 0,
+          lastLogDate: log.log_date,
+        });
+      }
+      const current = employeeSummaryMap.get(empId);
+      current.totalHours += hours;
+      current.logCount += 1;
+    }
+
+    const employeeTimeSummary = Array.from(employeeSummaryMap.values()).map((emp) => ({
+      ...emp,
+      percentage: totalLoggedHours > 0 ? Math.round((emp.totalHours / totalLoggedHours) * 100) : 0,
+    }));
+
+    if (task) {
+      task.total_logged_hours = totalLoggedHours;
+    }
 
     const comments = (commentsResult.data || []).map((comment) => ({
       ...comment,
@@ -498,6 +551,9 @@ export async function GET(request, { params }) {
       taskLabels,
       reviewAssignees,
       taskRatings,
+      timeLogs: workLogs,
+      totalLoggedHours,
+      employeeTimeSummary,
     });
   } catch (error) {
     console.error('Error fetching task detail:', error);

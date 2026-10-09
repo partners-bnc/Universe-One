@@ -194,6 +194,8 @@ const normalizeTask = (task, fallbackAssignees = [], currentUserId = null) => {
     createdAt: task.created_at,
     completedAt: task.completed_at || null,
     updatedAt: task.updated_at || null,
+    total_logged_hours: Number(task.total_logged_hours || 0),
+    totalLoggedHours: Number(task.total_logged_hours || 0),
   };
 };
 

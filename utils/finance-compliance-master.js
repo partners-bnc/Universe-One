@@ -293,6 +293,57 @@ export function formatPeriodFull(monthIndex, year) {
   return `${monthName} ${year}`;
 }
 
+export const ITEM_TYPE_OPTIONS = ['Compliance', 'Process', 'One Time'];
+
+/**
+ * Classifies an item into one of the 3 parts: 'Compliance' | 'Process' | 'One Time'
+ * @param {Object} item
+ * @returns {string}
+ */
+export function resolveItemType(item) {
+  if (item?.compliance_type && ITEM_TYPE_OPTIONS.includes(item.compliance_type)) {
+    return item.compliance_type;
+  }
+  if (item?.type && ITEM_TYPE_OPTIONS.includes(item.type)) {
+    return item.type;
+  }
+
+  // 1. One Time check (frequency based)
+  const freq = (item?.frequency || '').toLowerCase().trim();
+  if (freq === 'one time' || freq === 'onetime' || freq === 'one-time') {
+    return 'One Time';
+  }
+
+  // 2. Process check (internal processes, reconciliations, payroll, invoicing)
+  const cat = (item?.category || '').toLowerCase().trim();
+  const nature = (item?.compliance_nature || '').toLowerCase().trim();
+  if (
+    cat.includes('brs') ||
+    cat.includes('bank') ||
+    cat.includes('salary') ||
+    cat.includes('process') ||
+    cat.includes('payroll') ||
+    nature.includes('reconciliation') ||
+    nature.includes('reco till date') ||
+    nature.includes('salary') ||
+    nature.includes('payroll') ||
+    nature.includes('greystar') ||
+    nature.includes('greythr') ||
+    nature.includes('invoicing') ||
+    nature.includes('appraisal') ||
+    nature.includes('working capital') ||
+    nature.includes('vendor payments') ||
+    nature.includes('lease rental') ||
+    nature.includes('books of accounts') ||
+    nature.includes('monthly filing of documents')
+  ) {
+    return 'Process';
+  }
+
+  // 3. Default to Statutory Compliance (GST, TAX/TDS, Form 16, PF, ESI, ROC, Audit, etc.)
+  return 'Compliance';
+}
+
 /**
  * Resolves the statutory deadline as a Date object based on the compliance item and tracking period.
  * @param {Object} item - Compliance item { frequency, statutory_due_date, ... }

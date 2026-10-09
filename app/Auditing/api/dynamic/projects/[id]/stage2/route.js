@@ -137,9 +137,15 @@ export async function GET(req, { params }) {
       const plants = item?.plants_status || item?.status_json?.plants_status || {};
       const sortVal = progSortMap.get(String(item?.programme_id)) ?? progSortMap.get(String(item?.id)) ?? (1000 + iIdx);
 
-      // Separate Document Status and Email Status
-      const rawDocStatus = (item?.document_status && item?.document_status !== 'Email Sent') ? item.document_status : (item?.status_json?.document_status || 'Pending');
-      const docStatus = rawDocStatus === 'Email Sent' ? 'Pending' : rawDocStatus;
+      // Separate Document Status and Email Status with robust fallback
+      let docStatus = 'Pending';
+      if (item?.document_status && item.document_status !== 'Pending' && item.document_status !== 'Email Sent') {
+        docStatus = item.document_status;
+      } else if (item?.status_json?.document_status && item.status_json.document_status !== 'Email Sent') {
+        docStatus = item.status_json.document_status;
+      } else if (item?.document_status && item.document_status !== 'Email Sent') {
+        docStatus = item.document_status;
+      }
 
       const emailStatus = item?.email_status || item?.status_json?.email_status || (item?.email_sent_at || item?.status_json?.sent_at || item?.status_json?.document_status === 'Email Sent' ? 'Email Sent' : 'Not Sent');
       const emailSentAt = item?.email_sent_at || item?.status_json?.sent_at || null;
@@ -622,29 +628,40 @@ export async function POST(req, { params }) {
               if (byId && byId.length > 0) existing = byId;
             }
 
-            // 2. Try finding by programme_id if valid UUID
-            if (!existing && isUuid(item.programme_id)) {
-              const { data: byProg } = await supabase
-                .from('audit_data_tracker')
-                .select('id')
-                .eq('project_id', projectId)
-                .eq('programme_id', item.programme_id)
-                .limit(1);
-              if (byProg && byProg.length > 0) existing = byProg;
-            }
+            const reqTitle = (item.data_requirement || item.status_json?.document_name || item.mapped_column_key || '').trim();
 
-            // 3. Try finding by document requirement title
-            if (!existing) {
-              const reqTitle = (item.data_requirement || item.mapped_column_key || '').trim();
+            // 2. Try finding by programme_id + title if valid UUID
+            if (!existing && isUuid(item.programme_id)) {
               if (reqTitle) {
-                const { data: byTitle } = await supabase
+                const { data: byProgAndTitle } = await supabase
                   .from('audit_data_tracker')
                   .select('id')
                   .eq('project_id', projectId)
-                  .ilike('data_requirement', reqTitle)
+                  .eq('programme_id', item.programme_id)
+                  .or(`data_requirement.ilike."${reqTitle}",mapped_column_key.ilike."${reqTitle}"`)
                   .limit(1);
-                if (byTitle && byTitle.length > 0) existing = byTitle;
+                if (byProgAndTitle && byProgAndTitle.length > 0) existing = byProgAndTitle;
               }
+              if (!existing) {
+                const { data: byProg } = await supabase
+                  .from('audit_data_tracker')
+                  .select('id')
+                  .eq('project_id', projectId)
+                  .eq('programme_id', item.programme_id)
+                  .limit(1);
+                if (byProg && byProg.length > 0) existing = byProg;
+              }
+            }
+
+            // 3. Try finding by document requirement title across data_requirement & mapped_column_key
+            if (!existing && reqTitle) {
+              const { data: byTitle } = await supabase
+                .from('audit_data_tracker')
+                .select('id')
+                .eq('project_id', projectId)
+                .or(`data_requirement.ilike."${reqTitle}",mapped_column_key.ilike."${reqTitle}"`)
+                .limit(1);
+              if (byTitle && byTitle.length > 0) existing = byTitle;
             }
 
             const rowPayload = {
@@ -669,14 +686,16 @@ export async function POST(req, { params }) {
                 .update(rowPayload)
                 .eq('id', existing[0].id);
 
-              // Fallback if specific columns not yet in DB schema cache
-              if (updateErr && (updateErr.code === '42703' || updateErr.message?.includes('column'))) {
+              if (updateErr) {
+                console.error("audit_data_tracker update fallback:", updateErr.message);
                 await supabase
                   .from('audit_data_tracker')
                   .update({
-                    client_person_id: isUuid(item.client_person_id) ? item.client_person_id : null,
+                    document_status: docStatus,
+                    plants_status: item.plants_status || item.status_json?.plants_status || {},
                     status_json: statusPayload,
                     attachments: item.attachments || [],
+                    client_person_id: isUuid(item.client_person_id) ? item.client_person_id : null,
                     updated_at: new Date().toISOString()
                   })
                   .eq('id', existing[0].id);

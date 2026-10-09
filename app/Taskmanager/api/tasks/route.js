@@ -12,6 +12,7 @@ import {
   requireTaskManager,
   syncTaskSubtasks,
   insertAssignmentActivityRows,
+  getTaskWorkLogsMap,
 } from '@/utils/api-helpers';
 
 function normalizeLabel(label) {
@@ -165,9 +166,13 @@ export async function GET() {
     }
 
     const tasksWithCreators = await attachTaskCreatorNames(tasks || [], supabase);
+
+    const taskIds = (tasksWithCreators || []).map((t) => t.id).filter(Boolean);
+    const workLogsMap = await getTaskWorkLogsMap(taskIds);
     
     const mappedTasks = tasksWithCreators.map((task) => ({
       ...task,
+      total_logged_hours: workLogsMap.get(task.id) || 0,
       task_subtasks: Array.isArray(task.task_subtasks)
         ? task.task_subtasks.map((subtask) => {
           const match = (subtask.title || '').match(/\s+\[status:(to_do|in_progress|completed)\]$/);

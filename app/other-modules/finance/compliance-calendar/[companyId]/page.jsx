@@ -51,6 +51,8 @@ import {
   resolveStatutoryDueDate,
   computeEffectiveStatus,
   resolveEffectiveEntry,
+  resolveItemType,
+  ITEM_TYPE_OPTIONS,
 } from '@/utils/finance-compliance-master';
 import { ModuleAccessGate } from '@/app/components-homepage/ModuleAccessGate';
 
@@ -619,8 +621,8 @@ export default function CompanyComplianceWorkspace() {
     });
   }, [items, heatmapSearchTerm, heatmapFreqFilter]);
 
-  // Grouped Unique Categories with Priority Sorting: GST, TAX, BRS, Form 16, PF, Salary, ESI, etc.
-  const groupedHeatmapCategories = useMemo(() => {
+  // 3-Part Grouped Structure: 1. Compliance, 2. Process, 3. One Time
+  const groupedHeatmapSections = useMemo(() => {
     const priorityList = [
       'GST',
       'TAX',
@@ -638,49 +640,97 @@ export default function CompanyComplianceWorkspace() {
       priorityMap[cat] = idx;
     });
 
-    const map = new Map();
+    const sections = [
+      {
+        id: 'Compliance',
+        num: '1',
+        title: '1. Compliance',
+        subtitle: 'Statutory & Tax Filings (GST, TAX, Form 16, PF, ESI, ROC, Audit)',
+        badgeBg: 'bg-[#edf4fc] text-[#3170c6] border-[#afd0f4]',
+        headerBg: 'bg-[#f4f8fd] border-b border-t border-[#afd0f4]/80 text-[#3170c6]',
+        items: [],
+      },
+      {
+        id: 'Process',
+        num: '2',
+        title: '2. Process',
+        subtitle: 'Internal Operations & Workflows (BRS, Salary, Invoicing, Recos)',
+        badgeBg: 'bg-amber-50 text-amber-800 border-amber-200',
+        headerBg: 'bg-amber-50/60 border-b border-t border-amber-200/80 text-amber-900',
+        items: [],
+      },
+      {
+        id: 'One Time',
+        num: '3',
+        title: '3. One Time',
+        subtitle: 'One-Time Payments, Registrations & Setup Filings',
+        badgeBg: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+        headerBg: 'bg-emerald-50/60 border-b border-t border-emerald-200/80 text-emerald-900',
+        items: [],
+      },
+    ];
+
+    // Distribute items into the 3 sections
     heatmapItems.forEach((item) => {
-      const cat = item.category || resolveItemCategory(item);
-      if (!map.has(cat)) {
-        map.set(cat, []);
-      }
-      map.get(cat).push(item);
+      const type = resolveItemType(item);
+      const sec = sections.find((s) => s.id === type) || sections[0];
+      sec.items.push(item);
     });
 
-    const groups = Array.from(map.entries()).map(([category, catItems]) => {
-      const sortedItems = [...catItems].sort((a, b) => (a.s_no || 0) - (b.s_no || 0));
+    // Group items inside each section by unique Category
+    const formattedSections = sections.map((sec) => {
+      const catMap = new Map();
+      sec.items.forEach((item) => {
+        const cat = item.category || resolveItemCategory(item);
+        if (!catMap.has(cat)) {
+          catMap.set(cat, []);
+        }
+        catMap.get(cat).push(item);
+      });
+
+      const categories = Array.from(catMap.entries()).map(([category, catItems]) => {
+        const sortedItems = [...catItems].sort((a, b) => (a.s_no || 0) - (b.s_no || 0));
+        return {
+          category,
+          items: sortedItems,
+        };
+      });
+
+      categories.sort((a, b) => {
+        const keyA = a.category.toUpperCase().trim();
+        const keyB = b.category.toUpperCase().trim();
+        const pA = priorityMap[keyA] !== undefined ? priorityMap[keyA] : 900;
+        const pB = priorityMap[keyB] !== undefined ? priorityMap[keyB] : 900;
+        if (pA !== pB) return pA - pB;
+        return a.category.localeCompare(b.category);
+      });
+
       return {
-        category,
-        items: sortedItems,
+        ...sec,
+        categories,
+        totalItemsCount: sec.items.length,
       };
     });
 
-    groups.sort((a, b) => {
-      const keyA = a.category.toUpperCase().trim();
-      const keyB = b.category.toUpperCase().trim();
-      const pA = priorityMap[keyA] !== undefined ? priorityMap[keyA] : 900;
-      const pB = priorityMap[keyB] !== undefined ? priorityMap[keyB] : 900;
-      if (pA !== pB) return pA - pB;
-      return a.category.localeCompare(b.category);
-    });
-
-    return groups;
+    return formattedSections;
   }, [heatmapItems]);
 
-  // Accordion State for Categories in Heat Map
+  // Accordion State for Categories in Heat Map (Keyed by `${sectionId}___${category}`)
   const [expandedCategories, setExpandedCategories] = useState({});
 
-  const toggleCategory = (catName) => {
+  const toggleCategory = (catKey) => {
     setExpandedCategories((prev) => ({
       ...prev,
-      [catName]: !prev[catName],
+      [catKey]: !prev[catKey],
     }));
   };
 
   const handleExpandAllCategories = () => {
     const all = {};
-    groupedHeatmapCategories.forEach((g) => {
-      all[g.category] = true;
+    groupedHeatmapSections.forEach((sec) => {
+      sec.categories.forEach((g) => {
+        all[`${sec.id}___${g.category}`] = true;
+      });
     });
     setExpandedCategories(all);
   };
@@ -690,9 +740,15 @@ export default function CompanyComplianceWorkspace() {
   };
 
   const isAllCategoriesExpanded = useMemo(() => {
-    if (groupedHeatmapCategories.length === 0) return false;
-    return groupedHeatmapCategories.every((g) => Boolean(expandedCategories[g.category]));
-  }, [groupedHeatmapCategories, expandedCategories]);
+    const allKeys = [];
+    groupedHeatmapSections.forEach((sec) => {
+      sec.categories.forEach((g) => {
+        allKeys.push(`${sec.id}___${g.category}`);
+      });
+    });
+    if (allKeys.length === 0) return false;
+    return allKeys.every((k) => Boolean(expandedCategories[k]));
+  }, [groupedHeatmapSections, expandedCategories]);
 
   // Aggregate FY Stats
   const fyStats = useMemo(() => {
@@ -2064,7 +2120,7 @@ export default function CompanyComplianceWorkspace() {
                 <ChevronLeft className="w-3.5 h-3.5" />
               </button>
               <span className="text-xs font-bold text-slate-800 px-2 min-w-[65px] text-center">
-                {MONTH_SHORT_NAMES[activeMonth - 1]}'{(activeYear % 100)}
+                {MONTH_SHORT_NAMES[activeMonth - 1]}&apos;{(activeYear % 100)}
               </span>
               <button
                 onClick={handleNextMonth}
@@ -2371,7 +2427,7 @@ export default function CompanyComplianceWorkspace() {
                     </button>
                   </div>
 
-                  {/* Middle: Frequency Filter Pills & Cascading Sub-Option Dropdown */}
+                  {/* Middle: Frequency Filters */}
                   <div className="flex items-center gap-2 flex-wrap justify-center">
                     {/* Period Pills */}
                     <div className="flex items-center gap-0.5 bg-slate-100/90 p-1 rounded-xl border border-slate-200/80 text-xs shrink-0">
@@ -2384,7 +2440,7 @@ export default function CompanyComplianceWorkspace() {
                             if (freq === 'Quarterly') setHeatmapQuarterSubFilter('ALL');
                             if (freq === 'Half-Yearly') setHeatmapHalfYearSubFilter('ALL');
                           }}
-                          className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
+                          className={`px-2 py-0.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer whitespace-nowrap ${
                             heatmapFreqFilter === freq
                               ? 'bg-white text-slate-900 shadow-2xs font-bold'
                               : 'text-slate-500 hover:text-slate-800'
@@ -2527,7 +2583,8 @@ export default function CompanyComplianceWorkspace() {
                       </tr>
                     </thead>
                     <tbody className="bg-white">
-                      {groupedHeatmapCategories.length === 0 ? (
+                      {groupedHeatmapSections.length === 0 ||
+                      groupedHeatmapSections.every((s) => s.categories.length === 0) ? (
                         <tr>
                           <td colSpan={3 + visibleHeatmapMonths.length} className="py-12 text-center text-slate-400">
                             <FileSpreadsheet className="w-8 h-8 mx-auto text-slate-300 mb-2" />
@@ -2535,192 +2592,109 @@ export default function CompanyComplianceWorkspace() {
                           </td>
                         </tr>
                       ) : (
-                        groupedHeatmapCategories.map((group, gIdx) => {
-                          const isExpanded = Boolean(expandedCategories[group.category]);
-                          const isLastGroup = gIdx === groupedHeatmapCategories.length - 1 && (!isExpanded || group.items.length === 0);
-
-                          // Summarize frequency
-                          const uniqueFreqs = Array.from(new Set(group.items.map((it) => it.frequency || 'Monthly')));
-                          const summaryFreq = uniqueFreqs.length === 1 ? uniqueFreqs[0] : 'Multiple';
+                        groupedHeatmapSections.map((section, sIdx) => {
+                          if (section.categories.length === 0) return null;
 
                           return (
-                            <React.Fragment key={`group-${group.category}`}>
-                              {/* Parent Unique Category Row */}
-                              <tr className="bg-slate-50/80 hover:bg-blue-50/40 transition-colors border-b border-slate-200/80 group">
-                                {/* S.No */}
-                                <td className="py-2.5 px-1 text-center sticky left-0 bg-slate-50 group-hover:bg-blue-50/40 z-10 font-bold text-[11px] text-slate-600 border-r border-slate-200/80">
-                                  {gIdx + 1}
-                                </td>
-
-                                {/* Category Title with Expand/Collapse Icon & Count */}
+                            <React.Fragment key={`section-${section.id}`}>
+                              {/* Part / Section Header Divider */}
+                              <tr className={`${section.headerBg} select-none`}>
                                 <td
-                                  onClick={() => toggleCategory(group.category)}
-                                  className="py-2.5 px-3 sticky left-8 bg-slate-50 group-hover:bg-blue-50/40 z-10 border-r border-slate-200/80 cursor-pointer select-none"
+                                  colSpan={3 + visibleHeatmapMonths.length}
+                                  className="py-2 px-3 border-y border-slate-200/90"
                                 >
-                                  <div className="flex items-center gap-1.5">
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        toggleCategory(group.category);
-                                      }}
-                                      className="p-1 rounded hover:bg-slate-200/80 text-slate-600 transition-colors cursor-pointer"
-                                      title={isExpanded ? 'Collapse category' : 'Expand category'}
-                                    >
-                                      {isExpanded ? (
-                                        <ChevronDown className="w-3.5 h-3.5 text-[#3170c6]" />
-                                      ) : (
-                                        <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-                                      )}
-                                    </button>
-                                    <span className="font-extrabold text-slate-900 text-xs">
-                                      {group.category}
-                                    </span>
-                                    <span className="ml-1 inline-flex items-center justify-center min-w-[14px] h-3.5 px-1 rounded-full text-[8px] font-bold bg-slate-200/60 text-slate-500 border border-slate-300/40 leading-none">
-                                      {group.items.length}
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <span className={`px-2 py-0.5 rounded-md text-[11px] font-black border uppercase tracking-wider ${section.badgeBg}`}>
+                                        {section.title}
+                                      </span>
+                                      <span className="text-[11px] font-semibold text-slate-600 hidden sm:inline">
+                                        — {section.subtitle}
+                                      </span>
+                                    </div>
+                                    <span className="text-[10px] font-bold text-slate-500 bg-white/80 px-2 py-0.5 rounded-full border border-slate-200/80">
+                                      {section.categories.length} {section.categories.length === 1 ? 'Category' : 'Categories'} · {section.totalItemsCount} {section.totalItemsCount === 1 ? 'Item' : 'Items'}
                                     </span>
                                   </div>
                                 </td>
-
-                                {/* Frequency Summary */}
-                                <td className="py-2 px-1 text-center border-r border-slate-200/80 bg-slate-50 group-hover:bg-blue-50/40 font-semibold text-slate-600 text-[10px]">
-                                  {summaryFreq}
-                                </td>
-
-                                {/* Rollup Month Cells */}
-                                {visibleHeatmapMonths.map((mObj, mIdx) => {
-                                  const rollup = getCategoryMonthRollupState(group.items, mObj, selectedFyYear, company);
-                                  const mYear = selectedFyYear + mObj.yearOffset;
-                                  const isCurrentCalMonth = currentCalendarMonth === mObj.month && currentCalendarYear === mYear;
-                                  const nextMonthObj = visibleHeatmapMonths[mIdx + 1];
-                                  const isNextMonthCurrent = nextMonthObj && (currentCalendarMonth === nextMonthObj.month && currentCalendarYear === (selectedFyYear + nextMonthObj.yearOffset));
-
-                                  const colBorderClass = isCurrentCalMonth
-                                    ? isLastGroup
-                                      ? '!border-l !border-r !border-b !border-l-[#3170c6] !border-r-[#3170c6] !border-b-[#3170c6] relative z-10'
-                                      : '!border-l !border-r !border-l-[#3170c6] !border-r-[#3170c6] border-b border-b-slate-200/80 relative z-10'
-                                    : isNextMonthCurrent
-                                    ? '!border-r !border-r-[#3170c6] border-b border-slate-200/80'
-                                    : 'border-r border-b border-slate-200/80 last:border-r-0';
-
-                                  if (!rollup.isApplicable || rollup.status === 'NA') {
-                                    return (
-                                      <td
-                                        key={mObj.month}
-                                        className={`p-0 text-center ${isCurrentCalMonth ? 'bg-blue-50/20' : 'bg-slate-50/40'} text-slate-300 font-light select-none ${colBorderClass}`}
-                                        title={rollup.tooltip}
-                                      >
-                                        <div className="w-full h-8 flex items-center justify-center text-[10px] font-light text-slate-300">
-                                          —
-                                        </div>
-                                      </td>
-                                    );
-                                  }
-
-                                  let cellBg = isCurrentCalMonth ? 'bg-slate-400 hover:bg-slate-500' : 'bg-slate-400 hover:bg-slate-500';
-                                  let icon = <Clock className="w-2.5 h-2.5 text-white shrink-0" />;
-                                  let textColor = 'text-white font-semibold';
-
-                                  if (rollup.status === 'Completed') {
-                                    cellBg = 'bg-emerald-600 hover:bg-emerald-700';
-                                    icon = <CheckCircle2 className="w-2.5 h-2.5 text-white shrink-0" />;
-                                    textColor = 'text-white font-bold';
-                                  } else if (rollup.status === 'In Progress') {
-                                    cellBg = 'bg-amber-500 hover:bg-amber-600';
-                                    icon = <Clock className="w-2.5 h-2.5 text-slate-950 shrink-0" />;
-                                    textColor = 'text-slate-950 font-bold';
-                                  } else if (rollup.status === 'Overdue') {
-                                    cellBg = 'bg-rose-600 hover:bg-rose-700';
-                                    icon = <AlertCircle className="w-2.5 h-2.5 text-white shrink-0" />;
-                                    textColor = 'text-white font-bold';
-                                  }
-
-                                  return (
-                                    <td
-                                      key={mObj.month}
-                                      className={`p-0 text-center transition-colors ${colBorderClass} ${cellBg}`}
-                                    >
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          if (group.items.length === 1) {
-                                            handleOpenEditDrawer(group.items[0], {
-                                              targetMonth: mObj.month,
-                                              targetYear: mYear,
-                                            });
-                                          } else {
-                                            toggleCategory(group.category);
-                                          }
-                                        }}
-                                        title={`${group.category} (${mObj.name} ${mYear})\n${rollup.tooltip}\n(Click to ${group.items.length === 1 ? 'view/edit compliance' : 'expand child compliances'})`}
-                                        className={`w-full h-8 px-0.5 flex items-center justify-center gap-0.5 text-[10px] transition-transform active:scale-95 cursor-pointer ${textColor}`}
-                                      >
-                                        {icon}
-                                        <span className="truncate">{rollup.label}</span>
-                                      </button>
-                                    </td>
-                                  );
-                                })}
                               </tr>
 
-                              {/* Collapsible Child Rows (Individual Compliance Items) */}
-                              {isExpanded &&
-                                group.items.map((item, iIdx) => {
-                                  const freq = item.frequency || 'Monthly';
-                                  const isLastChildOfLastGroup = gIdx === groupedHeatmapCategories.length - 1 && iIdx === group.items.length - 1;
+                              {/* Unique Categories in this Section */}
+                              {section.categories.map((group, gIdx) => {
+                                const catKey = `${section.id}___${group.category}`;
+                                const isExpanded = Boolean(expandedCategories[catKey]);
+                                const isLastGroupInSection = gIdx === section.categories.length - 1 && (!isExpanded || group.items.length === 0);
 
-                                  return (
-                                    <tr
-                                      key={item.id}
-                                      className="bg-white hover:bg-blue-50/30 transition-colors border-b border-slate-100 group"
-                                    >
-                                      {/* Sub-number */}
-                                      <td className="py-2 px-1 text-center sticky left-0 bg-white group-hover:bg-blue-50/30 z-10 font-mono text-[9px] text-slate-400 border-r border-slate-200/80">
-                                        {gIdx + 1}.{iIdx + 1}
+                                // Summarize frequency
+                                const uniqueFreqs = Array.from(new Set(group.items.map((it) => it.frequency || 'Monthly')));
+                                const summaryFreq = uniqueFreqs.length === 1 ? uniqueFreqs[0] : 'Multiple';
+
+                                return (
+                                  <React.Fragment key={catKey}>
+                                    {/* Parent Unique Category Row */}
+                                    <tr className="bg-slate-50/80 hover:bg-blue-50/40 transition-colors border-b border-slate-200/80 group">
+                                      {/* S.No */}
+                                      <td className="py-2.5 px-1 text-center sticky left-0 bg-slate-50 group-hover:bg-blue-50/40 z-10 font-bold text-[11px] text-slate-600 border-r border-slate-200/80">
+                                        {gIdx + 1}
                                       </td>
 
-                                      {/* Indented Compliance Nature */}
-                                      <td className="py-2 px-3 pl-6 sticky left-8 bg-white group-hover:bg-blue-50/30 z-10 border-r border-slate-200/80 font-medium text-slate-800 text-xs">
+                                      {/* Category Title with Expand/Collapse Icon & Count */}
+                                      <td
+                                        onClick={() => toggleCategory(catKey)}
+                                        className="py-2.5 px-3 sticky left-8 bg-slate-50 group-hover:bg-blue-50/40 z-10 border-r border-slate-200/80 cursor-pointer select-none"
+                                      >
                                         <div className="flex items-center gap-1.5">
-                                          <span className="text-slate-300 select-none text-[10px]">↳</span>
-                                          <span
-                                            className="hover:text-[#3170c6] transition-colors truncate max-w-[220px]"
-                                            title={item.compliance_nature}
+                                          <button
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              toggleCategory(catKey);
+                                            }}
+                                            className="p-1 rounded hover:bg-slate-200/80 text-slate-600 transition-colors cursor-pointer"
+                                            title={isExpanded ? 'Collapse category' : 'Expand category'}
                                           >
-                                            {item.compliance_nature}
+                                            {isExpanded ? (
+                                              <ChevronDown className="w-3.5 h-3.5 text-[#3170c6]" />
+                                            ) : (
+                                              <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                                            )}
+                                          </button>
+                                          <span className="font-extrabold text-slate-900 text-xs">
+                                            {group.category}
+                                          </span>
+                                          <span className="ml-1 inline-flex items-center justify-center min-w-[14px] h-3.5 px-1 rounded-full text-[8px] font-bold bg-slate-200/60 text-slate-500 border border-slate-300/40 leading-none">
+                                            {group.items.length}
                                           </span>
                                         </div>
                                       </td>
 
-                                      {/* Individual Frequency */}
-                                      <td className="py-2 px-1 text-center border-r border-slate-200/80 bg-white group-hover:bg-blue-50/30 font-medium text-slate-500 text-[10px]">
-                                        <span className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200/60 text-[9px]">
-                                          {freq}
-                                        </span>
+                                      {/* Frequency Summary */}
+                                      <td className="py-2 px-1 text-center border-r border-slate-200/80 bg-slate-50 group-hover:bg-blue-50/40 font-semibold text-slate-600 text-[10px]">
+                                        {summaryFreq}
                                       </td>
 
-                                      {/* Visible Month Cells for this specific item */}
+                                      {/* Rollup Month Cells */}
                                       {visibleHeatmapMonths.map((mObj, mIdx) => {
-                                        const cell = getCellComplianceState(item, mObj, selectedFyYear, company);
+                                        const rollup = getCategoryMonthRollupState(group.items, mObj, selectedFyYear, company);
                                         const mYear = selectedFyYear + mObj.yearOffset;
                                         const isCurrentCalMonth = currentCalendarMonth === mObj.month && currentCalendarYear === mYear;
                                         const nextMonthObj = visibleHeatmapMonths[mIdx + 1];
                                         const isNextMonthCurrent = nextMonthObj && (currentCalendarMonth === nextMonthObj.month && currentCalendarYear === (selectedFyYear + nextMonthObj.yearOffset));
 
                                         const colBorderClass = isCurrentCalMonth
-                                          ? isLastChildOfLastGroup
+                                          ? isLastGroupInSection && sIdx === groupedHeatmapSections.length - 1
                                             ? '!border-l !border-r !border-b !border-l-[#3170c6] !border-r-[#3170c6] !border-b-[#3170c6] relative z-10'
                                             : '!border-l !border-r !border-l-[#3170c6] !border-r-[#3170c6] border-b border-b-slate-200/80 relative z-10'
                                           : isNextMonthCurrent
                                           ? '!border-r !border-r-[#3170c6] border-b border-slate-200/80'
                                           : 'border-r border-b border-slate-200/80 last:border-r-0';
 
-                                        if (!cell.isApplicable || cell.status === 'NA') {
+                                        if (!rollup.isApplicable || rollup.status === 'NA') {
                                           return (
                                             <td
                                               key={mObj.month}
                                               className={`p-0 text-center ${isCurrentCalMonth ? 'bg-blue-50/20' : 'bg-slate-50/40'} text-slate-300 font-light select-none ${colBorderClass}`}
-                                              title={cell.tooltip}
+                                              title={rollup.tooltip}
                                             >
                                               <div className="w-full h-8 flex items-center justify-center text-[10px] font-light text-slate-300">
                                                 —
@@ -2731,23 +2705,19 @@ export default function CompanyComplianceWorkspace() {
 
                                         let cellBg = isCurrentCalMonth ? 'bg-slate-400 hover:bg-slate-500' : 'bg-slate-400 hover:bg-slate-500';
                                         let icon = <Clock className="w-2.5 h-2.5 text-white shrink-0" />;
-                                        let shortText = 'Pending';
                                         let textColor = 'text-white font-semibold';
 
-                                        if (cell.status === 'Completed') {
+                                        if (rollup.status === 'Completed') {
                                           cellBg = 'bg-emerald-600 hover:bg-emerald-700';
                                           icon = <CheckCircle2 className="w-2.5 h-2.5 text-white shrink-0" />;
-                                          shortText = cell.entry?.actual_payment_date ? 'Paid' : 'Done';
                                           textColor = 'text-white font-bold';
-                                        } else if (cell.status === 'In Progress') {
+                                        } else if (rollup.status === 'In Progress') {
                                           cellBg = 'bg-amber-500 hover:bg-amber-600';
                                           icon = <Clock className="w-2.5 h-2.5 text-slate-950 shrink-0" />;
-                                          shortText = 'In Prog';
                                           textColor = 'text-slate-950 font-bold';
-                                        } else if (cell.status === 'Overdue') {
+                                        } else if (rollup.status === 'Overdue') {
                                           cellBg = 'bg-rose-600 hover:bg-rose-700';
                                           icon = <AlertCircle className="w-2.5 h-2.5 text-white shrink-0" />;
-                                          shortText = 'Overdue';
                                           textColor = 'text-white font-bold';
                                         }
 
@@ -2759,23 +2729,142 @@ export default function CompanyComplianceWorkspace() {
                                             <button
                                               type="button"
                                               onClick={() => {
-                                                handleOpenEditDrawer(item, {
-                                                  targetMonth: cell.month,
-                                                  targetYear: cell.year,
-                                                });
+                                                if (group.items.length === 1) {
+                                                  handleOpenEditDrawer(group.items[0], {
+                                                    targetMonth: mObj.month,
+                                                    targetYear: mYear,
+                                                  });
+                                                } else {
+                                                  toggleCategory(catKey);
+                                                }
                                               }}
-                                              title={`${cell.tooltip}\n(Click to view / edit for ${mObj.name} ${cell.year})`}
+                                              title={`${group.category} (${mObj.name} ${mYear})\n${rollup.tooltip}\n(Click to ${group.items.length === 1 ? 'view/edit compliance' : 'expand child compliances'})`}
                                               className={`w-full h-8 px-0.5 flex items-center justify-center gap-0.5 text-[10px] transition-transform active:scale-95 cursor-pointer ${textColor}`}
                                             >
                                               {icon}
-                                              <span className="truncate">{shortText}</span>
+                                              <span className="truncate">{rollup.label}</span>
                                             </button>
                                           </td>
                                         );
                                       })}
                                     </tr>
-                                  );
-                                })}
+
+                                    {/* Collapsible Child Rows (Individual Compliance Items) */}
+                                    {isExpanded &&
+                                      group.items.map((item, iIdx) => {
+                                        const freq = item.frequency || 'Monthly';
+                                        const isLastChildOfLastGroup = sIdx === groupedHeatmapSections.length - 1 && gIdx === section.categories.length - 1 && iIdx === group.items.length - 1;
+
+                                        return (
+                                          <tr
+                                            key={item.id}
+                                            className="bg-white hover:bg-blue-50/30 transition-colors border-b border-slate-100 group"
+                                          >
+                                            {/* Sub-number */}
+                                            <td className="py-2 px-1 text-center sticky left-0 bg-white group-hover:bg-blue-50/30 z-10 font-mono text-[9px] text-slate-400 border-r border-slate-200/80">
+                                              {gIdx + 1}.{iIdx + 1}
+                                            </td>
+
+                                            {/* Indented Compliance Nature */}
+                                            <td className="py-2 px-3 pl-6 sticky left-8 bg-white group-hover:bg-blue-50/30 z-10 border-r border-slate-200/80 font-medium text-slate-800 text-xs">
+                                              <div className="flex items-center gap-1.5">
+                                                <span className="text-slate-300 select-none text-[10px]">↳</span>
+                                                <span
+                                                  className="hover:text-[#3170c6] transition-colors truncate max-w-[220px]"
+                                                  title={item.compliance_nature}
+                                                >
+                                                  {item.compliance_nature}
+                                                </span>
+                                              </div>
+                                            </td>
+
+                                            {/* Individual Frequency */}
+                                            <td className="py-2 px-1 text-center border-r border-slate-200/80 bg-white group-hover:bg-blue-50/30 font-medium text-slate-500 text-[10px]">
+                                              <span className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200/60 text-[9px]">
+                                                {freq}
+                                              </span>
+                                            </td>
+
+                                            {/* Visible Month Cells for this specific item */}
+                                            {visibleHeatmapMonths.map((mObj, mIdx) => {
+                                              const cell = getCellComplianceState(item, mObj, selectedFyYear, company);
+                                              const mYear = selectedFyYear + mObj.yearOffset;
+                                              const isCurrentCalMonth = currentCalendarMonth === mObj.month && currentCalendarYear === mYear;
+                                              const nextMonthObj = visibleHeatmapMonths[mIdx + 1];
+                                              const isNextMonthCurrent = nextMonthObj && (currentCalendarMonth === nextMonthObj.month && currentCalendarYear === (selectedFyYear + nextMonthObj.yearOffset));
+
+                                              const colBorderClass = isCurrentCalMonth
+                                                ? isLastChildOfLastGroup
+                                                  ? '!border-l !border-r !border-b !border-l-[#3170c6] !border-r-[#3170c6] !border-b-[#3170c6] relative z-10'
+                                                  : '!border-l !border-r !border-l-[#3170c6] !border-r-[#3170c6] border-b border-b-slate-200/80 relative z-10'
+                                                : isNextMonthCurrent
+                                                ? '!border-r !border-r-[#3170c6] border-b border-slate-200/80'
+                                                : 'border-r border-b border-slate-200/80 last:border-r-0';
+
+                                              if (!cell.isApplicable || cell.status === 'NA') {
+                                                return (
+                                                  <td
+                                                    key={mObj.month}
+                                                    className={`p-0 text-center ${isCurrentCalMonth ? 'bg-blue-50/20' : 'bg-slate-50/40'} text-slate-300 font-light select-none ${colBorderClass}`}
+                                                    title={cell.tooltip}
+                                                  >
+                                                    <div className="w-full h-8 flex items-center justify-center text-[10px] font-light text-slate-300">
+                                                      —
+                                                    </div>
+                                                  </td>
+                                                );
+                                              }
+
+                                              let cellBg = isCurrentCalMonth ? 'bg-slate-400 hover:bg-slate-500' : 'bg-slate-400 hover:bg-slate-500';
+                                              let icon = <Clock className="w-2.5 h-2.5 text-white shrink-0" />;
+                                              let shortText = 'Pending';
+                                              let textColor = 'text-white font-semibold';
+
+                                              if (cell.status === 'Completed') {
+                                                cellBg = 'bg-emerald-600 hover:bg-emerald-700';
+                                                icon = <CheckCircle2 className="w-2.5 h-2.5 text-white shrink-0" />;
+                                                shortText = cell.entry?.actual_payment_date ? 'Paid' : 'Done';
+                                                textColor = 'text-white font-bold';
+                                              } else if (cell.status === 'In Progress') {
+                                                cellBg = 'bg-amber-500 hover:bg-amber-600';
+                                                icon = <Clock className="w-2.5 h-2.5 text-slate-950 shrink-0" />;
+                                                shortText = 'In Prog';
+                                                textColor = 'text-slate-950 font-bold';
+                                              } else if (cell.status === 'Overdue') {
+                                                cellBg = 'bg-rose-600 hover:bg-rose-700';
+                                                icon = <AlertCircle className="w-2.5 h-2.5 text-white shrink-0" />;
+                                                shortText = 'Overdue';
+                                                textColor = 'text-white font-bold';
+                                              }
+
+                                              return (
+                                                <td
+                                                  key={mObj.month}
+                                                  className={`p-0 text-center transition-colors ${colBorderClass} ${cellBg}`}
+                                                >
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                      handleOpenEditDrawer(item, {
+                                                        targetMonth: cell.month,
+                                                        targetYear: cell.year,
+                                                      });
+                                                    }}
+                                                    title={`${cell.tooltip}\n(Click to view / edit for ${mObj.name} ${cell.year})`}
+                                                    className={`w-full h-8 px-0.5 flex items-center justify-center gap-0.5 text-[10px] transition-transform active:scale-95 cursor-pointer ${textColor}`}
+                                                  >
+                                                    {icon}
+                                                    <span className="truncate">{shortText}</span>
+                                                  </button>
+                                                </td>
+                                              );
+                                            })}
+                                          </tr>
+                                        );
+                                      })}
+                                  </React.Fragment>
+                                );
+                              })}
                             </React.Fragment>
                           );
                         })
@@ -2981,7 +3070,7 @@ export default function CompanyComplianceWorkspace() {
                         {filteredItems.length === 0 ? (
                           <tr>
                             <td colSpan={10} className="py-12 text-center text-slate-400">
-                              No compliance items recorded yet. Click "Add Row" above to add your first compliance item.
+                              No compliance items recorded yet. Click &quot;Add Row&quot; above to add your first compliance item.
                             </td>
                           </tr>
                         ) : (
@@ -3523,7 +3612,7 @@ export default function CompanyComplianceWorkspace() {
                     </div>
                     <p className="text-sm font-bold text-slate-700">No email records found yet</p>
                     <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                      Click "Email Calendar to Client" to dispatch the statutory compliance summary for {activePeriodFull}.
+                      Click &quot;Email Calendar to Client&quot; to dispatch the statutory compliance summary for {activePeriodFull}.
                     </p>
                   </div>
                 ) : (
@@ -5051,7 +5140,7 @@ export default function CompanyComplianceWorkspace() {
                       
                       {persons.length === 0 ? (
                         <div className="text-xs text-amber-700 bg-amber-50 p-3 rounded-xl border border-amber-200">
-                          No team members registered yet in "Company People". You can type recipient email below.
+                          No team members registered yet in &quot;Company People&quot;. You can type recipient email below.
                         </div>
                       ) : (
                         <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
@@ -5195,7 +5284,7 @@ export default function CompanyComplianceWorkspace() {
                           >
                             {availableFyYears.map((yr) => (
                               <option key={yr} value={yr}>
-                                FY {yr}–{String(yr + 1).slice(-2)} (Apr'{String(yr).slice(-2)} – Mar'{String(yr + 1).slice(-2)})
+                                FY {yr}–{String(yr + 1).slice(-2)} (Apr&apos;{String(yr).slice(-2)} – Mar&apos;{String(yr + 1).slice(-2)})
                               </option>
                             ))}
                           </select>
@@ -5267,7 +5356,7 @@ export default function CompanyComplianceWorkspace() {
                           <span>Pre-Onboarding Period Selected</span>
                         </div>
                         <p className="text-[11px] text-amber-700">
-                          You are viewing <strong>{activePeriodFull}</strong>, which is before the company's onboarding date (<strong>{companyInception?.fullLabel}</strong>). Switch to an active tracking period to dispatch reports.
+                          You are viewing <strong>{activePeriodFull}</strong>, which is before the company&apos;s onboarding date (<strong>{companyInception?.fullLabel}</strong>). Switch to an active tracking period to dispatch reports.
                         </p>
                       </div>
                     )}

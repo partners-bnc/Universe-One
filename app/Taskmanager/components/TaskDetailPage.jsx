@@ -261,8 +261,20 @@ const TASK_SECTION_TABS = [
   { id: 'list', label: 'List', icon: List },
   { id: 'board', label: 'Board', icon: LayoutGrid },
   { id: 'calendar', label: 'Calendar', icon: CalendarDays },
+  { id: 'time_log', label: 'Time Log', icon: Clock3 },
   { id: 'team', label: 'Team', icon: Users },
 ];
+
+const formatLoggedHours = (totalHours) => {
+  const num = Number(totalHours || 0);
+  if (!num || isNaN(num) || num <= 0) return '0 hrs 0 mins';
+  const hours = Math.floor(num);
+  const minutes = Math.round((num - hours) * 60);
+  if (hours === 0 && minutes === 0) return '0 hrs 0 mins';
+  if (hours === 0) return `${minutes} mins`;
+  if (minutes === 0) return `${hours} hrs`;
+  return `${hours} hrs ${minutes} mins`;
+};
 
 const SUBTASK_STATUS_ORDER = ['to_do', 'in_progress', 'completed'];
 
@@ -771,6 +783,9 @@ function TaskDetailPageInner({ taskId, mode = 'employee' }) {
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [reviewRatingsDraft, setReviewRatingsDraft] = useState({});
   const [reviewHoverRatings, setReviewHoverRatings] = useState({});
+  const [timeLogs, setTimeLogs] = useState([]);
+  const [totalLoggedHours, setTotalLoggedHours] = useState(0);
+  const [employeeTimeSummary, setEmployeeTimeSummary] = useState([]);
   const [pendingSubtaskCommentIds, setPendingSubtaskCommentIds] = useState([]);
   const [pendingInstructionIds, setPendingInstructionIds] = useState([]);
   const [activeTaskSection, setActiveTaskSection] = useState('list');
@@ -1127,6 +1142,9 @@ function TaskDetailPageInner({ taskId, mode = 'employee' }) {
       setReviewAssignees(fetchedReviewAssignees);
       setReviewRatingsDraft(nextReviewDraft);
       setReviewHoverRatings({});
+      setTimeLogs(Array.isArray(taskJson.timeLogs) ? taskJson.timeLogs : []);
+      setTotalLoggedHours(Number(taskJson.totalLoggedHours || 0));
+      setEmployeeTimeSummary(Array.isArray(taskJson.employeeTimeSummary) ? taskJson.employeeTimeSummary : []);
       setSubtaskCommentDrafts({});
       setSubtaskInstructionDrafts({});
       setEditForm({
@@ -4243,6 +4261,156 @@ function TaskDetailPageInner({ taskId, mode = 'employee' }) {
                         </div>
                       </div>
                     </div>
+                  </div>
+                </section>
+                <section id='task-timelog-tab' className={`space-y-6${activeTaskSection !== 'time_log' ? ' hidden' : ''}`}>
+                  {/* Summary Metric Cards */}
+                  <div className='grid grid-cols-1 sm:grid-cols-3 gap-4'>
+                    <div className='rounded-[24px] border border-slate-200 bg-white p-5 shadow-xs flex items-center gap-4'>
+                      <div className='flex h-12 w-12 items-center justify-center rounded-2xl bg-[#edf4fc] text-[#3170c5] shadow-xs'>
+                        <Clock3 size={24} />
+                      </div>
+                      <div>
+                        <p className='text-xs font-semibold uppercase tracking-wider text-slate-400'>Total Logged Time</p>
+                        <p className='text-xl font-bold text-slate-900 mt-0.5'>{formatLoggedHours(totalLoggedHours)}</p>
+                      </div>
+                    </div>
+
+                    <div className='rounded-[24px] border border-slate-200 bg-white p-5 shadow-xs flex items-center gap-4'>
+                      <div className='flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 shadow-xs'>
+                        <Users size={24} />
+                      </div>
+                      <div>
+                        <p className='text-xs font-semibold uppercase tracking-wider text-slate-400'>Contributors</p>
+                        <p className='text-xl font-bold text-slate-900 mt-0.5'>{employeeTimeSummary.length} {employeeTimeSummary.length === 1 ? 'Member' : 'Members'}</p>
+                      </div>
+                    </div>
+
+                    <div className='rounded-[24px] border border-slate-200 bg-white p-5 shadow-xs flex items-center gap-4'>
+                      <div className='flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 shadow-xs'>
+                        <FileText size={24} />
+                      </div>
+                      <div>
+                        <p className='text-xs font-semibold uppercase tracking-wider text-slate-400'>Log Entries</p>
+                        <p className='text-xl font-bold text-slate-900 mt-0.5'>{timeLogs.length} {timeLogs.length === 1 ? 'Entry' : 'Entries'}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 2-Panel Content: Contributors Breakdown + Daily Log History Table */}
+                  <div className='grid grid-cols-1 lg:grid-cols-[35%_65%] gap-6 items-start'>
+                    {/* Contributor Breakdown */}
+                    <section className='rounded-[28px] border border-slate-200 bg-white px-5 py-5 shadow-sm h-fit'>
+                      <div className='mb-4 flex items-center justify-between gap-3'>
+                        <div>
+                          <h3 className='text-sm font-semibold uppercase tracking-[0.18em] text-slate-500'>Contributors</h3>
+                          <p className='mt-1 text-xs text-slate-400'>Hours breakdown per team member.</p>
+                        </div>
+                        <span className='rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500'>
+                          {employeeTimeSummary.length} active
+                        </span>
+                      </div>
+
+                      {employeeTimeSummary.length === 0 ? (
+                        <div className='py-8 text-center text-slate-400 text-xs border border-dashed border-slate-200 rounded-2xl'>
+                          No time logged by team members yet.
+                        </div>
+                      ) : (
+                        <div className='space-y-3'>
+                          {employeeTimeSummary.map((item) => (
+                            <div key={item.employeeId} className='rounded-2xl border border-slate-200 bg-slate-50/50 p-3.5 transition hover:bg-slate-50'>
+                              <div className='flex items-center justify-between gap-2 mb-2'>
+                                <div className='flex items-center gap-2.5 min-w-0'>
+                                  <Avatar name={item.employee?.name} src={item.employee?.profile_picture_url} size='h-9 w-9' />
+                                  <div className='min-w-0'>
+                                    <p className='truncate text-xs font-bold text-slate-800'>{item.employee?.name || 'Unknown'}</p>
+                                    <p className='truncate text-[10px] text-slate-400'>{item.employee?.role || item.employee?.email || ''}</p>
+                                  </div>
+                                </div>
+                                <div className='text-right shrink-0'>
+                                  <p className='text-xs font-bold text-[#3170c5]'>{item.totalHours} hrs</p>
+                                  <p className='text-[10px] text-slate-400'>{item.logCount} {item.logCount === 1 ? 'log' : 'logs'}</p>
+                                </div>
+                              </div>
+                              {/* Progress bar */}
+                              <div className='w-full bg-slate-200 h-1.5 rounded-full overflow-hidden'>
+                                <div
+                                  className='bg-[#3170c5] h-full rounded-full transition-all duration-300'
+                                  style={{ width: `${Math.max(4, Math.min(100, item.percentage))}%` }}
+                                />
+                              </div>
+                              <div className='mt-1.5 flex justify-between text-[10px] text-slate-400 font-medium'>
+                                <span>{item.percentage}% of total time</span>
+                                <span>Latest: {item.lastLogDate || '—'}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </section>
+
+                    {/* Chronological Daily Work Logs */}
+                    <section className='w-full rounded-[28px] border border-slate-200 bg-white px-5 py-5 shadow-sm'>
+                      <div className='mb-4 flex items-center justify-between gap-3'>
+                        <div>
+                          <h3 className='text-sm font-semibold uppercase tracking-[0.18em] text-slate-500'>Daily Work Log History</h3>
+                          <p className='mt-1 text-xs text-slate-400'>All daily entries recorded for this task.</p>
+                        </div>
+                        <span className='rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500'>
+                          {timeLogs.length} entries
+                        </span>
+                      </div>
+
+                      {timeLogs.length === 0 ? (
+                        <div className='py-12 text-center text-slate-400 text-xs border border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center gap-2'>
+                          <Clock3 size={32} className='text-slate-300' />
+                          <p className='font-semibold text-slate-600'>No work logs recorded yet</p>
+                          <p className='text-[11px] text-slate-400 max-w-xs'>
+                            When employees select this task during checkout or daily log entry, their logged hours and remarks will appear here.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className='overflow-x-auto rounded-2xl border border-slate-200/80 shadow-2xs'>
+                          <table className='w-full text-left text-xs min-w-[500px]'>
+                            <thead className='bg-slate-50 border-b border-slate-200 text-slate-500 text-[10px] uppercase tracking-wider font-bold'>
+                              <tr>
+                                <th className='py-2.5 px-3 w-[22%]'>Date</th>
+                                <th className='py-2.5 px-3 w-[28%]'>Employee</th>
+                                <th className='py-2.5 px-3 w-[15%]'>Hours</th>
+                                <th className='py-2.5 px-3'>Accomplishments / Remarks</th>
+                              </tr>
+                            </thead>
+                            <tbody className='divide-y divide-slate-100'>
+                              {timeLogs.map((log) => (
+                                <tr key={log.id} className='hover:bg-slate-50/70 transition-colors'>
+                                  <td className='py-2.5 px-3 font-semibold text-slate-700 whitespace-nowrap'>
+                                    <div className='flex items-center gap-1.5'>
+                                      <CalendarDays size={13} className='text-slate-400' />
+                                      <span>{log.log_date}</span>
+                                    </div>
+                                  </td>
+                                  <td className='py-2.5 px-3'>
+                                    <div className='flex items-center gap-2 min-w-0'>
+                                      <Avatar name={log.employee?.name} src={log.employee?.profile_picture_url} size='h-6 w-6' />
+                                      <span className='truncate font-medium text-slate-800'>{log.employee?.name || 'Unknown'}</span>
+                                    </div>
+                                  </td>
+                                  <td className='py-2.5 px-3 whitespace-nowrap'>
+                                    <span className='inline-flex items-center gap-1 rounded-md bg-[#edf4fc] px-2 py-0.5 font-bold text-[#3170c5]'>
+                                      <Clock3 size={11} />
+                                      {log.hours_spent}h
+                                    </span>
+                                  </td>
+                                  <td className='py-2.5 px-3 text-slate-600'>
+                                    <p className='line-clamp-2'>{log.remarks || <span className='text-slate-300 italic'>No remarks</span>}</p>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </section>
                   </div>
                 </section>
                 <section id='task-team-tab' className={`grid grid-cols-1 lg:grid-cols-[35%_65%] gap-6${activeTaskSection !== 'team' ? ' hidden' : ''}`}>

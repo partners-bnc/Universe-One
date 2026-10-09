@@ -29,6 +29,7 @@ import {
   Paperclip, 
   SlidersHorizontal,
   ChevronUp,
+  ChevronLeft,
   LayoutGrid,
   CheckCircle2,
   AlertTriangle,
@@ -251,43 +252,28 @@ export default function ManageTasks({ onNavigate }) {
   };
 
   // Tracking Time Calculator logic:
-  // Calculates hours between assignment (createdAt) and completion (completedAt/updatedAt) or current time (if pending)
+  // Uses total logged hours submitted by employees in their Daily Work Logs
   const getCalculatedTrackingTimeMs = (task) => {
-    const start = task.createdAt ? new Date(task.createdAt) : new Date();
-    if (isNaN(start.getTime())) return 0;
-
-    const isCompleted = task.status === 'Completed' || task.rawStatus === 'completed';
-    let end;
-    if (isCompleted) {
-      if (task.completedAt) {
-        end = new Date(task.completedAt);
-      } else if (task.updatedAt) {
-        end = new Date(task.updatedAt);
-      } else {
-        end = start;
-      }
-    } else {
-      end = new Date();
-    }
-
-    if (isNaN(end.getTime())) {
-      end = new Date();
-    }
-
-    return Math.max(0, end.getTime() - start.getTime());
+    const totalHours = Number(task.total_logged_hours ?? task.totalLoggedHours ?? 0);
+    return Math.max(0, totalHours * 3600 * 1000);
   };
 
   const getCalculatedTrackingTime = (task) => {
-    const totalMs = getCalculatedTrackingTimeMs(task);
-    const diffHrs = totalMs / (1000 * 60 * 60);
-    const hours = Math.floor(diffHrs);
-    const minutes = Math.floor((diffHrs - hours) * 60);
+    const totalHours = Number(task.total_logged_hours ?? task.totalLoggedHours ?? 0);
+    if (!totalHours || isNaN(totalHours) || totalHours <= 0) {
+      return '0 hrs 0 mins';
+    }
+    const hours = Math.floor(totalHours);
+    const minutes = Math.round((totalHours - hours) * 60);
     
     if (hours === 0 && minutes === 0) {
-      return '0 mins';
+      return '0 hrs 0 mins';
     }
     if (hours === 0) {
       return `${minutes} mins`;
+    }
+    if (minutes === 0) {
+      return `${hours} hrs`;
     }
     return `${hours} hrs ${minutes} mins`;
   };
@@ -472,75 +458,199 @@ export default function ManageTasks({ onNavigate }) {
     setSortBy(prev => (prev === key ? 'dueDate' : key));
   };
 
-  const getGanttTargetMonth = () => {
-    const counts = {};
-    let maxMonth = 'May';
-    let maxCount = 0;
-    for (const t of displayTasks) {
-      if (t.startDate) {
-        const parts = t.startDate.split(' ');
-        if (parts.length >= 2) {
-          const m = parts[1];
-          counts[m] = (counts[m] || 0) + 1;
-          if (counts[m] > maxCount) {
-            maxCount = counts[m];
-            maxMonth = m;
-          }
-        }
+  const ganttScrollRef = useRef(null);
+
+  const parseTaskDate = (dateVal) => {
+    if (!dateVal) return null;
+    if (dateVal instanceof Date) return isNaN(dateVal.getTime()) ? null : dateVal;
+    const directDate = new Date(dateVal);
+    if (!isNaN(directDate.getTime())) return directDate;
+
+    const clean = String(dateVal).split(',')[0].trim();
+    const parts = clean.split(' ');
+    if (parts.length >= 3) {
+      const day = parseInt(parts[0], 10);
+      const monthStr = parts[1];
+      const year = parseInt(parts[2], 10);
+      const monthNames = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+      const monthIdx = monthNames.findIndex((m) => monthStr.toLowerCase().startsWith(m));
+      if (!isNaN(day) && monthIdx !== -1 && !isNaN(year)) {
+        return new Date(year, monthIdx, day);
       }
     }
-    return maxMonth;
+    return null;
   };
 
-  const ganttTargetMonth = getGanttTargetMonth();
+  // Build continuous multi-month Gantt timeline
+  const ganttTimelineData = useMemo(() => {
+    const DAY_WIDTH = 42; // width of each day column in px
+    const now = new Date();
+    let minDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    let maxDate = new Date(now.getFullYear(), now.getMonth() + 3, 0);
 
-  const getGanttPlacement = (t) => {
-    let startDay = 1;
-    let endDay = 1;
+    // Find earliest and latest date among tasks
+    displayTasks.forEach((t) => {
+      const start = parseTaskDate(t.createdAt || t.startDate);
+      const end = parseTaskDate(t.dueDate);
+      if (start && start < minDate) minDate = new Date(start.getFullYear(), start.getMonth(), 1);
+      if (end && end > maxDate) maxDate = new Date(end.getFullYear(), end.getMonth() + 1, 0);
+    });
 
-    const parseDateToDay = (dateStr) => {
-      if (!dateStr) return null;
-      const parts = dateStr.split(' ');
-      if (parts.length < 2) return null;
-      const day = parseInt(parts[0], 10);
-      const month = parts[1];
-      if (isNaN(day)) return null;
+    const startYear = minDate.getFullYear();
+    const startMonth = minDate.getMonth();
+    const timelineStart = new Date(startYear, startMonth, 1);
 
-      if (month.toLowerCase() !== ganttTargetMonth.toLowerCase()) {
-        return month.toLowerCase() === 'apr' ? 1 : 30;
+    const endYear = maxDate.getFullYear();
+    const endMonth = maxDate.getMonth();
+    const timelineEnd = new Date(endYear, endMonth + 1, 0);
+
+    const months = [];
+    const allDays = [];
+    let cur = new Date(timelineStart);
+
+    while (cur <= timelineEnd) {
+      const y = cur.getFullYear();
+      const m = cur.getMonth();
+      const monthName = cur.toLocaleString('default', { month: 'short', year: 'numeric' });
+      const daysInThisMonth = new Date(y, m + 1, 0).getDate();
+      const monthStartIndex = allDays.length;
+
+      const monthDays = [];
+      for (let d = 1; d <= daysInThisMonth; d++) {
+        const dayDate = new Date(y, m, d);
+        const dayName = dayDate.toLocaleDateString('en-US', { weekday: 'narrow' });
+        const isToday = dayDate.toDateString() === now.toDateString();
+        const isWeekend = dayDate.getDay() === 0 || dayDate.getDay() === 6;
+        const dayObj = {
+          date: dayDate,
+          dayNum: d,
+          dayName,
+          isToday,
+          isWeekend,
+          index: allDays.length,
+        };
+        monthDays.push(dayObj);
+        allDays.push(dayObj);
       }
-      return day;
-    };
 
-    const parsedStart = parseDateToDay(t.startDate);
-    const parsedEnd = parseDateToDay(t.dueDate);
+      months.push({
+        name: monthName,
+        year: y,
+        month: m,
+        daysCount: daysInThisMonth,
+        startIndex: monthStartIndex,
+        days: monthDays,
+      });
 
-    if (parsedStart !== null) {
-      startDay = parsedStart;
-    } else {
-      startDay = ((t.id || 0) % 15) + 1;
+      cur = new Date(y, m + 1, 1);
     }
 
-    if (parsedEnd !== null) {
-      endDay = parsedEnd;
-    } else {
-      endDay = Math.min(30, startDay + 1);
-    }
+    const totalDays = allDays.length;
+    const totalWidth = totalDays * DAY_WIDTH;
 
-    if (startDay > endDay) {
-      const temp = startDay;
-      startDay = endDay;
-      endDay = temp;
-    }
+    // Precalculate placement for each task
+    const taskPlacements = displayTasks.map((t) => {
+      let start = parseTaskDate(t.createdAt || t.startDate);
+      let end = parseTaskDate(t.dueDate);
 
-    const daysSpan = Math.max(1, (endDay - startDay) + 1);
-    const marginLeftPercent = ((startDay - 1) / 30) * 100;
-    const widthPercent = (daysSpan / 30) * 100;
+      if (!start) start = now;
+      if (!end) end = new Date(start.getTime() + 7 * 24 * 3600 * 1000);
+      if (end < start) end = start;
+
+      const diffStartMs = start.getTime() - timelineStart.getTime();
+      const startDayIndex = Math.max(0, Math.floor(diffStartMs / (1000 * 60 * 60 * 24)));
+
+      const diffEndMs = end.getTime() - timelineStart.getTime();
+      const endDayIndex = Math.max(startDayIndex, Math.floor(diffEndMs / (1000 * 60 * 60 * 24)));
+
+      const spanDays = Math.max(1, (endDayIndex - startDayIndex) + 1);
+
+      const leftPx = startDayIndex * DAY_WIDTH;
+      const widthPx = Math.max(DAY_WIDTH, spanDays * DAY_WIDTH);
+
+      return {
+        taskId: t.id,
+        leftPx,
+        widthPx,
+        startFormatted: start.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+        endFormatted: end.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+      };
+    });
+
+    const placementsMap = new Map(taskPlacements.map((p) => [p.taskId, p]));
+
+    const todayIndex = allDays.findIndex((d) => d.isToday);
+    const todayLeftPx = todayIndex !== -1 ? todayIndex * DAY_WIDTH + (DAY_WIDTH / 2) : null;
 
     return {
-      marginLeft: `${marginLeftPercent}%`,
-      width: `${Math.max(15, widthPercent)}%`
+      DAY_WIDTH,
+      months,
+      allDays,
+      totalDays,
+      totalWidth,
+      placementsMap,
+      todayLeftPx,
+      timelineStart,
+      timelineEnd,
     };
+  }, [displayTasks]);
+
+  const [selectedGanttMonthIndex, setSelectedGanttMonthIndex] = useState(0);
+
+  // Sync selected month index with current month or timeline updates
+  useEffect(() => {
+    if (ganttTimelineData.months && ganttTimelineData.months.length > 0) {
+      const now = new Date();
+      const currentMonthIndex = ganttTimelineData.months.findIndex(
+        (m) => m.year === now.getFullYear() && m.month === now.getMonth()
+      );
+      if (currentMonthIndex !== -1) {
+        setSelectedGanttMonthIndex(currentMonthIndex);
+      }
+    }
+  }, [ganttTimelineData.months]);
+
+  const handleSelectGanttMonth = (startIndex, idx) => {
+    setSelectedGanttMonthIndex(idx);
+    if (ganttScrollRef.current) {
+      ganttScrollRef.current.scrollTo({
+        left: startIndex * ganttTimelineData.DAY_WIDTH,
+        behavior: 'smooth',
+      });
+    }
+  };
+
+  const stepGanttMonth = (direction) => {
+    const nextIdx = Math.max(0, Math.min(ganttTimelineData.months.length - 1, selectedGanttMonthIndex + direction));
+    const targetMonth = ganttTimelineData.months[nextIdx];
+    if (targetMonth) {
+      handleSelectGanttMonth(targetMonth.startIndex, nextIdx);
+    }
+  };
+
+  const scrollToToday = () => {
+    if (ganttScrollRef.current && ganttTimelineData.todayLeftPx !== null) {
+      ganttScrollRef.current.scrollTo({
+        left: Math.max(0, ganttTimelineData.todayLeftPx - 150),
+        behavior: 'smooth',
+      });
+      const now = new Date();
+      const currentMonthIndex = ganttTimelineData.months.findIndex(
+        (m) => m.year === now.getFullYear() && m.month === now.getMonth()
+      );
+      if (currentMonthIndex !== -1) {
+        setSelectedGanttMonthIndex(currentMonthIndex);
+      }
+    }
+  };
+
+  const scrollGanttBy = (offsetPx) => {
+    if (ganttScrollRef.current) {
+      ganttScrollRef.current.scrollBy({
+        left: offsetPx,
+        behavior: 'smooth',
+      });
+    }
   };
 
   return (
@@ -1144,64 +1254,246 @@ export default function ManageTasks({ onNavigate }) {
 
       {/* 2. GANTT TIMELINE VIEW */}
       {activeView === 'gantt' && (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 overflow-hidden">
-          <div className="flex justify-between items-center mb-4 border-b pb-3">
-            <h3 className="font-semibold text-slate-900 text-base flex items-center gap-2">
-              <Layers size={16} className="text-[#3170c5]" />
-              <span>Project Gantt Timeline</span>
-            </h3>
-            <span className="text-xs text-slate-400 font-semibold uppercase">{ganttTargetMonth.toUpperCase()} 2026</span>
-          </div>
-
-          <div className="flex flex-col md:flex-row min-w-[700px] border border-slate-100 rounded-xl overflow-hidden">
-            {/* Task list pane (left) */}
-            <div className="w-1/3 bg-slate-50/50 border-r border-slate-200">
-              <div className="p-3 border-b border-slate-200 text-xs font-bold text-slate-400 uppercase tracking-wider">
-                Task / Project
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 overflow-hidden">
+          {/* Header Controls & Month Nav */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-4 border-b border-slate-200">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-[#edf4fc] flex items-center justify-center text-[#3170c5]">
+                <Layers size={18} />
               </div>
-              <div className="divide-y divide-slate-100">
-                {displayTasks.map(t => (
-                  <div key={t.id} className="p-3.5 text-[14px] font-medium text-slate-900 truncate hover:bg-slate-50 cursor-pointer hover:text-[#3170c5] hover:underline" onClick={() => openTaskDetail(t.id)}>
-                    {t.title}
-                  </div>
-                ))}
-                {displayTasks.length === 0 && <div className="p-6 text-center text-xs text-slate-400">No tasks</div>}
+              <div>
+                <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+                  <span>Project Gantt Timeline</span>
+                  <span className="text-xs font-semibold text-slate-500 bg-slate-100 border border-slate-200 px-2.5 py-0.5 rounded-full">
+                    {displayTasks.length} {displayTasks.length === 1 ? 'task' : 'tasks'}
+                  </span>
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Scroll horizontally to navigate across all project timelines and months.
+                </p>
               </div>
             </div>
 
-            {/* Timeline Bar Pane (right) */}
-            <div className="w-2/3 overflow-x-auto">
-              <div className="flex border-b border-slate-200 bg-slate-50/25 divide-x divide-slate-100">
-                {Array.from({ length: 15 }).map((_, i) => (
-                  <div key={i} className="flex-1 min-w-[40px] text-center p-3 text-[10px] font-bold text-slate-400">
-                    Day {i * 2 + 1}
-                  </div>
-                ))}
+            {/* Month Select Dropdown & Stepper Navigation */}
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Stepper controls */}
+              <div className="flex items-center border border-slate-200 rounded-xl overflow-hidden bg-slate-50/70 p-0.5 shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => stepGanttMonth(-1)}
+                  className="p-1.5 hover:bg-white text-slate-600 rounded-lg transition"
+                  title="Previous Month"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={scrollToToday}
+                  className="px-2.5 py-1 text-xs font-bold text-[#3170c5] hover:bg-white rounded-lg transition flex items-center gap-1"
+                  title="Jump to Today"
+                >
+                  <Clock size={13} />
+                  <span>Today</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => stepGanttMonth(1)}
+                  className="p-1.5 hover:bg-white text-slate-600 rounded-lg transition"
+                  title="Next Month"
+                >
+                  <ChevronRight size={16} />
+                </button>
               </div>
 
-              <div className="divide-y divide-slate-100 relative">
+              {/* Month Dropdown Selector */}
+              {ganttTimelineData.months.length > 0 && (
+                <div className="relative">
+                  <select
+                    value={selectedGanttMonthIndex}
+                    onChange={(e) => {
+                      const idx = Number(e.target.value);
+                      const targetMonth = ganttTimelineData.months[idx];
+                      if (targetMonth) {
+                        handleSelectGanttMonth(targetMonth.startIndex, idx);
+                      }
+                    }}
+                    className="h-8.5 pl-3 pr-8 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl shadow-2xs hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#3170c5]/20 focus:border-[#3170c5] cursor-pointer appearance-none"
+                  >
+                    {ganttTimelineData.months.map((m, idx) => (
+                      <option key={`${m.year}-${m.month}`} value={idx}>
+                        {m.name} ({m.daysCount} days)
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Continuous Multi-Month Timeline Container */}
+          <div
+            ref={ganttScrollRef}
+            className="overflow-auto border border-slate-200 rounded-2xl relative max-h-[70vh] bg-white scrollbar-thin [scrollbar-color:#94a3b8_#f1f5f9] [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-slate-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300 hover:[&::-webkit-scrollbar-thumb]:bg-slate-400"
+          >
+            <div
+              className="relative"
+              style={{ minWidth: `${340 + ganttTimelineData.totalWidth}px` }}
+            >
+              {/* TOP HEADER: Unified sticky top-0 across entire grid */}
+              <div className="sticky top-0 z-30 flex bg-slate-50 border-b border-slate-200 h-[72px]">
+                {/* Top-Left Corner Box: Sticky top-0 left-0 (both horizontal & vertical) */}
+                <div className="w-[340px] shrink-0 sticky left-0 z-40 bg-slate-100 border-r border-slate-200 px-4 flex items-center justify-between shadow-[2px_0_6px_rgba(0,0,0,0.04)]">
+                  <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                    Task / Project
+                  </span>
+                  <span className="text-[10px] font-semibold text-slate-500 bg-white border border-slate-200 px-2 py-0.5 rounded-md">
+                    {displayTasks.length} {displayTasks.length === 1 ? 'task' : 'tasks'}
+                  </span>
+                </div>
+
+                {/* Right Date Headers Container */}
+                <div
+                  className="flex flex-col"
+                  style={{ width: `${ganttTimelineData.totalWidth}px` }}
+                >
+                  {/* Month Headers (Row 1) */}
+                  <div className="h-[38px] flex border-b border-slate-200 divide-x divide-slate-200 bg-slate-50">
+                    {ganttTimelineData.months.map((m) => (
+                      <div
+                        key={`${m.year}-${m.month}`}
+                        style={{ width: `${m.daysCount * ganttTimelineData.DAY_WIDTH}px` }}
+                        className="shrink-0 flex items-center justify-center font-bold text-xs text-slate-700 uppercase tracking-wider bg-slate-50/95"
+                      >
+                        {m.name}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Day Numbers & Weekdays (Row 2) */}
+                  <div className="h-[34px] flex divide-x divide-slate-100 bg-slate-50/70">
+                    {ganttTimelineData.allDays.map((d) => (
+                      <div
+                        key={d.index}
+                        style={{ width: `${ganttTimelineData.DAY_WIDTH}px` }}
+                        className={`shrink-0 flex flex-col items-center justify-center text-[10px] leading-tight ${
+                          d.isToday
+                            ? 'bg-[#edf4fc] font-bold text-[#3170c5]'
+                            : d.isWeekend
+                            ? 'bg-slate-100/60 text-slate-400'
+                            : 'text-slate-500'
+                        }`}
+                        title={d.date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
+                      >
+                        <span className="font-bold text-[11px]">{d.dayNum}</span>
+                        <span className="text-[8px] uppercase opacity-75">{d.dayName}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Today Vertical Line Indicator across all rows */}
+              {ganttTimelineData.todayLeftPx !== null && (
+                <div
+                  style={{ left: `${340 + ganttTimelineData.todayLeftPx}px` }}
+                  className="absolute top-[72px] bottom-0 w-0.5 bg-rose-500 z-25 pointer-events-none"
+                >
+                  <span className="absolute -top-3 -left-3.5 px-1.5 py-0.5 bg-rose-500 text-white rounded text-[9px] font-bold shadow-xs">
+                    Today
+                  </span>
+                </div>
+              )}
+
+              {/* Task Rows: unified flex rows ensuring 1-to-1 vertical sync */}
+              <div className="divide-y divide-slate-100 relative bg-white">
                 {displayTasks.map((t) => {
-                  const placement = getGanttPlacement(t);
+                  const placement = ganttTimelineData.placementsMap.get(t.id);
                   const barColor = getProgressColor(t.status);
+                  const assignee = getUserById(t.assignees[0]);
 
                   return (
-                    <div key={t.id} className="h-[49px] flex items-center px-4 relative">
-                      <div 
-                        style={{ 
-                          marginLeft: placement.marginLeft, 
-                          width: placement.width,
-                          backgroundColor: barColor 
-                        }}
-                        title={`${t.title} (${t.status})`}
-                        className="h-6 rounded-lg text-[10px] font-bold text-white px-2.5 flex items-center justify-between shadow-sm cursor-pointer hover:brightness-95 transition-all truncate"
+                    <div
+                      key={t.id}
+                      className="flex h-[52px] group hover:bg-slate-50/60 transition-colors relative"
+                    >
+                      {/* Left Column: Pinned Sticky Task Title */}
+                      <div
+                        className="w-[340px] shrink-0 sticky left-0 z-20 bg-white group-hover:bg-slate-50 border-r border-slate-200 px-3.5 flex items-center justify-between gap-2.5 cursor-pointer shadow-[2px_0_6px_rgba(0,0,0,0.04)]"
                         onClick={() => openTaskDetail(t.id)}
+                        title={t.title}
                       >
-                        <span className="truncate mr-1.5">{t.startDate?.split(',')[0]} - {t.dueDate?.split(',')[0]}</span>
-                        <span className="shrink-0 font-bold opacity-95">| {t.progressPercentage ?? 0}%</span>
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span
+                            className="w-2.5 h-2.5 rounded-full shrink-0"
+                            style={{ backgroundColor: barColor }}
+                          />
+                          <span className="text-xs font-semibold text-slate-800 truncate group-hover:text-[#3170c5] transition-colors">
+                            {t.title}
+                          </span>
+                        </div>
+                        {assignee && (
+                          <div
+                            className="shrink-0 w-6 h-6 rounded-full overflow-hidden bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-700"
+                            title={assignee.name}
+                          >
+                            {assignee.avatar ? (
+                              <Image src={assignee.avatar} width={24} height={24} alt={assignee.name} className="w-full h-full object-cover" unoptimized />
+                            ) : (
+                              assignee.name.charAt(0).toUpperCase()
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Right Column: Timeline Row Grid & Task Bar */}
+                      <div
+                        className="relative h-full flex-1"
+                        style={{ width: `${ganttTimelineData.totalWidth}px` }}
+                      >
+                        {/* Background Day Guidelines */}
+                        <div className="absolute inset-0 flex divide-x divide-slate-100/70 pointer-events-none">
+                          {ganttTimelineData.allDays.map((d) => (
+                            <div
+                              key={d.index}
+                              style={{ width: `${ganttTimelineData.DAY_WIDTH}px` }}
+                              className={`shrink-0 h-full ${
+                                d.isWeekend ? 'bg-slate-50/50' : ''
+                              }`}
+                            />
+                          ))}
+                        </div>
+
+                        {/* Task Bar */}
+                        {placement && (
+                          <div
+                            style={{
+                              left: `${placement.leftPx}px`,
+                              width: `${placement.widthPx}px`,
+                              backgroundColor: barColor,
+                            }}
+                            title={`${t.title} (${t.status}) • ${placement.startFormatted} to ${placement.endFormatted} • ${t.progressPercentage ?? 0}% completed`}
+                            className="absolute top-[10px] z-10 h-8 rounded-xl text-[11px] font-bold text-white px-3 flex items-center justify-between shadow-xs cursor-pointer hover:brightness-95 hover:shadow-md transition-all truncate"
+                            onClick={() => openTaskDetail(t.id)}
+                          >
+                            <span className="truncate mr-2">
+                              {t.startDate?.split(',')[0] || placement.startFormatted} – {t.dueDate?.split(',')[0] || placement.endFormatted}
+                            </span>
+                            <span className="shrink-0 font-bold opacity-95">
+                              {t.progressPercentage ?? 0}%
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
                 })}
+
+                {displayTasks.length === 0 && (
+                  <div className="p-12 text-center text-xs text-slate-400">
+                    No tasks found matching your filters.
+                  </div>
+                )}
               </div>
             </div>
           </div>
