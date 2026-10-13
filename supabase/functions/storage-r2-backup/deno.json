@@ -1,0 +1,9 @@
+{
+  "imports": {
+    "aws4fetch": "npm:aws4fetch@1.0.20",
+    "fast-xml-parser": "npm:fast-xml-parser@5.11.2"
+  },
+  "compilerOptions": { "strict": true },
+  "fmt": { "singleQuote": true, "lineWidth": 100, "proseWrap": "preserve" },
+  "lock": true
+}
