@@ -276,21 +276,21 @@ export default function ModuleAccessManager() {
           </div>
         </div>
 
-        <div className="rounded-[1.5rem] border border-outline-variant/10">
-          <div className="overflow-x-auto scroll-smooth [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="rounded-[1.5rem] border border-outline-variant/10 overflow-hidden">
+          <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-175px)] min-h-[520px] scroll-smooth [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <table className="w-full min-w-[1280px] table-fixed">
-              <thead className="sticky top-0 z-20 border-b border-outline-variant/10 bg-surface-container-low/50">
+              <thead className="sticky top-0 z-20 border-b border-outline-variant/10 bg-surface-container-low shadow-xs">
                 <tr>
-                  <th className="w-[280px] px-3.5 py-3 text-left text-[11px] font-extrabold uppercase tracking-[0.18em] text-on-surface-variant/70">
+                  <th className="sticky top-0 z-20 bg-surface-container-low w-[280px] px-3.5 py-3 text-left text-[11px] font-extrabold uppercase tracking-[0.18em] text-on-surface-variant/70">
                     Employee
                   </th>
-                  <th className="w-[200px] px-3.5 py-3 text-left text-[11px] font-extrabold uppercase tracking-[0.18em] text-on-surface-variant/70">
+                  <th className="sticky top-0 z-20 bg-surface-container-low w-[200px] px-3.5 py-3 text-left text-[11px] font-extrabold uppercase tracking-[0.18em] text-on-surface-variant/70">
                     Designation / Department
                   </th>
                   {MODULES.map((module) => (
                     <th
                       key={module.key}
-                      className="w-[130px] px-3 py-3 text-center text-[11px] font-extrabold uppercase tracking-[0.18em] text-on-surface-variant/70"
+                      className="sticky top-0 z-20 bg-surface-container-low w-[130px] px-3 py-3 text-center text-[11px] font-extrabold uppercase tracking-[0.18em] text-on-surface-variant/70"
                     >
                       {module.label}
                     </th>

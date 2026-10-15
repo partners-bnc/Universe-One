@@ -77,7 +77,7 @@ export default function EmployeeList({
   const [search, setSearch] = useState('');
   const [designationFilter, setDesignationFilter] = useState('');
   const [managerFilter, setManagerFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('active');
 
   async function loadEmployees() {
     try {
@@ -144,7 +144,7 @@ export default function EmployeeList({
       ) || 'Department not set',
       resolvedType: employee.resolved_employee_type || employee.employee_type || 'full_time_employee',
       resolvedLifecycleStatus:
-        employee.resolved_employment_lifecycle_status || employee.employment_lifecycle_status || 'active',
+        employee.resolved_employment_lifecycle_status || employee.employment_lifecycle_status || employee.employee_status || 'active',
       resolvedStage: employee.resolved_current_stage || employee.current_stage || 'none',
     }));
   }, [departmentMap, designationMap, employees]);

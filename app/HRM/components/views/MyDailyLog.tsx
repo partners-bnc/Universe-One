@@ -170,23 +170,26 @@ export default function MyDailyLog() {
 
   const handleSaveLogs = async (entries: any[]) => {
     try {
-      const response = await fetch('/HRM/api/attendance/work-log', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          date: logsModalDate,
-          entries: entries.map((e) => ({
-            client_name: e.client_name,
-            task_id: e.task_id,
-            task_name_snapshot: e.task_name_snapshot,
-            hours_spent: Number(e.hours_spent),
-            remarks: e.remarks,
-          })),
-        }),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to save work log');
+      const newEntries = entries.filter((e) => !e.isExisting);
+      if (newEntries.length > 0) {
+        const response = await fetch('/HRM/api/attendance/work-log', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            date: logsModalDate,
+            entries: newEntries.map((e) => ({
+              client_name: e.client_name,
+              task_id: e.task_id,
+              task_name_snapshot: e.task_name_snapshot,
+              hours_spent: Number(e.hours_spent),
+              remarks: e.remarks,
+            })),
+          }),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to save work log');
+        }
       }
       setLogsModalDate(null);
       fetchMonthData();

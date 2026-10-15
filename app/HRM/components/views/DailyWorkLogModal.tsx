@@ -63,6 +63,7 @@ export default function DailyWorkLogModal({
   const [savingEdit, setSavingEdit] = useState(false);
   const [deletingIndex, setDeletingIndex] = useState<number | null>(null);
   const clientRef = useRef<HTMLInputElement>(null);
+  const isSubmittingRef = useRef(false);
 
   // Sync tasks prop
   useEffect(() => {
@@ -381,6 +382,11 @@ export default function DailyWorkLogModal({
 
   const handleSubmit = async () => {
     if (!isEditable) return;
+    if (isSubmittingRef.current || submitting) return;
+    if (editingIndex !== null) {
+      setSubmitError('Please save or cancel your pending edit before submitting.');
+      return;
+    }
     if (entries.length === 0) {
       setSubmitError('Add at least one work log entry.');
       return;
@@ -389,13 +395,15 @@ export default function DailyWorkLogModal({
       setSubmitError('Total hours logged cannot exceed 8 hours. Currently: ' + totalHours.toFixed(1) + ' hrs.');
       return;
     }
+    isSubmittingRef.current = true;
     setSubmitting(true);
     setSubmitError('');
     try {
       await onSubmitAndCheckout(entries);
     } catch (err: any) {
-      setSubmitError(err.message || 'Failed to submit. Please try again.');
+      isSubmittingRef.current = false;
       setSubmitting(false);
+      setSubmitError(err.message || 'Failed to submit. Please try again.');
     }
   };
 

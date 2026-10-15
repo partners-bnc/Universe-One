@@ -38,7 +38,8 @@ const EMPLOYEE_PROFILE_SELECT_BASE = `
     finance_role
   ),
   department:hrm_departments (id, name),
-  designation:hrm_designations (id, title)
+  designation:hrm_designations (id, title),
+  documents:hrm_employee_documents (*)
 `;
 
 const EMPLOYEE_PROFILE_SELECT_WITH_SALARY = `
@@ -168,6 +169,39 @@ export async function GET(request) {
       reportingManagerEmployeeId = reportingManager?.employee_id || '';
     }
 
+    let directReports = [];
+    if (employee.id) {
+      const { data: reportees } = await adminClient
+        .from('hrm_employees')
+        .select(`
+          id,
+          employee_id,
+          name,
+          email,
+          profile_picture_url,
+          employee_status,
+          employment_lifecycle_status,
+          separated_at,
+          access_disabled_at,
+          designation:hrm_designations (id, title),
+          department:hrm_departments (id, name)
+        `)
+        .eq('reporting_manager_id', employee.id)
+        .is('access_disabled_at', null)
+        .is('separated_at', null)
+        .order('name', { ascending: true });
+
+      if (Array.isArray(reportees)) {
+        directReports = reportees.filter((r) => {
+          if (r.id === employee.id) return false;
+          const lifecycle = (r.employment_lifecycle_status || '').toLowerCase();
+          const status = (r.employee_status || '').toLowerCase();
+          if (lifecycle === 'separated' || status === 'separated') return false;
+          return lifecycle === 'active' || ['active', 'probation', 'confirmed'].includes(status);
+        });
+      }
+    }
+
     const employment = deriveEmploymentFields(employee);
 
     return NextResponse.json(
@@ -177,6 +211,7 @@ export async function GET(request) {
           reporting_manager_name: reportingManagerName,
           reporting_manager_employee_id: reportingManagerEmployeeId,
           directory_reporting_manager: reportingManagerName,
+          team_members: directReports,
           employee_type: employee.employee_type ?? employment.employeeType,
           employment_lifecycle_status:
             employee.employment_lifecycle_status ?? employment.employmentLifecycleStatus,
