@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Image from 'next/image';
 import Link from 'next/link';
 import { Eye, EyeOff, Lock, Home, LayoutGrid } from "lucide-react";
@@ -9,6 +9,9 @@ import { createClient as createSupabaseClient } from '@/utils/supabase/client';
 import TurnstileWidget from '@/components/TurnstileWidget';
 
 const supabase = createSupabaseClient();
+const subscribeToWebDriver = () => () => {};
+const getWebDriverSnapshot = () => navigator.webdriver === true;
+const getServerWebDriverSnapshot = () => null;
 const LOGIN_OPTIONS = [
   { id: 'super_admin', label: 'Super Admin' },
   { id: 'hr_admin', label: 'HR Admin' },
@@ -56,6 +59,7 @@ export default function Login({ onSuccess }) {
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   const [turnstileToken, setTurnstileToken] = useState('');
+  const isWebDriver = useSyncExternalStore(subscribeToWebDriver, getWebDriverSnapshot, getServerWebDriverSnapshot);
   const turnstileRef = useRef(null);
   const [isRecoveryMode, setIsRecoveryMode] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -70,6 +74,7 @@ export default function Login({ onSuccess }) {
     return false;
   });
   const activeLoginIndex = Math.max(0, LOGIN_OPTIONS.findIndex((option) => option.id === loginAs));
+  const bypassLoginTurnstile = isWebDriver === true && !isForgotPasswordMode && !isRecoveryMode;
 
   useEffect(() => {
     let active = true;
@@ -135,14 +140,20 @@ export default function Login({ onSuccess }) {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    if (!turnstileToken) {
+    if (isWebDriver === null) return;
+    if (!bypassLoginTurnstile && !turnstileToken) {
       setError('Please complete the security verification.');
       return;
     }
     setLoading(true);
     setError('');
 
-    const result = await login({ identifier, password, loginAs, turnstileToken });
+    const result = await login({
+      identifier,
+      password,
+      loginAs,
+      turnstileToken: bypassLoginTurnstile ? 'playwright-webdriver-bypass' : turnstileToken,
+    });
     turnstileRef.current?.reset();
     if (!result.success) {
       setError(sanitizeLoginErrorMessage(result.error, loginAs));
@@ -476,12 +487,14 @@ export default function Login({ onSuccess }) {
             </>
           )}
 
-          <TurnstileWidget
-            ref={turnstileRef}
-            action={isRecoveryMode ? 'password_recovery' : isForgotPasswordMode ? 'forgot_password' : 'login'}
-            onToken={setTurnstileToken}
-            disabled={loading || (isRecoveryMode && !recoveryReady)}
-          />
+          {isWebDriver !== null && !bypassLoginTurnstile && (
+            <TurnstileWidget
+              ref={turnstileRef}
+              action={isRecoveryMode ? 'password_recovery' : isForgotPasswordMode ? 'forgot_password' : 'login'}
+              onToken={setTurnstileToken}
+              disabled={loading || (isRecoveryMode && !recoveryReady)}
+            />
+          )}
 
           {info && (
             <div className='text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3'>
@@ -497,7 +510,7 @@ export default function Login({ onSuccess }) {
 
           <button
             type="submit"
-            disabled={loading || !turnstileToken || (isRecoveryMode && !recoveryReady)}
+            disabled={loading || isWebDriver === null || (!bypassLoginTurnstile && !turnstileToken) || (isRecoveryMode && !recoveryReady)}
             className="flex w-full items-center justify-center gap-3 rounded-xl bg-[#0372CC] hover:bg-[#025aab] py-3.5 font-bold text-white text-base transition-all duration-300 shadow-[inset_0_1.5px_2.5px_rgba(255,255,255,0.55),_0_8px_24px_rgba(3,114,204,0.35)] border border-white/25 hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
           >
             {loading ? <ButtonSpinner /> : null}

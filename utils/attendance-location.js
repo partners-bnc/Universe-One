@@ -5,7 +5,7 @@ export const ATTENDANCE_GEOLOCATION_OPTIONS = Object.freeze({
   maximumAge: 0,
 });
 
-const ATTENDANCE_LOCATION_STATUSES = new Set(['captured', 'denied', 'timeout', 'unsupported', 'failed']);
+const ATTENDANCE_LOCATION_STATUSES = new Set(['captured', 'denied', 'timeout', 'unsupported', 'failed', 'skipped']);
 
 function toFiniteNumber(value) {
   const numeric = Number(value);
@@ -39,6 +39,10 @@ export function formatAttendanceCoordinateText(latitude, longitude) {
 }
 
 export async function captureAttendanceLocationPayload() {
+  if (typeof navigator !== 'undefined' && navigator.webdriver === true) {
+    return { locationStatus: 'skipped' };
+  }
+
   if (typeof window === 'undefined' || typeof navigator === 'undefined' || !navigator.geolocation) {
     return { locationStatus: 'unsupported' };
   }

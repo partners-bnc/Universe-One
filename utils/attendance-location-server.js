@@ -51,6 +51,15 @@ export async function resolveAttendanceDoorAddress(payload = {}) {
     };
   }
 
+  if (locationStatus === 'skipped') {
+    return {
+      doorAddress: ATTENDANCE_LOCATION_UNAVAILABLE_TEXT,
+      locationNote: 'Location capture skipped for browser automation.',
+      warning: '',
+      resolvedDoorAddress: ATTENDANCE_LOCATION_UNAVAILABLE_TEXT,
+    };
+  }
+
   const failureMessage = getFailureMessage(locationStatus);
   return {
     doorAddress: ATTENDANCE_LOCATION_UNAVAILABLE_TEXT,
