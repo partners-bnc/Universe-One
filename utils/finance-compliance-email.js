@@ -32,19 +32,7 @@ function getCellStateForEmail(item, mObj, fyStartYear, monthlyEntries = {}, comp
   const calcYear = fyStartYear + mObj.yearOffset;
   const month = mObj.month;
 
-  // 1. Pre-inception check
-  if (companyCreatedAt) {
-    const cd = new Date(companyCreatedAt);
-    if (!isNaN(cd.getTime())) {
-      const createdYear = cd.getFullYear();
-      const createdMonth = cd.getMonth() + 1;
-      if (calcYear < createdYear || (calcYear === createdYear && month < createdMonth)) {
-        return { status: 'NA', label: '—', isApplicable: false };
-      }
-    }
-  }
-
-  // 2. Frequency cadence check
+  // Frequency cadence check
   const freq = (item.frequency || 'Monthly').toLowerCase().trim();
   const statRaw = item.statutory_due_date || '';
   let isScheduledMonth = true;

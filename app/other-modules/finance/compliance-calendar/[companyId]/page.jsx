@@ -146,28 +146,7 @@ function getCellComplianceState(item, mObj, fyStartYear, company, now = new Date
   const calcYear = fyStartYear + mObj.yearOffset;
   const month = mObj.month;
 
-  // 1. Check pre-inception
-  if (company?.created_at) {
-    const cd = new Date(company.created_at);
-    if (!isNaN(cd.getTime())) {
-      const createdYear = cd.getFullYear();
-      const createdMonth = cd.getMonth() + 1;
-      if (calcYear < createdYear || (calcYear === createdYear && month < createdMonth)) {
-        return {
-          status: 'NA',
-          label: '—',
-          tooltip: `Pre-inception period (Entity onboarded ${formatPeriodLabel(createdMonth, createdYear)})`,
-          periodKey: `${calcYear}_${month}`,
-          entry: null,
-          isApplicable: false,
-          month,
-          year: calcYear,
-        };
-      }
-    }
-  }
-
-  // 2. Frequency Cadence / Applicability rules
+  // Frequency Cadence / Applicability rules
   const freq = (item.frequency || 'Monthly').toLowerCase().trim();
   const statRaw = item.statutory_due_date || '';
   let isScheduledMonth = true;
@@ -450,12 +429,7 @@ export default function CompanyComplianceWorkspace() {
     };
   }, [company?.created_at]);
 
-  const isBeforeInception = useMemo(() => {
-    if (!companyInception) return false;
-    if (activeYear < companyInception.year) return true;
-    if (activeYear === companyInception.year && activeMonth < companyInception.month) return true;
-    return false;
-  }, [companyInception, activeYear, activeMonth]);
+  const isBeforeInception = false;
 
   // Company Profile Edit State & Drawer
   const [isEditProfileDrawerOpen, setIsEditProfileDrawerOpen] = useState(false);
@@ -1774,25 +1748,6 @@ export default function CompanyComplianceWorkspace() {
 
   // Statistics & Breakdown
   const stats = useMemo(() => {
-    if (isBeforeInception) {
-      return {
-        total: items.length,
-        completed: 0,
-        inProgress: 0,
-        pending: 0,
-        overdue: 0,
-        score: 0,
-        isPreInception: true,
-        frequencyCounts: {
-          Monthly: 0,
-          Quarterly: 0,
-          Annual: 0,
-          'One time': 0,
-          'Half-Yearly': 0,
-        },
-      };
-    }
-
     let completed = 0;
     let inProgress = 0;
     let pending = 0;
@@ -2152,33 +2107,6 @@ export default function CompanyComplianceWorkspace() {
           {activeTab === 'dashboard' && (
             <div className="space-y-6 max-w-7xl mx-auto animate-fadeIn">
               
-              {/* Pre-Inception Notice Banner */}
-              {isBeforeInception && (
-                <div className="p-4.5 rounded-2xl bg-gradient-to-r from-blue-50/90 to-indigo-50/80 border border-blue-200 text-blue-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-xl bg-blue-100 text-[#3170c6] shrink-0">
-                      <AlertCircle className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-900">Data Not Available for {activePeriodFull}</h4>
-                      <p className="text-[11px] text-slate-600 mt-0.5">
-                        <strong>{company?.company_name || 'This entity'}</strong> was onboarded in <strong>{companyInception?.fullLabel || 'a later period'}</strong>. Statutory compliance tracking begins from {companyInception?.fullLabel || 'onboarding'} onwards.
-                      </p>
-                    </div>
-                  </div>
-                  {companyInception && (
-                    <button
-                      onClick={() => {
-                        setActiveMonth(companyInception.month);
-                        setActiveYear(companyInception.year);
-                      }}
-                      className="px-3.5 py-1.5 rounded-xl bg-[#3170c6] hover:bg-[#2558a2] text-white text-xs font-bold shrink-0 transition-colors shadow-xs cursor-pointer"
-                    >
-                      Go to {companyInception.label}
-                    </button>
-                  )}
-                </div>
-              )}
 
               {/* 1. KPI Metric Cards Directly at Top */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -3006,47 +2934,8 @@ export default function CompanyComplianceWorkspace() {
                 </div>
               </div>
 
-              {/* Calendar Spreadsheet Body / Pre-Inception Notice */}
-              {isBeforeInception ? (
-                <div className="bg-white/95 border border-slate-200/80 rounded-2xl p-12 text-center shadow-xs backdrop-blur-xl space-y-4">
-                  <div className="w-16 h-16 rounded-2xl bg-blue-50 text-[#3170c6] flex items-center justify-center mx-auto shadow-inner">
-                    <Calendar className="w-8 h-8" />
-                  </div>
-                  <div className="max-w-md mx-auto space-y-2">
-                    <h3 className="text-base font-extrabold text-slate-900">
-                      Data Not Available for {activePeriodFull}
-                    </h3>
-                    <p className="text-xs text-slate-500 leading-relaxed">
-                      <strong>{company?.company_name || 'This company'}</strong> was onboarded in <strong>{companyInception?.fullLabel || 'a later period'}</strong>. Statutory compliance monitoring and monthly tracking records begin from {companyInception?.fullLabel || 'onboarding'} onwards.
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-                    {companyInception && (
-                      <button
-                        onClick={() => {
-                          setActiveMonth(companyInception.month);
-                          setActiveYear(companyInception.year);
-                        }}
-                        className="px-4 py-2 rounded-xl bg-[#3170c6] hover:bg-[#2558a2] text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
-                      >
-                        Switch to Onboarded Month ({companyInception.label})
-                      </button>
-                    )}
-                    <button
-                      onClick={() => {
-                        const now = new Date();
-                        setActiveMonth(now.getMonth() + 1);
-                        setActiveYear(now.getFullYear());
-                      }}
-                      className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all cursor-pointer"
-                    >
-                      Jump to Current Month
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                /* Spreadsheet Grid with Increased Status Column Width */
-                <div className="bg-white/95 border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden backdrop-blur-xl">
+              {/* Calendar Spreadsheet Body */}
+              <div className="bg-white/95 border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden backdrop-blur-xl">
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-xs border-collapse">
                       <thead>
@@ -3182,7 +3071,6 @@ export default function CompanyComplianceWorkspace() {
                   </table>
                 </div>
               </div>
-              )}
             </div>
           )}
 
@@ -5348,19 +5236,6 @@ export default function CompanyComplianceWorkspace() {
                       </p>
                     </div>
 
-                    {/* Pre-Inception Warning in Email Modal */}
-                    {isBeforeInception && (
-                      <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-1">
-                        <div className="flex items-center gap-2 font-bold text-amber-800">
-                          <AlertTriangle className="w-4 h-4 text-amber-600" />
-                          <span>Pre-Onboarding Period Selected</span>
-                        </div>
-                        <p className="text-[11px] text-amber-700">
-                          You are viewing <strong>{activePeriodFull}</strong>, which is before the company&apos;s onboarding date (<strong>{companyInception?.fullLabel}</strong>). Switch to an active tracking period to dispatch reports.
-                        </p>
-                      </div>
-                    )}
-
                     {/* Custom Note */}
                     <div className="p-4 rounded-2xl border border-white/60 bg-white/50 backdrop-blur-2xl shadow-[inset_0_1.5px_2px_rgba(255,255,255,0.8),0_10px_30px_rgba(0,0,0,0.02)] space-y-1.5">
                       <label className="font-bold text-slate-800">Custom Note / Remarks (Optional)</label>
@@ -5390,7 +5265,7 @@ export default function CompanyComplianceWorkspace() {
                   <button
                     type="submit"
                     form="email-calendar-form"
-                    disabled={emailSending || isBeforeInception}
+                    disabled={emailSending}
                     className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#3170c6] hover:bg-[#2558a2] text-white text-xs font-bold shadow-md shadow-[#3170c6]/20 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {emailSending ? (

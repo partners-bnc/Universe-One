@@ -359,6 +359,11 @@ export function resolveStatutoryDueDate(item, activeMonth, activeYear) {
   const m = Number(activeMonth) || 9;
   const y = Number(activeYear) || 2026;
 
+  // Indian Financial Year: 1st April to 31st March of each year
+  // If activeMonth is Apr-Dec (4-12), FY start year is y (e.g. Oct 2026 -> FY 2026-27 starts in 2026).
+  // If activeMonth is Jan-Mar (1-3), FY start year is y - 1 (e.g. Feb 2027 -> FY 2026-27 starts in 2026).
+  const fyStartYear = m >= 4 ? y : y - 1;
+
   // 1. Direct YYYY-MM-DD
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
     const [year, month, day] = raw.split('-').map(Number);
@@ -396,19 +401,53 @@ export function resolveStatutoryDueDate(item, activeMonth, activeYear) {
     }
   }
 
-  // 4. Day + Month in active year (e.g., "2nd Sep", "30th Sep", "30th Nov", "31st Oct")
-  const dayMonthMatch = raw.match(/(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]+)/i);
-  if (dayMonthMatch) {
-    const day = parseInt(dayMonthMatch[1], 10);
-    const monthStr = dayMonthMatch[2].toLowerCase();
-    const monthIdx = MONTH_NAMES.findIndex(
-      (name, idx) =>
-        name.toLowerCase().startsWith(monthStr.slice(0, 3)) ||
-        MONTH_SHORT_NAMES[idx].toLowerCase() === monthStr.slice(0, 3)
-    );
-    if (monthIdx !== -1) {
-      const maxDays = new Date(y, monthIdx + 1, 0).getDate();
-      return new Date(y, monthIdx, Math.min(day, maxDays), 23, 59, 59, 999);
+  // 4. Day + Month in Financial Year (e.g., "30th January", "28th February", "31st October", "30th September & 31st March")
+  const dayMonthMatches = Array.from(raw.matchAll(/(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]+)/gi));
+  if (dayMonthMatches.length > 0) {
+    const candidateDates = [];
+    for (const match of dayMonthMatches) {
+      const day = parseInt(match[1], 10);
+      const monthStr = match[2].toLowerCase();
+      const monthIdx = MONTH_NAMES.findIndex(
+        (name, idx) =>
+          name.toLowerCase().startsWith(monthStr.slice(0, 3)) ||
+          MONTH_SHORT_NAMES[idx].toLowerCase() === monthStr.slice(0, 3)
+      );
+      if (monthIdx !== -1) {
+        const targetMonth = monthIdx + 1; // 1 to 12
+        // In the Indian Financial Year (1 April - 31 March):
+        // Months 4-12 (Apr-Dec) are in fyStartYear (e.g. 2026)
+        // Months 1-3 (Jan-Mar) are in fyStartYear + 1 (e.g. 2027)
+        const resolvedYear = targetMonth <= 3 ? fyStartYear + 1 : fyStartYear;
+        const maxDays = new Date(resolvedYear, monthIdx + 1, 0).getDate();
+        candidateDates.push({
+          date: new Date(resolvedYear, monthIdx, Math.min(day, maxDays), 23, 59, 59, 999),
+          targetMonth,
+          resolvedYear,
+        });
+      }
+    }
+
+    if (candidateDates.length === 1) {
+      return candidateDates[0].date;
+    }
+
+    if (candidateDates.length > 1) {
+      // For multiple dates (e.g. Half-Yearly "30th September & 31st March" or Quarterly):
+      // Determine which date is applicable for activeMonth m in the Financial Year.
+      // FY sequence index: Apr=1, May=2, ... Sep=6, Oct=7, ... Jan=10, Feb=11, Mar=12
+      const getFySeq = (monthNum) => (monthNum >= 4 ? monthNum - 3 : monthNum + 9);
+      const activeSeq = getFySeq(m);
+
+      // Sort candidate dates in Financial Year sequence order
+      candidateDates.sort((a, b) => getFySeq(a.targetMonth) - getFySeq(b.targetMonth));
+
+      // Pick the candidate whose deadline covers or follows active month in the FY sequence
+      const futureOrCurrent = candidateDates.filter((c) => getFySeq(c.targetMonth) >= activeSeq);
+      if (futureOrCurrent.length > 0) {
+        return futureOrCurrent[0].date;
+      }
+      return candidateDates[candidateDates.length - 1].date;
     }
   }
 
@@ -451,19 +490,7 @@ export function computeEffectiveStatus(item, entry, activeMonth, activeYear, now
     return 'Completed';
   }
 
-  // Rule 2: If this period is prior to company onboarding, do not flag as Overdue
-  if (companyCreatedAt) {
-    const cd = new Date(companyCreatedAt);
-    if (!isNaN(cd.getTime())) {
-      const createdYear = cd.getFullYear();
-      const createdMonth = cd.getMonth() + 1;
-      if (activeYear < createdYear || (activeYear === createdYear && activeMonth < createdMonth)) {
-        return userStatus !== 'Completed' ? 'N/A' : 'Completed';
-      }
-    }
-  }
-
-  // Rule 3: Check if statutory deadline has passed for this period
+  // Rule 2: Check if statutory deadline has passed for this period
   const dueDate = resolveStatutoryDueDate(item, activeMonth, activeYear);
   if (dueDate && now > dueDate) {
     return 'Overdue';
@@ -503,6 +530,8 @@ export function resolveEffectiveEntry(item, allMonthlyEntries = {}, activeMonth 
 
   const freq = (item.frequency || 'Monthly').toLowerCase().trim();
 
+  const fyStartYear = activeMonth >= 4 ? activeYear : activeYear - 1;
+
   // 1. One time: Check all periods for any completed payment
   if (freq === 'one time' || freq === 'onetime' || freq === 'one-time') {
     for (const [periodKey, periodMap] of Object.entries(allMonthlyEntries || {})) {
@@ -517,10 +546,13 @@ export function resolveEffectiveEntry(item, allMonthlyEntries = {}, activeMonth 
     }
   }
 
-  // 2. Annual / Yearly: Check all months in the activeYear for a completed payment
+  // 2. Annual / Yearly: Check all months in the active Financial Year (1 April - 31 March)
   if (freq === 'annual' || freq === 'yearly' || freq.includes('year')) {
-    for (let m = 1; m <= 12; m++) {
-      const pKey = `${activeYear}_${m}`;
+    const fyPeriods = [
+      ...[4, 5, 6, 7, 8, 9, 10, 11, 12].map((m) => `${fyStartYear}_${m}`),
+      ...[1, 2, 3].map((m) => `${fyStartYear + 1}_${m}`),
+    ];
+    for (const pKey of fyPeriods) {
       const e = allMonthlyEntries?.[pKey]?.[item.id];
       if (e?.actual_payment_date && e.actual_payment_date.trim().length > 0) {
         return {
@@ -532,12 +564,16 @@ export function resolveEffectiveEntry(item, allMonthlyEntries = {}, activeMonth 
     }
   }
 
-  // 3. Half-Yearly: Check months in the same half-year
+  // 3. Half-Yearly: Check months in the same FY half-year (H1: Apr-Sep, H2: Oct-Mar)
   if (freq.includes('half')) {
-    const isHY1 = activeMonth >= 4 && activeMonth <= 9;
-    const hyMonths = isHY1 ? [4, 5, 6, 7, 8, 9] : [10, 11, 12, 1, 2, 3];
-    for (const m of hyMonths) {
-      const pKey = `${activeYear}_${m}`;
+    const isH1 = activeMonth >= 4 && activeMonth <= 9;
+    const hyPeriods = isH1
+      ? [4, 5, 6, 7, 8, 9].map((m) => `${fyStartYear}_${m}`)
+      : [
+          ...[10, 11, 12].map((m) => `${fyStartYear}_${m}`),
+          ...[1, 2, 3].map((m) => `${fyStartYear + 1}_${m}`),
+        ];
+    for (const pKey of hyPeriods) {
       const e = allMonthlyEntries?.[pKey]?.[item.id];
       if (e?.actual_payment_date && e.actual_payment_date.trim().length > 0) {
         return {
@@ -549,12 +585,19 @@ export function resolveEffectiveEntry(item, allMonthlyEntries = {}, activeMonth 
     }
   }
 
-  // 4. Quarterly: Check months in the same quarter
+  // 4. Quarterly: Check months in the same FY quarter (Q1: Apr-Jun, Q2: Jul-Sep, Q3: Oct-Dec, Q4: Jan-Mar)
   if (freq.includes('quarter')) {
-    const qIndex = Math.floor((activeMonth - 1) / 3);
-    const qMonths = [qIndex * 3 + 1, qIndex * 3 + 2, qIndex * 3 + 3];
-    for (const m of qMonths) {
-      const pKey = `${activeYear}_${m}`;
+    let qPeriods = [];
+    if (activeMonth >= 4 && activeMonth <= 6) {
+      qPeriods = [4, 5, 6].map((m) => `${fyStartYear}_${m}`);
+    } else if (activeMonth >= 7 && activeMonth <= 9) {
+      qPeriods = [7, 8, 9].map((m) => `${fyStartYear}_${m}`);
+    } else if (activeMonth >= 10 && activeMonth <= 12) {
+      qPeriods = [10, 11, 12].map((m) => `${fyStartYear}_${m}`);
+    } else {
+      qPeriods = [1, 2, 3].map((m) => `${fyStartYear + 1}_${m}`);
+    }
+    for (const pKey of qPeriods) {
       const e = allMonthlyEntries?.[pKey]?.[item.id];
       if (e?.actual_payment_date && e.actual_payment_date.trim().length > 0) {
         return {
