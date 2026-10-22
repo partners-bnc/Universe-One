@@ -57,12 +57,14 @@ export default function ManageTasks({ onNavigate }) {
   const [labelFilter, setLabelFilter] = useState('All');
   const [createdByFilter, setCreatedByFilter] = useState('All');
   const [ownershipFilter, setOwnershipFilter] = useState('all');
+  const [monthFilter, setMonthFilter] = useState('All'); // 'All' | 'YYYY-MM'
   
   // Dropdown States
   const [showFiltersDropdown, setShowFiltersDropdown] = useState(false);
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [showHideDropdown, setShowHideDropdown] = useState(false);
   const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
+  const [showMonthDropdown, setShowMonthDropdown] = useState(false);
   
   // Collapsing and Dropdowns
   const [collapsedGroups, setCollapsedGroups] = useState(new Set());
@@ -87,6 +89,7 @@ export default function ManageTasks({ onNavigate }) {
       const storedLabelFilter = localStorage.getItem('tm_labelFilter');
       const storedCreatedByFilter = localStorage.getItem('tm_createdByFilter');
       const storedOwnershipFilter = localStorage.getItem('tm_ownershipFilter');
+      const storedMonthFilter = localStorage.getItem('tm_monthFilter');
       const storedSortBy = localStorage.getItem('tm_sortBy');
       const storedHideCompleted = localStorage.getItem('tm_hideCompleted');
 
@@ -98,6 +101,7 @@ export default function ManageTasks({ onNavigate }) {
       if (storedLabelFilter) setLabelFilter(storedLabelFilter);
       if (storedCreatedByFilter) setCreatedByFilter(storedCreatedByFilter);
       if (storedOwnershipFilter) setOwnershipFilter(storedOwnershipFilter);
+      if (storedMonthFilter) setMonthFilter(storedMonthFilter);
       if (storedSortBy) setSortBy(storedSortBy);
       if (storedHideCompleted !== null) setHideCompleted(storedHideCompleted === 'true');
       setHasHydrated(true);
@@ -154,6 +158,12 @@ export default function ManageTasks({ onNavigate }) {
 
   useEffect(() => {
     if (hasHydrated && typeof window !== 'undefined') {
+      localStorage.setItem('tm_monthFilter', monthFilter);
+    }
+  }, [monthFilter, hasHydrated]);
+
+  useEffect(() => {
+    if (hasHydrated && typeof window !== 'undefined') {
       localStorage.setItem('tm_sortBy', sortBy);
     }
   }, [sortBy, hasHydrated]);
@@ -173,6 +183,7 @@ export default function ManageTasks({ onNavigate }) {
   const hideRef = useRef(null);
   const employeeRef = useRef(null);
   const dateSortRef = useRef(null);
+  const monthRef = useRef(null);
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -181,6 +192,7 @@ export default function ManageTasks({ onNavigate }) {
       if (hideRef.current && !hideRef.current.contains(event.target)) setShowHideDropdown(false);
       if (employeeRef.current && !employeeRef.current.contains(event.target)) setShowEmployeeDropdown(false);
       if (dateSortRef.current && !dateSortRef.current.contains(event.target)) setShowDateSortDropdown(false);
+      if (monthRef.current && !monthRef.current.contains(event.target)) setShowMonthDropdown(false);
       if (activeDropdownTaskId && !event.target.closest('.status-selector-cell')) setActiveDropdownTaskId(null);
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -315,6 +327,23 @@ export default function ManageTasks({ onNavigate }) {
     ).sort((left, right) => left.localeCompare(right));
   }, [tasks]);
 
+  const monthOptions = useMemo(() => {
+    const map = new Map();
+    tasks.forEach((task) => {
+      if (!task.createdAt) return;
+      const d = new Date(task.createdAt);
+      if (isNaN(d.getTime())) return;
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const label = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      if (!map.has(key)) {
+        map.set(key, { key, label, count: 0 });
+      }
+      map.get(key).count += 1;
+    });
+
+    return Array.from(map.values()).sort((a, b) => b.key.localeCompare(a.key));
+  }, [tasks]);
+
   const isFilterActive = useMemo(() => {
     return (
       statusFilter !== 'All' ||
@@ -323,10 +352,11 @@ export default function ManageTasks({ onNavigate }) {
       createdByFilter !== 'All' ||
       ownershipFilter !== 'all' ||
       employeeFilter !== 'All' ||
+      monthFilter !== 'All' ||
       searchQuery !== '' ||
       hideCompleted !== false
     );
-  }, [statusFilter, priorityFilter, labelFilter, createdByFilter, ownershipFilter, employeeFilter, searchQuery, hideCompleted]);
+  }, [statusFilter, priorityFilter, labelFilter, createdByFilter, ownershipFilter, employeeFilter, monthFilter, searchQuery, hideCompleted]);
 
   const handleClearAllFilters = () => {
     setStatusFilter('All');
@@ -335,6 +365,7 @@ export default function ManageTasks({ onNavigate }) {
     setCreatedByFilter('All');
     setOwnershipFilter('all');
     setEmployeeFilter('All');
+    setMonthFilter('All');
     setSearchQuery('');
     setHideCompleted(false);
   };
@@ -359,9 +390,18 @@ export default function ManageTasks({ onNavigate }) {
 
       const matchesEmployee = employeeFilter === 'All' || task.assignees.includes(employeeFilter);
 
+      const matchesMonth = (() => {
+        if (monthFilter === 'All') return true;
+        if (!task.createdAt) return false;
+        const d = new Date(task.createdAt);
+        if (isNaN(d.getTime())) return false;
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        return key === monthFilter;
+      })();
+
       const matchesHide = !hideCompleted || task.status !== 'Completed';
 
-      return matchesStatus && matchesPriority && matchesLabel && matchesCreatedBy && matchesOwnership && matchesSearch && matchesEmployee && matchesHide;
+      return matchesStatus && matchesPriority && matchesLabel && matchesCreatedBy && matchesOwnership && matchesSearch && matchesEmployee && matchesMonth && matchesHide;
     });
 
     // Sorting
@@ -782,6 +822,60 @@ export default function ManageTasks({ onNavigate }) {
             )}
           </div>
 
+          {/* Month Filter Dropdown */}
+          <div className="relative" ref={monthRef}>
+            <button 
+              onClick={() => setShowMonthDropdown(!showMonthDropdown)}
+              className={`px-4 bg-white border ${monthFilter !== 'All' ? 'border-[#3170c5] bg-[#3170c5]/5 text-[#3170c5]' : 'border-slate-200 text-slate-800'} hover:bg-slate-50 hover:border-slate-300 text-[13px] font-semibold rounded-full inline-flex items-center gap-1.5 transition-colors h-[40px] cursor-pointer focus:outline-none`}
+            >
+              <CalendarIcon size={15} className={monthFilter !== 'All' ? 'text-[#3170c5]' : 'text-black'} />
+              <span>
+                {monthFilter === 'All' ? 'Month' : (monthOptions.find(m => m.key === monthFilter)?.label || monthFilter)}
+              </span>
+              {monthFilter !== 'All' && (
+                <span className="ml-0.5 px-1.5 py-0.5 bg-[#3170c5] text-white text-[10px] rounded-full font-bold">
+                  {monthOptions.find(m => m.key === monthFilter)?.count || ''}
+                </span>
+              )}
+              <ChevronDown size={13} className={`${monthFilter !== 'All' ? 'text-[#3170c5]' : 'text-black'} ml-1`} />
+            </button>
+
+            {showMonthDropdown && (
+              <div className="absolute left-0 mt-1 w-60 bg-white border border-slate-200 rounded-xl shadow-lg z-20 py-1 text-xs max-h-72 overflow-y-auto">
+                <div className="px-3 py-1.5 border-b border-slate-100 font-bold text-slate-700 flex justify-between items-center">
+                  <span>Month Created</span>
+                  {monthFilter !== 'All' && (
+                    <button 
+                      onClick={() => { setMonthFilter('All'); setShowMonthDropdown(false); }}
+                      className="text-[#3170c5] text-[11px] font-semibold hover:underline"
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
+                <button 
+                  onClick={() => { setMonthFilter('All'); setShowMonthDropdown(false); }}
+                  className={`w-full text-left px-3 py-2 hover:bg-slate-50 font-medium flex justify-between items-center ${monthFilter === 'All' ? 'bg-[#3170c5]/5 text-[#3170c5] font-bold' : 'text-slate-600'}`}
+                >
+                  <span>All Months</span>
+                  <span className="text-[11px] text-slate-400 font-normal">{tasks.length} tasks</span>
+                </button>
+                {monthOptions.map(m => (
+                  <button 
+                    key={m.key}
+                    onClick={() => { setMonthFilter(m.key); setShowMonthDropdown(false); }}
+                    className={`w-full text-left px-3 py-2 hover:bg-slate-50 font-medium flex justify-between items-center ${monthFilter === m.key ? 'bg-[#3170c5]/5 text-[#3170c5] font-bold' : 'text-slate-600'}`}
+                  >
+                    <span>{m.label}</span>
+                    <span className={`text-[11px] px-1.5 py-0.5 rounded-full font-semibold ${monthFilter === m.key ? 'bg-[#3170c5] text-white' : 'bg-slate-100 text-slate-600'}`}>
+                      {m.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Filter Dropdown */}
           <div className="relative" ref={filtersRef}>
             <button 
@@ -803,7 +897,25 @@ export default function ManageTasks({ onNavigate }) {
                     setLabelFilter('All');
                     setCreatedByFilter('All');
                     setOwnershipFilter('all');
+                    setMonthFilter('All');
                   }} className="text-[#3170c5] font-semibold hover:underline">Clear All</button>
+                </div>
+                
+                {/* Month Filter */}
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700">Creation Month</label>
+                  <select 
+                    value={monthFilter} 
+                    onChange={e => setMonthFilter(e.target.value)} 
+                    className="w-full rounded-lg border border-slate-200 bg-white p-1.5 text-slate-700 outline-none"
+                  >
+                    <option value="All">All Months ({tasks.length})</option>
+                    {monthOptions.map(m => (
+                      <option key={m.key} value={m.key}>
+                        {m.label} ({m.count})
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 
                 {/* Status Filter */}

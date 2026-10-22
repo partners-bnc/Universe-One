@@ -129,43 +129,63 @@ export async function GET() {
   try {
     const supabase = await createClient();
 
-    const { data: tasks, error } = await supabase
-      .from('tasks')
-      .select(`
-        *,
-        assigned_by_employee:hrm_employees!tasks_assigned_by_employee_id_fkey (
-          id,
-          name,
-          email,
-          role,
-          profile_picture_url
-        ),
-        task_assignments (
-          employee:hrm_employees!task_assignments_employee_id_fkey (
+    // Fetch all tasks using pagination to avoid PostgREST 1000 row truncation limit
+    const PAGE_SIZE = 1000;
+    let from = 0;
+    let hasMore = true;
+    let allTasks = [];
+
+    while (hasMore) {
+      const { data: batch, error } = await adminClient
+        .from('tasks')
+        .select(`
+          *,
+          assigned_by_employee:hrm_employees!tasks_assigned_by_employee_id_fkey (
             id,
             name,
             email,
             role,
             profile_picture_url
+          ),
+          task_assignments (
+            employee:hrm_employees!task_assignments_employee_id_fkey (
+              id,
+              name,
+              email,
+              role,
+              profile_picture_url
+            )
+          ),
+          task_attachments (*),
+          task_subtasks (
+            id,
+            title,
+            is_completed,
+            assigned_employee_id,
+            created_at,
+            updated_at
           )
-        ),
-        task_attachments (*),
-        task_subtasks (
-          id,
-          title,
-          is_completed,
-          assigned_employee_id,
-          created_at,
-          updated_at
-        )
-      `)
-      .order('created_at', { ascending: false });
+        `)
+        .order('created_at', { ascending: false })
+        .range(from, from + PAGE_SIZE - 1);
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+
+      if (!batch || batch.length === 0) {
+        break;
+      }
+
+      allTasks = allTasks.concat(batch);
+      if (batch.length < PAGE_SIZE) {
+        hasMore = false;
+      } else {
+        from += PAGE_SIZE;
+      }
     }
 
-    const tasksWithCreators = await attachTaskCreatorNames(tasks || [], supabase);
+    const tasksWithCreators = await attachTaskCreatorNames(allTasks || [], supabase);
 
     const taskIds = (tasksWithCreators || []).map((t) => t.id).filter(Boolean);
     const workLogsMap = await getTaskWorkLogsMap(taskIds);

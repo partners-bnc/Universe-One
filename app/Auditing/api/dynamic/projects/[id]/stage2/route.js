@@ -17,10 +17,26 @@ export async function GET(req, { params }) {
       .select('process_name')
       .eq('project_id', projectId);
 
-    const distinctProcesses = Array.from(new Set((allProcsData || []).map(r => r.process_name).filter(Boolean)));
+    // Fetch project record for data_tracker, mom, testing, and custom_columns
+    const { data: project } = await supabase
+      .from('audit_projects')
+      .select('*')
+      .eq('id', projectId)
+      .single();
+
+    let metaCustomProcs = project?.meta_json?.custom_processes || [];
+    if (typeof metaCustomProcs === 'string') {
+      try { metaCustomProcs = JSON.parse(metaCustomProcs); } catch (e) { metaCustomProcs = []; }
+    }
+    if (!Array.isArray(metaCustomProcs)) metaCustomProcs = [];
+
+    const distinctProcesses = Array.from(new Set([
+      ...(allProcsData || []).map(r => r.process_name),
+      ...metaCustomProcs
+    ].filter(Boolean)));
 
     // Fetch Audit Programme steps for this process
-    const { data: progRows, error: progError } = await supabase
+    const { data: progRows } = await supabase
       .from('audit_programme')
       .select('*')
       .eq('project_id', projectId)
@@ -28,18 +44,11 @@ export async function GET(req, { params }) {
       .order('sort_order', { ascending: true });
 
     // Fetch Data Tracker items from audit_data_tracker table
-    const { data: dbTrackers, error: trackerError } = await supabase
+    const { data: dbTrackers } = await supabase
       .from('audit_data_tracker')
       .select('*')
       .eq('project_id', projectId)
       .order('created_at', { ascending: true });
-
-    // Fetch project record for data_tracker, mom, testing, and custom_columns
-    const { data: project } = await supabase
-      .from('audit_projects')
-      .select('*')
-      .eq('id', projectId)
-      .single();
 
     let jsonTrackers = project?.data_tracker || [];
     if (typeof jsonTrackers === 'string') {
@@ -352,6 +361,144 @@ export async function POST(req, { params }) {
 
         return NextResponse.json({ success: true, custom_columns: filteredCols });
       }
+    }
+
+    if (action === 'add_process') {
+      const procName = String(process_name || '').trim();
+      if (!procName) return NextResponse.json({ success: false, error: 'Process name is required' }, { status: 400 });
+
+      const { data: proj } = await supabase.from('audit_projects').select('meta_json').eq('id', projectId).single();
+      const existingMeta = proj?.meta_json || {};
+      let metaCustomProcs = existingMeta.custom_processes || [];
+      if (!Array.isArray(metaCustomProcs)) metaCustomProcs = [];
+      if (!metaCustomProcs.includes(procName)) {
+        metaCustomProcs.push(procName);
+      }
+      await supabase
+        .from('audit_projects')
+        .update({
+          updated_at: new Date().toISOString(),
+          meta_json: { ...existingMeta, custom_processes: metaCustomProcs }
+        })
+        .eq('id', projectId);
+
+      return NextResponse.json({ success: true, process_name: procName, custom_processes: metaCustomProcs });
+    }
+
+    if (action === 'delete_process') {
+      const procToDelete = String(process_name || '').trim();
+      if (!procToDelete) return NextResponse.json({ success: false, error: 'Process name is required' }, { status: 400 });
+
+      // 1. Fetch all audit_programme rows for this process to find their IDs
+      const { data: pRows } = await supabase
+        .from('audit_programme')
+        .select('id')
+        .eq('project_id', projectId)
+        .eq('process_name', procToDelete);
+
+      const progIds = (pRows || []).map(r => r.id);
+
+      // 2. Delete linked data tracker rows (by programme_id or by sub_process / process name)
+      if (progIds.length > 0) {
+        await supabase
+          .from('audit_data_tracker')
+          .delete()
+          .eq('project_id', projectId)
+          .in('programme_id', progIds);
+      }
+      await supabase
+        .from('audit_data_tracker')
+        .delete()
+        .eq('project_id', projectId)
+        .eq('sub_process', procToDelete);
+
+      // 3. Delete audit_programme rows for this process
+      await supabase
+        .from('audit_programme')
+        .delete()
+        .eq('project_id', projectId)
+        .eq('process_name', procToDelete);
+
+      // 4. Clean up project-level mom_data, testing_data, queries_data, and custom_processes
+      const { data: proj } = await supabase
+        .from('audit_projects')
+        .select('mom_data, testing_data, queries_data, meta_json')
+        .eq('id', projectId)
+        .single();
+
+      if (proj) {
+        let currentMom = proj.mom_data || proj.meta_json?.mom_data || {};
+        if (typeof currentMom === 'string') {
+          try { currentMom = JSON.parse(currentMom); } catch (e) { currentMom = {}; }
+        }
+        delete currentMom[procToDelete];
+
+        let currentTesting = proj.testing_data || proj.meta_json?.testing_data || {};
+        if (typeof currentTesting === 'string') {
+          try { currentTesting = JSON.parse(currentTesting); } catch (e) { currentTesting = {}; }
+        }
+        if (currentTesting.__manual_rows && currentTesting.__manual_rows[procToDelete]) {
+          delete currentTesting.__manual_rows[procToDelete];
+        }
+        progIds.forEach(pId => {
+          delete currentTesting[pId];
+        });
+
+        let currentQueries = proj.queries_data || proj.meta_json?.queries_data || {};
+        if (typeof currentQueries === 'string') {
+          try { currentQueries = JSON.parse(currentQueries); } catch (e) { currentQueries = {}; }
+        }
+        if (currentQueries.__manual_rows && currentQueries.__manual_rows[procToDelete]) {
+          delete currentQueries.__manual_rows[procToDelete];
+        }
+
+        const existingMeta = proj.meta_json || {};
+        let metaCustomProcs = existingMeta.custom_processes || [];
+        if (typeof metaCustomProcs === 'string') {
+          try { metaCustomProcs = JSON.parse(metaCustomProcs); } catch (e) { metaCustomProcs = []; }
+        }
+        const updatedMetaCustomProcs = Array.isArray(metaCustomProcs) ? metaCustomProcs.filter(p => p !== procToDelete) : [];
+
+        const updatePayload = {
+          updated_at: new Date().toISOString(),
+          mom_data: currentMom,
+          testing_data: currentTesting,
+          queries_data: currentQueries,
+          meta_json: {
+            ...existingMeta,
+            custom_processes: updatedMetaCustomProcs,
+            mom_data: currentMom,
+            testing_data: currentTesting,
+            queries_data: currentQueries
+          }
+        };
+
+        const { error: updErr } = await supabase
+          .from('audit_projects')
+          .update(updatePayload)
+          .eq('id', projectId);
+
+        if (updErr && (updErr.code === '42703' || updErr.message?.includes('column'))) {
+          delete updatePayload.mom_data;
+          delete updatePayload.testing_data;
+          delete updatePayload.queries_data;
+          await supabase.from('audit_projects').update(updatePayload).eq('id', projectId);
+        }
+      }
+
+      // Fetch remaining distinct process names
+      const { data: remainingProcsData } = await supabase
+        .from('audit_programme')
+        .select('process_name')
+        .eq('project_id', projectId);
+
+      const remainingProcs = Array.from(new Set((remainingProcsData || []).map(r => r.process_name).filter(p => p && p !== procToDelete)));
+
+      return NextResponse.json({
+        success: true,
+        deleted_process: procToDelete,
+        remaining_processes: remainingProcs
+      });
     }
 
     if (action === 'create_step') {

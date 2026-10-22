@@ -258,6 +258,24 @@ async function getEmployeeActor(request) {
   return { employee };
 }
 
+async function fetchPagedRows(buildQuery, pageSize = 1000) {
+  let allRows = [];
+  let from = 0;
+  let hasMore = true;
+  while (hasMore) {
+    const { data, error } = await buildQuery().range(from, from + pageSize - 1);
+    if (error) return { data: allRows, error };
+    if (!data || data.length === 0) break;
+    allRows = allRows.concat(data);
+    if (data.length < pageSize) {
+      hasMore = false;
+    } else {
+      from += pageSize;
+    }
+  }
+  return { data: allRows, error: null };
+}
+
 export async function GET(request) {
   try {
     const actorData = await getEmployeeActor(request);
@@ -273,29 +291,35 @@ export async function GET(request) {
       { data: subtaskRows, error: subtaskTasksError },
       { data: createdTasks, error: createdTasksError },
     ] = await Promise.all([
-      adminClient
-        .from('task_assignments')
-        .select(`
-          task:tasks (
-            ${EMPLOYEE_TASK_SELECT}
-          )
-        `)
-        .eq('employee_id', employee.id)
-        .order('assigned_at', { ascending: false }),
-      adminClient
-        .from('task_subtasks')
-        .select(`
-          task:tasks (
-            ${EMPLOYEE_TASK_SELECT}
-          )
-        `)
-        .eq('assigned_employee_id', employee.id)
-        .order('updated_at', { ascending: false }),
-      adminClient
-        .from('tasks')
-        .select(EMPLOYEE_TASK_SELECT)
-        .or(`created_by_employee_id.eq.${employee.id},assigned_by_employee_id.eq.${employee.id}`)
-        .order('created_at', { ascending: false }),
+      fetchPagedRows(() =>
+        adminClient
+          .from('task_assignments')
+          .select(`
+            task:tasks (
+              ${EMPLOYEE_TASK_SELECT}
+            )
+          `)
+          .eq('employee_id', employee.id)
+          .order('assigned_at', { ascending: false })
+      ),
+      fetchPagedRows(() =>
+        adminClient
+          .from('task_subtasks')
+          .select(`
+            task:tasks (
+              ${EMPLOYEE_TASK_SELECT}
+            )
+          `)
+          .eq('assigned_employee_id', employee.id)
+          .order('updated_at', { ascending: false })
+      ),
+      fetchPagedRows(() =>
+        adminClient
+          .from('tasks')
+          .select(EMPLOYEE_TASK_SELECT)
+          .or(`created_by_employee_id.eq.${employee.id},assigned_by_employee_id.eq.${employee.id}`)
+          .order('created_at', { ascending: false })
+      ),
     ]);
 
     if (isMissingTaskCreatorEmployeeColumn(tasksError) || isMissingTaskCreatorEmployeeColumn(subtaskTasksError) || isMissingTaskCreatorEmployeeColumn(createdTasksError)) {

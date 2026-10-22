@@ -962,12 +962,19 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
   const [customProcesses, setCustomProcesses] = useState([]);
   const [projectDbProcesses, setProjectDbProcesses] = useState([]);
 
+  // Strict "Stiff Factor" Delete Process Modal States
+  const [deleteProcessModalOpen, setDeleteProcessModalOpen] = useState(false);
+  const [processPendingDelete, setProcessPendingDelete] = useState("");
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleteAckCheckbox, setDeleteAckCheckbox] = useState(false);
+  const [isDeletingProcess, setIsDeletingProcess] = useState(false);
+
   // Calculate active processes dynamically from actual DB programme rows + user custom processes + processCategory
   const initialDefault = selectedTemplate?.default_processes?.[0] || "P2P Audit";
   const baseProcesses = projectDbProcesses.length > 0 ? projectDbProcesses : [initialDefault];
   const activeProcesses = Array.from(new Set([...baseProcesses, ...customProcesses, processCategory].filter(Boolean)));
 
-  const handleAddProcess = (processName) => {
+  const handleAddProcess = async (processName) => {
     const nameToAdd = (processName || newProcessInput || "").trim();
     if (!nameToAdd) return showToast("Please enter an audit type / process name.", "warning", "Validation Required");
     if (activeProcesses.includes(nameToAdd)) return showToast(`Audit type '${nameToAdd}' already exists.`, "warning", "Duplicate Entry");
@@ -975,7 +982,16 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
     setCustomProcesses(prev => [...prev, nameToAdd]);
     setProcessCategory(nameToAdd);
 
-    if (selectedProject) {
+    if (selectedProject?.id) {
+      try {
+        await fetch(`/Auditing/api/dynamic/projects/${selectedProject.id}/stage2`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "add_process", process_name: nameToAdd })
+        });
+      } catch (err) {
+        console.error("Error persisting new process to project:", err);
+      }
       fetchStage2Data(selectedProject.id, nameToAdd);
     }
 
@@ -983,18 +999,62 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
     setNewProcessInput("");
   };
 
+  // Trigger Strict Multi-Factor Deletion Modal ("Stiff Factor Delete")
   const handleDeleteProcess = (procToDelete) => {
-    if (activeProcesses.length <= 1) return showToast("At least one audit type / process must remain.", "warning", "Action Restricted");
-    if (!confirm(`Are you sure you want to delete audit process '${procToDelete}'?`)) return;
+    if (activeProcesses.length <= 1) {
+      return showToast("At least one audit type / process must remain in your audit engagement.", "warning", "Action Restricted");
+    }
+    setProcessPendingDelete(procToDelete);
+    setDeleteConfirmText("");
+    setDeleteAckCheckbox(false);
+    setDeleteProcessModalOpen(true);
+  };
 
-    setCustomProcesses(prev => prev.filter(p => p !== procToDelete));
-    setProjectDbProcesses(prev => prev.filter(p => p !== procToDelete));
-    const remaining = activeProcesses.filter(p => p !== procToDelete);
-    const nextActive = remaining[0] || "P2P Audit";
-    setProcessCategory(nextActive);
+  // Permanently delete the process and all linked records from the database
+  const handleConfirmDeleteProcess = async () => {
+    if (!processPendingDelete) return;
 
-    if (selectedProject) {
-      fetchStage2Data(selectedProject.id, nextActive);
+    const isMatch = deleteConfirmText.trim().toUpperCase() === "DELETE" ||
+      deleteConfirmText.trim().toLowerCase() === processPendingDelete.trim().toLowerCase();
+
+    if (!deleteAckCheckbox || !isMatch) {
+      return showToast("Please check the confirmation box and type DELETE to proceed.", "warning", "Verification Required");
+    }
+
+    setIsDeletingProcess(true);
+    try {
+      if (selectedProject?.id) {
+        const res = await fetch(`/Auditing/api/dynamic/projects/${selectedProject.id}/stage2`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "delete_process", process_name: processPendingDelete })
+        });
+        const data = await res.json();
+        if (!data.success) {
+          throw new Error(data.error || "Failed to delete process from database");
+        }
+      }
+
+      setCustomProcesses(prev => prev.filter(p => p !== processPendingDelete));
+      setProjectDbProcesses(prev => prev.filter(p => p !== processPendingDelete));
+      const remaining = activeProcesses.filter(p => p !== processPendingDelete);
+      const nextActive = remaining[0] || "P2P Audit";
+      setProcessCategory(nextActive);
+
+      if (selectedProject?.id) {
+        await fetchStage2Data(selectedProject.id, nextActive);
+      }
+
+      showToast(`Audit process '${processPendingDelete}' and all database records were permanently deleted.`, "success", "Process Deleted");
+      setDeleteProcessModalOpen(false);
+      setProcessPendingDelete("");
+      setDeleteConfirmText("");
+      setDeleteAckCheckbox(false);
+    } catch (err) {
+      console.error("Delete process error:", err);
+      showToast("Error deleting process: " + err.message, "error", "Delete Failed");
+    } finally {
+      setIsDeletingProcess(false);
     }
   };
 
@@ -3797,7 +3857,20 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
                               <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
                                 <Layers size={15} /> {proc}
                               </span>
-                              <ChevronRight size={14} style={{ transform: isProcActive ? "rotate(90deg)" : "none", transition: "transform 0.15s ease" }} />
+                              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                {activeProcesses.length > 1 && (
+                                  <span
+                                    onClick={(e) => { e.stopPropagation(); handleDeleteProcess(proc); }}
+                                    title={`Delete ${proc} from database`}
+                                    style={{ padding: "2px 4px", borderRadius: 4, opacity: 0.5, cursor: "pointer", display: "inline-flex", alignItems: "center" }}
+                                    onMouseEnter={e => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.color = C.red; }}
+                                    onMouseLeave={e => { e.currentTarget.style.opacity = "0.5"; e.currentTarget.style.color = "inherit"; }}
+                                  >
+                                    <Trash2 size={13} />
+                                  </span>
+                                )}
+                                <ChevronRight size={14} style={{ transform: isProcActive ? "rotate(90deg)" : "none", transition: "transform 0.15s ease" }} />
+                              </div>
                             </button>
 
                             {/* NESTED SUB-TAB BUTTONS FOR ACTIVE PROCESS */}
@@ -5059,7 +5132,7 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
                             {activeProcesses.length > 1 && (
                               <span
                                 onClick={(e) => { e.stopPropagation(); handleDeleteProcess(proc); }}
-                                title={`Remove ${proc}`}
+                                title={`Permanently delete ${proc} from database`}
                                 style={{ fontSize: 14, fontWeight: 700, opacity: 0.5, cursor: "pointer", marginLeft: 4, padding: "0 3px", borderRadius: 4 }}
                                 onMouseEnter={e => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.color = C.red; }}
                                 onMouseLeave={e => { e.currentTarget.style.opacity = "0.5"; e.currentTarget.style.color = "inherit"; }}
@@ -7183,6 +7256,119 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
       </div>
 
       {/* ── MODALS ── */}
+      {/* Strict / Multi-Factor Delete Process Modal ("Stiff Factor Delete") */}
+      {deleteProcessModalOpen && (
+        <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(15,23,42,0.6)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1100, padding: 20 }}>
+          <div style={{ backgroundColor: C.surface, borderRadius: 14, padding: 26, width: 520, border: `1px solid ${C.border}`, borderTop: `4px solid ${C.red}`, boxShadow: "0 25px 35px -5px rgba(0,0,0,0.25)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 38, height: 38, borderRadius: 10, backgroundColor: C.redBg, display: "flex", alignItems: "center", justifyContent: "center", color: C.red }}>
+                  <AlertTriangle size={22} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: 16, fontWeight: 800, color: C.text1, margin: 0 }}>Permanently Delete Audit Process</h3>
+                  <div style={{ fontSize: 12, color: C.red, fontWeight: 700, marginTop: 2 }}>High-Impact Database Action</div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => { if (!isDeletingProcess) setDeleteProcessModalOpen(false); }}
+                style={{ background: "none", border: "none", cursor: "pointer", color: C.text3 }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Warning Details Callout */}
+            <div style={{ backgroundColor: "#fff1f2", border: `1.5px solid #fecdd3`, borderRadius: 10, padding: "14px 16px", marginBottom: 18 }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: "#9f1239", marginBottom: 6 }}>
+                Are you sure you want to permanently delete &quot;{processPendingDelete}&quot;?
+              </div>
+              <div style={{ fontSize: 12, color: "#be123c", lineHeight: 1.5, marginBottom: 10 }}>
+                This action is <strong>irreversible</strong> and cannot be undone. Confirming this will permanently delete all associated records from the database:
+              </div>
+              <ul style={{ margin: 0, paddingLeft: 18, fontSize: 11.5, color: "#9f1239", lineHeight: 1.6 }}>
+                <li>All <strong>Audit Programme</strong> steps, procedures, and rows for {processPendingDelete}</li>
+                <li>All linked <strong>Data Tracker / IDR</strong> requests and attached evidence files</li>
+                <li>All <strong>Minutes of Meeting (MOM)</strong> logs for {processPendingDelete}</li>
+                <li>All <strong>Testing Execution</strong> findings and manual test rows</li>
+                <li>All <strong>Queries & Observations</strong> mapped to this process</li>
+              </ul>
+            </div>
+
+            {/* Step 1: Confirmation Checkbox */}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", fontSize: 12.5, color: C.text1, fontWeight: 600, lineHeight: 1.45 }}>
+                <input
+                  type="checkbox"
+                  checked={deleteAckCheckbox}
+                  onChange={e => setDeleteAckCheckbox(e.target.checked)}
+                  style={{ width: 16, height: 16, marginTop: 2, accentColor: C.red, cursor: "pointer" }}
+                />
+                <span>I understand that all database records and audit findings for <strong>&quot;{processPendingDelete}&quot;</strong> will be permanently deleted and cannot be recovered.</span>
+              </label>
+            </div>
+
+            {/* Step 2: Type Confirmation Phrase */}
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ fontSize: 12, fontWeight: 700, color: C.text2, display: "block", marginBottom: 6 }}>
+                To verify, type <strong style={{ color: C.red, fontFamily: MONO, backgroundColor: C.redBg, padding: "1px 6px", borderRadius: 4 }}>DELETE</strong> or the process name <strong style={{ color: C.text1, fontFamily: MONO }}>&quot;{processPendingDelete}&quot;</strong> below:
+              </label>
+              <input
+                type="text"
+                placeholder="Type DELETE to confirm..."
+                value={deleteConfirmText}
+                onChange={e => setDeleteConfirmText(e.target.value)}
+                style={{
+                  width: "100%", padding: "10px 12px", borderRadius: 8,
+                  border: `1.5px solid ${(deleteConfirmText.trim().toUpperCase() === "DELETE" || deleteConfirmText.trim().toLowerCase() === (processPendingDelete || "").trim().toLowerCase()) ? C.green : C.border}`,
+                  fontSize: 13, fontFamily: MONO, outline: "none", backgroundColor: C.surface, color: C.text1
+                }}
+                autoFocus
+              />
+            </div>
+
+            {/* Modal Actions */}
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+              <button
+                type="button"
+                disabled={isDeletingProcess}
+                onClick={() => setDeleteProcessModalOpen(false)}
+                style={{ padding: "9px 16px", borderRadius: 8, border: `1px solid ${C.border}`, backgroundColor: C.surface, color: C.text2, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteProcess}
+                disabled={
+                  !deleteAckCheckbox ||
+                  !(deleteConfirmText.trim().toUpperCase() === "DELETE" || deleteConfirmText.trim().toLowerCase() === (processPendingDelete || "").trim().toLowerCase()) ||
+                  isDeletingProcess
+                }
+                style={{
+                  padding: "9px 18px", borderRadius: 8, border: "none",
+                  backgroundColor: (!deleteAckCheckbox || !(deleteConfirmText.trim().toUpperCase() === "DELETE" || deleteConfirmText.trim().toLowerCase() === (processPendingDelete || "").trim().toLowerCase()) || isDeletingProcess)
+                    ? "#94a3b8"
+                    : C.red,
+                  color: "#fff", fontSize: 13, fontWeight: 700,
+                  cursor: (!deleteAckCheckbox || !(deleteConfirmText.trim().toUpperCase() === "DELETE" || deleteConfirmText.trim().toLowerCase() === (processPendingDelete || "").trim().toLowerCase()) || isDeletingProcess)
+                    ? "not-allowed"
+                    : "pointer",
+                  display: "inline-flex", alignItems: "center", gap: 6,
+                  boxShadow: (!deleteAckCheckbox || !(deleteConfirmText.trim().toUpperCase() === "DELETE" || deleteConfirmText.trim().toLowerCase() === (processPendingDelete || "").trim().toLowerCase()))
+                    ? "none"
+                    : "0 2px 6px rgba(225,29,72,0.3)"
+                }}
+              >
+                <Trash2 size={14} />
+                {isDeletingProcess ? "Deleting from Database..." : "Permanently Delete from Database"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 0. Add Custom Audit Type / Process Modal */}
       {showAddProcessModal && (
         <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(15,23,42,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }}>
