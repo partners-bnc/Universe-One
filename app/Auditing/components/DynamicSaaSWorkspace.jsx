@@ -2159,7 +2159,7 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
         ",4.1,RFQ & Vendor Selection,Vendor selection is transparent and competitive,Review quotation comparative statements and DOA approvals,High,Comparative Statements,,Pending";
       fileName = "Audit_Programme_P2P_Template.csv";
     }
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
@@ -2169,21 +2169,79 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
     document.body.removeChild(link);
   };
 
+  // Helper to normalize and preserve points, bullets, and line breaks from Excel & CSV cells
+  const cleanCellText = (val) => {
+    if (val === null || val === undefined) return "";
+    let str = String(val);
+    // Convert Windows-1252 / ANSI byte 0x95 control character bullet
+    str = str.replace(/\u0095/g, "• ");
+    // Convert Wingdings / Symbol bullets copied from Office / Word
+    str = str.replace(/[\uF0B7\uF0A7\uF0D8\uF0DE]/g, "• ");
+    // Convert UTF-8 mojibake of bullet point (e.g. â€¢ or â\x80¢)
+    str = str.replace(/\u00e2\u0080\u00a2|â€¢|â\x80¢/g, "• ");
+    // Normalize line endings to standard \n
+    str = str.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+    // Normalize bullet spacing if multiple spaces appear right after •
+    str = str.replace(/•\s+/g, "• ");
+    return str.trim();
+  };
+
   // Parse Excel (.xlsx, .xls) & CSV Files via SheetJS and Trigger Column Mapping Panel Modal
   const handleFileUpload = (e, section) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const isCsv = file.name.toLowerCase().endsWith(".csv") || file.type === "text/csv";
     const reader = new FileReader();
+
     reader.onload = (evt) => {
       try {
-        const data = new Uint8Array(evt.target.result);
-        const workbook = XLSX.read(data, { type: "array" });
+        let workbook;
+        if (isCsv) {
+          const buffer = evt.target.result;
+          let text = "";
+          try {
+            text = new TextDecoder("utf-8", { fatal: true }).decode(buffer);
+          } catch {
+            text = new TextDecoder("windows-1252").decode(buffer);
+          }
+          workbook = XLSX.read(text, { type: "string", cellText: true, cellDates: true, raw: false });
+        } else {
+          const data = new Uint8Array(evt.target.result);
+          workbook = XLSX.read(data, { type: "array", cellText: true, cellDates: true, codepage: 65001 });
+        }
+
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
 
-        const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
-        if (!jsonRows || jsonRows.length === 0) return showToast("Uploaded file is empty.", "warning", "File Empty");
+        // Extract rows using both formatted text (raw: false, which gets cell.w including custom formats like "• @")
+        // and raw values (raw: true, which gets cell.v) to ensure bullets and multi-line points are never lost
+        const formattedRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "", raw: false });
+        const rawRowsArr = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "", raw: true });
+
+        const maxRows = Math.max(formattedRows.length, rawRowsArr.length);
+        if (maxRows === 0) return showToast("Uploaded file is empty.", "warning", "File Empty");
+
+        const jsonRows = [];
+        for (let r = 0; r < maxRows; r++) {
+          const fRow = formattedRows[r] || [];
+          const rRow = rawRowsArr[r] || [];
+          const maxCols = Math.max(fRow.length, rRow.length);
+          const row = [];
+          for (let c = 0; c < maxCols; c++) {
+            const fVal = fRow[c] !== undefined && fRow[c] !== null ? String(fRow[c]) : "";
+            const rVal = rRow[c] !== undefined && rRow[c] !== null ? String(rRow[c]) : "";
+
+            let chosen = fVal;
+            if (!chosen && rVal) chosen = rVal;
+            // If raw value has bullets or newlines that formatted value lost, prefer raw value
+            if (rVal && (rVal.includes("•") || rVal.includes("\n")) && (!fVal.includes("•") && !fVal.includes("\n"))) {
+              chosen = rVal;
+            }
+            row.push(cleanCellText(chosen));
+          }
+          jsonRows.push(row);
+        }
 
         const rawHeaders = jsonRows[0] || [];
         const headers = rawHeaders.map(h => String(h || "").trim()).filter(Boolean);
@@ -2191,7 +2249,7 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
 
         const rawRows = jsonRows.slice(1);
         const rows = rawRows
-          .map(rowArr => rawHeaders.map((_, idx) => String(rowArr[idx] || "").trim()))
+          .map(rowArr => rawHeaders.map((_, idx) => cleanCellText(rowArr[idx])))
           .filter(row => row.some(cell => cell !== ""));
 
         if (rows.length === 0) return showToast("No data rows found in uploaded file.", "warning", "No Data Found");
@@ -2304,11 +2362,14 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
 
           newDiscovered = unmappedExcelHeaders.map((h, i) => {
             const cleanKey = h.toLowerCase().replace(/[^a-z0-9]/g, "_").replace(/^_+|_+$/g, "") || `custom_${Date.now()}_${i}`;
+            const isTextArea = /procedure|step|desc|note|detail|finding|observation|scope|objective|requirement|comment/i.test(h);
+            const isNum = /amount|size|count|cost|value|qty|quantity|number/i.test(h);
+            const isDate = /date|time|deadline|due/i.test(h);
             return {
               header: h,
               key: cleanKey,
               label: h,
-              type: h.toLowerCase().includes("date") ? "date" : h.toLowerCase().includes("amount") || h.toLowerCase().includes("size") || h.toLowerCase().includes("count") ? "number" : "text",
+              type: isDate ? "date" : isNum ? "number" : isTextArea ? "textarea" : "text",
               include: true
             };
           });
@@ -6392,7 +6453,7 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
                                         if (col.key === "procedure") {
                                           return (
                                             <td key={col.key} style={{ padding: "12px 14px", minWidth: col.width || 280, maxWidth: 360, border: `1px solid ${C.border}` }}>
-                                              <div style={{ fontWeight: 600, color: C.text1, fontSize: 12.5, lineHeight: 1.45 }}>
+                                              <div style={{ fontWeight: 600, color: C.text1, fontSize: 12.5, lineHeight: 1.45, whiteSpace: "pre-wrap" }}>
                                                 {item.procedure}
                                               </div>
                                               {item.sub_process && item.sub_process !== "—" && (
@@ -6942,7 +7003,7 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
                                         if (col.key === "procedure") {
                                           return (
                                             <td key={col.key} style={{ padding: "12px 14px", minWidth: col.width || 260, maxWidth: 340, border: `1px solid ${C.border}` }}>
-                                              <div style={{ fontWeight: 600, color: C.text1, fontSize: 12, lineHeight: 1.45 }}>
+                                              <div style={{ fontWeight: 600, color: C.text1, fontSize: 12, lineHeight: 1.45, whiteSpace: "pre-wrap" }}>
                                                 {item.procedure}
                                               </div>
                                               {item.key_risk && item.key_risk !== "—" && (
@@ -8165,7 +8226,7 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
                 </div>
 
                 {/* Step Title / Procedure */}
-                <div style={{ fontSize: 15, fontWeight: 800, color: C.text1, lineHeight: 1.4, marginBottom: 16 }}>
+                <div style={{ fontSize: 15, fontWeight: 800, color: C.text1, lineHeight: 1.4, marginBottom: 16, whiteSpace: "pre-wrap" }}>
                   {drawerData.procedure || drawerData.title || "Audit Step Details"}
                 </div>
 
@@ -8487,12 +8548,21 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
                             <label style={{ fontSize: 10.5, fontWeight: 800, color: C.text3, textTransform: "uppercase", letterSpacing: 0.8, display: "block", marginBottom: 6 }}>
                               {col.label}
                             </label>
-                            <input
-                              type={col.type === "date" ? "date" : col.type === "number" ? "number" : "text"}
-                              value={val}
-                              onChange={e => setDrawerData({ ...drawerData, [col.key]: e.target.value })}
-                              style={{ width: "100%", padding: "9px 12px", borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 13, color: C.text1, outline: "none" }}
-                            />
+                            {col.type === "textarea" ? (
+                              <textarea
+                                rows={4}
+                                value={val}
+                                onChange={e => setDrawerData({ ...drawerData, [col.key]: e.target.value })}
+                                style={{ width: "100%", padding: "10px 12px", borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 13, color: C.text1, outline: "none", lineHeight: 1.5, resize: "vertical", fontFamily: "inherit", backgroundColor: "#fff" }}
+                              />
+                            ) : (
+                              <input
+                                type={col.type === "date" ? "date" : col.type === "number" ? "number" : "text"}
+                                value={val}
+                                onChange={e => setDrawerData({ ...drawerData, [col.key]: e.target.value })}
+                                style={{ width: "100%", padding: "9px 12px", borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 13, color: C.text1, outline: "none" }}
+                              />
+                            )}
                           </div>
                         );
                       })}
@@ -10074,7 +10144,18 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
                         const colIdx = rawFileHeaders.indexOf(h);
                         const val = colIdx !== -1 ? row[colIdx] : "";
                         return (
-                          <td key={k} style={{ padding: "8px 12px", border: `1px solid ${C.border}`, color: val ? C.text1 : C.text3 }}>
+                          <td
+                            key={k}
+                            style={{
+                              padding: "8px 12px",
+                              border: `1px solid ${C.border}`,
+                              color: val ? C.text1 : C.text3,
+                              whiteSpace: "pre-wrap",
+                              lineHeight: 1.45,
+                              verticalAlign: "top",
+                              minWidth: 120
+                            }}
+                          >
                             {val || "—"}
                           </td>
                         );
@@ -10083,7 +10164,19 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
                         const colIdx = rawFileHeaders.indexOf(nc.header);
                         const val = colIdx !== -1 ? row[colIdx] : "";
                         return (
-                          <td key={nc.key} style={{ padding: "8px 12px", border: `1px solid #86efac`, color: val ? "#166534" : C.text3, fontWeight: 600 }}>
+                          <td
+                            key={nc.key}
+                            style={{
+                              padding: "8px 12px",
+                              border: `1px solid #86efac`,
+                              color: val ? "#166534" : C.text3,
+                              fontWeight: 600,
+                              whiteSpace: "pre-wrap",
+                              lineHeight: 1.45,
+                              verticalAlign: "top",
+                              minWidth: 120
+                            }}
+                          >
                             {val || "—"}
                           </td>
                         );
@@ -11622,7 +11715,7 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
               <div style={{ padding: 16, borderRadius: 10, backgroundColor: C.bg2, border: `1px solid ${C.border}`, display: "flex", flexDirection: "column", gap: 10 }}>
                 <div>
                   <span style={{ fontSize: 11, fontWeight: 700, color: C.text3, textTransform: "uppercase" }}>Audit Procedure / Steps</span>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: C.text1, marginTop: 2, lineHeight: 1.45 }}>{selectedTestingDrawerRow.procedure}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: C.text1, marginTop: 2, lineHeight: 1.45, whiteSpace: "pre-wrap" }}>{selectedTestingDrawerRow.procedure}</div>
                 </div>
                 <div>
                   <span style={{ fontSize: 11, fontWeight: 700, color: C.text3, textTransform: "uppercase" }}>Audit Objective / Control</span>
@@ -12728,7 +12821,7 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
               <div style={{ padding: 16, borderRadius: 10, backgroundColor: C.bg2, border: `1px solid ${C.border}`, display: "flex", flexDirection: "column", gap: 10 }}>
                 <div>
                   <span style={{ fontSize: 11, fontWeight: 800, color: C.teal, textTransform: "uppercase" }}>📋 Linked Procedure</span>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: C.text1, marginTop: 2, lineHeight: 1.45 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: C.text1, marginTop: 2, lineHeight: 1.45, whiteSpace: "pre-wrap" }}>
                     {selectedQueryDrawerRow.procedure || "—"}
                   </div>
                 </div>
