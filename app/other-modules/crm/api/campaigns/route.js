@@ -406,13 +406,20 @@ async function launchCampaign(supabase, campaignId) {
   let sentCount = 0;
   let failedCount = 0;
   for (const lead of matchedLeads) {
+    // Recheck the database: this list may predate a bounce in another campaign.
+    const targetEmail = lead.email || lead.primary_business_email || lead.email_alt;
+    const { data: sendAllowed, error: suppressionError } = await supabase.rpc("crm_email_send_allowed", {
+      p_lead_id: lead.lead_id,
+      p_email: targetEmail,
+    });
+    if (suppressionError) throw new Error("Unable to verify campaign email suppression");
+    if (!sendAllowed) continue;
     const subSubject = substitute(template.subject, lead);
     const emailFormat = campaign.email_format || "html";
     const bodyField = emailFormat === "text" ? (template.plain_text_body || "") : (template.html_body || "");
     const subBody = substitute(bodyField, lead);
 
     // Insert campaign_recipient
-    const targetEmail = lead.email || lead.primary_business_email || lead.email_alt;
     const { data: recipient, error: recErr } = await supabase
       .from("crm_campaign_recipients")
       .insert({
@@ -441,6 +448,12 @@ async function launchCampaign(supabase, campaignId) {
     }
 
     try {
+      const { data: stillAllowed, error: recheckError } = await supabase.rpc("crm_email_send_allowed", {
+        p_lead_id: lead.lead_id,
+        p_email: targetEmail,
+      });
+      if (recheckError) throw new Error("Unable to verify campaign email suppression");
+      if (!stillAllowed) continue;
       const sentAt = new Date().toISOString();
       const { providerMessageId } = await sendZeptoCampaignEmail({
         token: zohoToken,
@@ -494,6 +507,9 @@ async function launchCampaign(supabase, campaignId) {
     .from(TABLE)
     .update(campaignUpdates)
     .eq("campaign_id", campaignId);
+  // Use persisted rows rather than stale in-memory counts after concurrent bounces.
+  const { error: metricError } = await supabase.rpc("recalculate_crm_campaign_email_metrics", { p_campaign_id: campaignId });
+  if (metricError) throw metricError;
 }
 
 // POST new campaign

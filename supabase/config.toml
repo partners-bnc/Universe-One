@@ -1,0 +1,7 @@
+[functions.crm-bounce-cleanup]
+# The function's service-role check relies on gateway signature verification.
+verify_jwt = true
+
+[functions.zeptomail-tracking-webhook]
+# Authenticates the provider header through a service-only Vault-backed RPC.
+verify_jwt = false

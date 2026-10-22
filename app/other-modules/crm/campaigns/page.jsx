@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useCrm } from "../context/CrmContext";
 import { useToast } from "../context/ToastContext";
+import BouncedEmailsTable from "../components/BouncedEmailsTable";
 import {
   Mail,
   Plus,
@@ -53,6 +54,14 @@ export default function CampaignsPage() {
   // Navigation / View states
   const [activeTab, setActiveTab] = useState("list"); // 'list', 'wizard', 'detail'
   const [campaignViewMode, setCampaignViewMode] = useState("card"); // 'table', 'card', 'kanban'
+  const [bounceArchiveCount, setBounceArchiveCount] = useState(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch('/other-modules/crm/api/campaigns/bounces?limit=1', { signal: controller.signal, cache: 'no-store' })
+      .then(async response => { if (response.ok) { const result = await response.json(); if (!controller.signal.aborted) setBounceArchiveCount(result.archive_total); } })
+      .catch(() => {});
+    return () => controller.abort();
+  }, []);
   const [selectedCampaignId, setSelectedCampaignId] = useState(null);
   const [selectedCampaignDetail, setSelectedCampaignDetail] = useState(null);
   const [recipients, setRecipients] = useState([]);
@@ -663,7 +672,8 @@ export default function CampaignsPage() {
             {[
               { id: 'table', label: 'Table View', icon: Table },
               { id: 'card', label: 'Card View', icon: LayoutGrid },
-              { id: 'kanban', label: 'Kanban View', icon: Trello }
+              { id: 'kanban', label: 'Kanban View', icon: Trello },
+              { id: 'bounces', label: 'Bounced emails', icon: UserX }
             ].map((tab) => {
               const Icon = tab.icon;
               const active = campaignViewMode === tab.id;
@@ -678,6 +688,7 @@ export default function CampaignsPage() {
                 >
                   <Icon size={16} />
                   <span>{tab.label}</span>
+                  {tab.id === 'bounces' && bounceArchiveCount !== null && <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs text-red-700 dark:bg-red-950/40 dark:text-red-300">{bounceArchiveCount}</span>}
                 </button>
               );
             })}
@@ -2113,7 +2124,8 @@ export default function CampaignsPage() {
       )}
 
       {/* DEFAULT CAMPAIGNS LIST VIEW */}
-      {activeTab === "list" && (
+      {activeTab === "list" && campaignViewMode === "bounces" && <BouncedEmailsTable onCountChange={setBounceArchiveCount} />}
+      {activeTab === "list" && campaignViewMode !== "bounces" && (
         <div className="space-y-4">
           <div className="flex items-center justify-between text-xs text-slate-450 dark:text-slate-550 font-bold mb-1">
             <span>List of Campaigns ({campaigns.length})</span>
