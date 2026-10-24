@@ -11,6 +11,46 @@ continue to block future sends and reimports.
 
 ## Bounced emails archive
 
+### Campaign bounce-rate KPI
+
+Campaign table and detail views display bounce count and rate from the private
+archive. Regular cards and Kanban cards do not include a bounce-rate box.
+The campaign API returns a `bounce_metrics` object with
+`original_sent_count`, `archived_bounce_count`, `bounce_rate`, and
+`history_complete`. The list uses one batch RPC instead of a query per campaign.
+
+The rate is archived bounced addresses divided by the preserved original send
+total when available, otherwise the current campaign `sent_count`, multiplied by
+100 and rounded to one decimal place. Incomplete history does not block a rate.
+Fallback rates are labeled Based on available data. They are not reconstructed
+historical rates, and are not capped if partial records produce a value over 100%.
+New tracked original totals count unique accepted addresses, matching the archive's
+deduplication. Pending, failed and simulated sends are excluded from that ledger.
+A zero denominator has no percentage; existing bounce counts remain visible.
+
+Private `crm_private.campaign_send_receipts` stores campaign IDs and keyed email
+hashes. Accepted-recipient triggers and the sender's service-only receipt RPC
+update `crm_campaigns.original_sent_count` idempotently. The RPC also records
+acceptance when concurrent lead cleanup has already removed the recipient row.
+Cleanup and subsequent metric recalculation preserve this original denominator.
+
+Campaigns predating this change use the retained Sent count when their original
+total is unavailable. Saudi Seminar therefore shows 30/1186 = 2.5% using available
+data. The dedicated five-address live test has independently verified provenance
+and remains 2/5 = 40%. Existing surviving recipient
+rows are seeded into the receipt ledger to prevent delivery callbacks from
+incrementing their counters again. New campaigns start with complete tracking.
+
+Validation: `supabase/tests/crm-campaign-bounce-kpi.sql` is rollback-only and covers
+cleanup survival, duplicate receipts, late acceptance, failures, zero sends,
+partial history and role permissions. `scripts/test-crm-bounce-kpi.mjs` and
+`scripts/test-crm-campaign-bounce-api.mjs` cover formatting, API enrichment and
+protection against client edits to maintained metric fields. Browser checks
+verify absence of KPI boxes on cards, available-data rates in table/detail views,
+and mobile layout. No actual test emails were sent
+for this KPI change. The database migration is deployed; web application changes
+require the normal application deployment.
+
 The Campaigns page has a **Bounced emails** tab immediately after **Kanban View**.
 Its table supports email search, campaign/type filters, refresh and pagination
 (50 rows per page), with dates displayed in India time. The authenticated route

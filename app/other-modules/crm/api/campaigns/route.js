@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { adminClient } from "@/utils/supabase/admin";
 import { resolveAuthenticatedUserContext } from "@/utils/auth/context";
+import { attachCampaignBounceMetrics } from "@/utils/crm-bounce-metrics";
 
 async function getAuthenticatedUser(supabase) {
   const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -222,7 +223,8 @@ export async function GET(request) {
 
       if (recError) throw recError;
 
-      return NextResponse.json({ campaign, recipients: recipients || [] });
+      const [enrichedCampaign] = await attachCampaignBounceMetrics(supabase, [campaign]);
+      return NextResponse.json({ campaign: enrichedCampaign, recipients: recipients || [] });
     }
 
     // Fetch all campaigns
@@ -238,7 +240,7 @@ export async function GET(request) {
       .order("created_at", { ascending: false });
 
     if (listError) throw listError;
-    return NextResponse.json({ campaigns: campaignsList || [] });
+    return NextResponse.json({ campaigns: await attachCampaignBounceMetrics(supabase, campaignsList || []) });
   } catch (error) {
     console.error("GET Campaigns error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -465,6 +467,17 @@ async function launchCampaign(supabase, campaignId) {
         recipientId: recipient.recipient_id,
       });
 
+      // Persist acceptance even if concurrent cleanup has removed the recipient.
+      // The database also records ordinary Sent/Delivered updates idempotently.
+      const { error: sendMetricError } = await supabase.rpc("crm_record_campaign_send", {
+        p_campaign_id: campaignId,
+        p_email: targetEmail,
+      });
+      if (sendMetricError) {
+        console.error("Unable to preserve accepted campaign send", { code: sendMetricError.code });
+        await supabase.from(TABLE).update({ bounce_history_complete: false }).eq("campaign_id", campaignId);
+      }
+
       await supabase
         .from("crm_campaign_recipients")
         .update({
@@ -562,7 +575,8 @@ export async function POST(request) {
       await launchCampaign(supabase, campaign.campaign_id);
     }
 
-    return NextResponse.json({ campaign });
+    const [enrichedCampaign] = await attachCampaignBounceMetrics(supabase, [campaign]);
+    return NextResponse.json({ campaign: enrichedCampaign });
   } catch (error) {
     console.error("POST Campaign error:", error);
     return NextResponse.json({ error: error.message }, { status: 400 });
@@ -575,6 +589,10 @@ export async function PUT(request) {
     const supabase = adminClient;
     const body = await request.json();
     const { campaign_id, ...updates } = body;
+    // Aggregate metrics are maintained by trusted send/cleanup operations.
+    delete updates.original_sent_count;
+    delete updates.bounce_history_complete;
+    delete updates.bounce_metrics;
 
     if (!campaign_id) {
       return NextResponse.json({ error: "campaign_id is required" }, { status: 400 });
@@ -606,7 +624,8 @@ export async function PUT(request) {
       await launchCampaign(supabase, campaign_id);
     }
 
-    return NextResponse.json({ campaign });
+    const [enrichedCampaign] = await attachCampaignBounceMetrics(supabase, [campaign]);
+    return NextResponse.json({ campaign: enrichedCampaign });
   } catch (error) {
     console.error("PUT Campaign error:", error);
     return NextResponse.json({ error: error.message }, { status: 400 });

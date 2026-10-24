@@ -7,6 +7,7 @@ import { createRequire } from 'node:module';
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import ts from 'typescript';
+import { attachCampaignBounceMetrics } from '../utils/crm-bounce-metrics.js';
 
 Object.assign(process.env, dotenv.parse(fs.readFileSync('.env.local')));
 const campaignId = Number(process.argv.find(v => /^\d+$/.test(v)));
@@ -35,6 +36,7 @@ vm.runInNewContext(compiled.outputText, {
   module: routeModule, exports: routeModule.exports, process, fetch, console, Request, Response, URL, Date,
   require(name) {
     if (name === '@/utils/supabase/admin') return { adminClient };
+    if (name === '@/utils/crm-bounce-metrics') return { attachCampaignBounceMetrics };
     // PUT uses the admin client directly; fail if a different handler runs.
     if (name === '@/utils/supabase/server') return { createClient() { throw new Error('Unexpected session handler'); } };
     if (name === '@/utils/auth/context') return { resolveAuthenticatedUserContext() { throw new Error('Unexpected user-context lookup'); } };

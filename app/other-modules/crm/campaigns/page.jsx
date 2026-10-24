@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useCrm } from "../context/CrmContext";
 import { useToast } from "../context/ToastContext";
 import BouncedEmailsTable from "../components/BouncedEmailsTable";
+import CampaignBounceKpi from "../components/CampaignBounceKpi";
 import {
   Mail,
   Plus,
@@ -33,7 +34,6 @@ import {
   Download,
   Send,
   MousePointerClick,
-  AlertTriangle,
   ChevronDown,
   ChevronUp,
   FolderKanban,
@@ -534,18 +534,16 @@ export default function CampaignsPage() {
 
   // Statistics calculation helpers
   const stats = useMemo(() => {
-    if (!selectedCampaignDetail) return { openRate: 0, clickRate: 0, bounceRate: 0, sentRate: 0, deliveryRate: 0 };
+    if (!selectedCampaignDetail) return { openRate: 0, clickRate: 0, sentRate: 0, deliveryRate: 0 };
     const enrolled = selectedCampaignDetail.total_recipients || 0;
     const sent = selectedCampaignDetail.sent_count || 0;
     const opened = selectedCampaignDetail.opened_count || 0;
     const clicked = selectedCampaignDetail.clicked_count || 0;
-    const bounced = selectedCampaignDetail.bounced_count || 0;
     const delivered = selectedCampaignDetail.delivered_count || 0;
 
     return {
       openRate: sent > 0 ? Math.round((opened / sent) * 100) : 0,
       clickRate: sent > 0 ? Math.round((clicked / sent) * 100) : 0,
-      bounceRate: sent > 0 ? Math.round((bounced / sent) * 100) : 0,
       sentRate: enrolled > 0 ? Math.round((sent / enrolled) * 100) : 0,
       deliveryRate: sent > 0 ? Math.round((delivered / sent) * 100) : 0,
     };
@@ -1953,16 +1951,7 @@ export default function CampaignsPage() {
                 </div>
 
                 {/* Bounced */}
-                <div className="bg-white dark:bg-slate-850 p-4.5 rounded-2xl shadow-xs border border-slate-100 dark:border-slate-800/80 flex flex-col justify-between hover:shadow-sm transition-all duration-200">
-                  <div>
-                    <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Bounce Rate</span>
-                    <div className="flex items-center justify-between mt-1.5 w-full">
-                      <span className="text-3xl font-medium text-rose-500 dark:text-rose-400 leading-none">{stats.bounceRate}%</span>
-                      <AlertTriangle className="w-5.5 h-5.5 text-rose-500 shrink-0" />
-                    </div>
-                  </div>
-                  <p className="text-[11px] text-slate-450 mt-3 block font-normal">{selectedCampaignDetail.bounced_count || 0} bounced</p>
-                </div>
+                <CampaignBounceKpi campaign={selectedCampaignDetail} detail />
               </div>
 
               {/* Recipients list */}
@@ -2162,6 +2151,7 @@ export default function CampaignsPage() {
                         <th className="py-3 px-4 font-medium text-slate-900 dark:text-slate-200 text-[14px] w-28">Type</th>
                         <th className="py-3 px-4 font-medium text-slate-900 dark:text-slate-200 text-[14px] w-32 text-center">Recipients</th>
                         <th className="py-3 px-4 font-medium text-slate-900 dark:text-slate-200 text-[14px] w-40">Performance</th>
+                        <th className="py-3 px-4 font-medium text-slate-900 dark:text-slate-200 text-[14px] w-44">Bounce rate</th>
                         <th className="py-3 px-4 font-medium text-slate-900 dark:text-slate-200 text-[14px] w-36">Created</th>
                         <th className="py-3 px-4 font-medium text-slate-900 dark:text-slate-200 text-[14px] w-48 text-center">Actions</th>
                       </tr>
@@ -2205,6 +2195,7 @@ export default function CampaignsPage() {
                                 <span className="text-[13px] text-slate-400 italic">—</span>
                               )}
                             </td>
+                            <td className="py-2 px-4 border border-slate-200 dark:border-slate-700"><CampaignBounceKpi campaign={camp} compact hideLabel /></td>
                             <td className="py-1.5 px-4 border border-slate-200 dark:border-slate-700 text-[14px] font-medium text-slate-600 dark:text-slate-400">
                               {dateStr}
                             </td>
