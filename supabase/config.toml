@@ -5,3 +5,9 @@ verify_jwt = true
 [functions.zeptomail-tracking-webhook]
 # Authenticates the provider header through a service-only Vault-backed RPC.
 verify_jwt = false
+
+[functions.crm-campaign-dispatcher]
+verify_jwt = true
+
+[functions.crm-campaign-send]
+verify_jwt = true

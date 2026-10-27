@@ -23,6 +23,10 @@ const adminClient = {
     };
   },
   async rpc(name) {
+    if (name === 'crm_save_campaign') {
+      capturedUpdate = arguments[1].p_config;
+      return { data: { ...campaign, ...capturedUpdate }, error: null };
+    }
     assert.equal(name, 'crm_campaign_bounce_metrics'); calls++;
     return { data: [{ campaign_id: 1, original_sent_count: 5, archived_bounce_count: 2, bounce_rate: '40.0', history_complete: true }] };
   },
@@ -31,8 +35,9 @@ const route = compileModule(fs.readFileSync('app/other-modules/crm/api/campaigns
   if (name === 'next/server') return { NextResponse: { json: (body, options) => Response.json(body, options) } };
   if (name === '@/utils/supabase/admin') return { adminClient };
   if (name === '@/utils/crm-bounce-metrics') return helpers;
-  if (name === '@/utils/supabase/server') return {};
-  if (name === '@/utils/auth/context') return {};
+  if (name === '@/utils/supabase/server') return { createClient: async () => ({ auth: { getUser: async () => ({ data: { user: { id: 'test-user' } } }) } }) };
+  if (name === '@/utils/crm-campaign-schedule') return compileModule(fs.readFileSync('utils/crm-campaign-schedule.js', 'utf8'));
+  if (name === '@/utils/auth/context') return { resolveAuthenticatedUserContext: async () => ({}), buildModuleAccessState: () => ({ crm: { enabled: true } }) };
   throw new Error(`Unexpected import: ${name}`);
 });
 let response = await route.GET(new Request('https://test.invalid/campaigns'));

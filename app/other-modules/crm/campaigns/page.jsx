@@ -5,6 +5,7 @@ import { useCrm } from "../context/CrmContext";
 import { useToast } from "../context/ToastContext";
 import BouncedEmailsTable from "../components/BouncedEmailsTable";
 import CampaignBounceKpi from "../components/CampaignBounceKpi";
+import { scheduledIstToUtc, validateCampaignConfig, describeCampaignSchedule, formatCampaignTime } from "@/utils/crm-campaign-schedule";
 import {
   Mail,
   Plus,
@@ -44,6 +45,7 @@ export default function CampaignsPage() {
     leads,
     campaigns,
     addCampaign,
+    updateCampaign,
     deleteCampaign,
     currentUser,
     refreshCrmData,
@@ -116,6 +118,12 @@ export default function CampaignsPage() {
   const [wizardSendImmediately, setWizardSendImmediately] = useState(true);
   const [wizardDate, setWizardDate] = useState("");
   const [wizardTime, setWizardTime] = useState("");
+  const [wizardBatching, setWizardBatching] = useState(false);
+  const [wizardFirstBatch, setWizardFirstBatch] = useState(1000);
+  const [wizardRepeatBatch, setWizardRepeatBatch] = useState(10000);
+  const [wizardInterval, setWizardInterval] = useState(2);
+  const [wizardIntervalUnit, setWizardIntervalUnit] = useState(60);
+  const [isUpdatingSchedule, setIsUpdatingSchedule] = useState(false);
   const [isSavingCampaign, setIsSavingCampaign] = useState(false);
 
   // Load Templates & Saved Lists & Refresh CRM Leads
@@ -169,6 +177,21 @@ export default function CampaignsPage() {
 
     loadCampaignDetail();
   }, [selectedCampaignId, toast]);
+
+  useEffect(() => {
+    if (activeTab !== "detail" || !selectedCampaignId || !["Scheduled", "Running"].includes(selectedCampaignDetail?.status)) return;
+    const controller = new AbortController();
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/other-modules/crm/api/campaigns?id=${selectedCampaignId}`, { signal: controller.signal, cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          if (!controller.signal.aborted) { setSelectedCampaignDetail(data.campaign); setRecipients(data.recipients || []); }
+        }
+      } catch { /* A later refresh can recover from a transient network failure. */ }
+    }, 15000);
+    return () => { controller.abort(); clearInterval(interval); };
+  }, [activeTab, selectedCampaignId, selectedCampaignDetail?.status]);
 
   // Unique filter values derived dynamically from current leads list
   const uniqueSources = useMemo(() => [...new Set(leads.map((l) => l.lead_source).filter(Boolean))].sort(), [leads]);
@@ -327,9 +350,23 @@ export default function CampaignsPage() {
       return;
     }
 
-    const scheduledAt = wizardSendImmediately
-      ? null
-      : new Date(`${wizardDate}T${wizardTime || "12:00"}`).toISOString();
+    let schedule;
+    try {
+      schedule = validateCampaignConfig({
+        status,
+        scheduled_at: wizardSendImmediately || (status === "Draft" && (!wizardDate || !wizardTime))
+          ? null : scheduledIstToUtc(wizardDate, wizardTime),
+        batching_enabled: wizardBatching,
+        first_batch_size: Number(wizardFirstBatch),
+        repeat_batch_size: Number(wizardRepeatBatch),
+        batch_interval_minutes: Number(wizardInterval) * Number(wizardIntervalUnit),
+      });
+      if (!Number.isInteger(Number(wizardInterval)) || Number(wizardInterval) < 1) throw new Error("Enter a positive whole-number wait interval.");
+    } catch (error) {
+      toast.error(error.message);
+      return;
+    }
+    const scheduledAt = schedule.scheduled_at;
 
     const targetFilter = {};
     if (selectedListId) targetFilter.selected_list_id = selectedListId;
@@ -365,15 +402,15 @@ export default function CampaignsPage() {
       template_id: templateId,
       email_format: wizardEmailFormat,
       target_filter: targetFilter,
-      status: scheduledAt ? "Scheduled" : status,
-      scheduled_at: scheduledAt,
+      ...schedule,
+      status: status === "Draft" ? "Draft" : scheduledAt ? "Scheduled" : "Running",
       created_by: currentUser.name || "System",
     };
 
     try {
       setIsSavingCampaign(true);
       await addCampaign(payload);
-      toast.success(scheduledAt ? "Campaign Scheduled Successfully!" : "Campaign Launched Successfully!");
+      toast.success(status === "Draft" ? "Campaign saved as draft." : scheduledAt ? "Campaign scheduled." : "Campaign queued for sending.");
 
       // Reset Wizard States
       setWizardName("");
@@ -394,13 +431,20 @@ export default function CampaignsPage() {
       setWizardTemplateId("");
       setWizardEmailFormat("html");
       setWizardSendImmediately(true);
+      setWizardDate("");
+      setWizardTime("");
+      setWizardBatching(false);
+      setWizardFirstBatch(1000);
+      setWizardRepeatBatch(10000);
+      setWizardInterval(2);
+      setWizardIntervalUnit(60);
       setStep(1);
 
       setActiveTab("list");
       refreshCrmData();
     } catch (err) {
       console.error(err);
-      toast.error("Failed to create campaign.");
+      toast.error(err.message || "Failed to create campaign.");
     } finally {
       setIsSavingCampaign(false);
     }
@@ -1611,13 +1655,13 @@ export default function CampaignsPage() {
                           onChange={(e) => setWizardSendImmediately(e.target.checked)}
                           className="rounded text-blue-500 border-slate-200 focus:ring-blue-500"
                         />
-                        Send immediately on launch
+                        Start immediately on launch
                       </label>
 
                       {!wizardSendImmediately && (
                         <div className="grid grid-cols-2 gap-2 pl-6 animate-fade-in">
                           <div>
-                            <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">Scheduled Date</label>
+                            <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">Scheduled Date (IST)</label>
                             <input
                               type="date"
                               value={wizardDate}
@@ -1627,7 +1671,7 @@ export default function CampaignsPage() {
                             />
                           </div>
                           <div>
-                            <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">Scheduled Time</label>
+                            <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">Scheduled Time (IST)</label>
                             <input
                               type="time"
                               value={wizardTime}
@@ -1638,6 +1682,34 @@ export default function CampaignsPage() {
                           </div>
                         </div>
                       )}
+                      <p className="text-[11px] text-slate-500">All scheduled times use India Standard Time (Asia/Kolkata). Sending starts within about a minute of the due time.</p>
+                      <label className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-350 cursor-pointer">
+                        <input type="checkbox" checked={wizardBatching} onChange={event => setWizardBatching(event.target.checked)} className="rounded text-blue-500" />
+                        Send in batches
+                      </label>
+                      {wizardBatching ? (
+                        <div className="space-y-3 pl-6">
+                          <div className="grid grid-cols-2 gap-2">
+                            <label className="text-xs text-slate-600 dark:text-slate-300">First batch size
+                              <input aria-label="First batch size" type="number" min="1" step="1" value={wizardFirstBatch} onChange={event => setWizardFirstBatch(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-200 dark:border-slate-800 px-3 py-2 bg-white dark:bg-slate-900" />
+                            </label>
+                            <label className="text-xs text-slate-600 dark:text-slate-300">Following batch size
+                              <input aria-label="Following batch size" type="number" min="1" step="1" value={wizardRepeatBatch} onChange={event => setWizardRepeatBatch(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-200 dark:border-slate-800 px-3 py-2 bg-white dark:bg-slate-900" />
+                            </label>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <label className="text-xs text-slate-600 dark:text-slate-300">Wait after each batch
+                              <input aria-label="Wait after each batch" type="number" min="1" step="1" value={wizardInterval} onChange={event => setWizardInterval(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-200 dark:border-slate-800 px-3 py-2 bg-white dark:bg-slate-900" />
+                            </label>
+                            <label className="text-xs text-slate-600 dark:text-slate-300">Wait unit
+                              <select aria-label="Wait unit" value={wizardIntervalUnit} onChange={event => setWizardIntervalUnit(Number(event.target.value))} className="mt-1 w-full rounded-lg border border-slate-200 dark:border-slate-800 px-3 py-2 bg-white dark:bg-slate-900">
+                                <option value={1}>Minutes</option><option value={60}>Hours</option><option value={1440}>Days</option>
+                              </select>
+                            </label>
+                          </div>
+                          <p className="text-[11px] text-slate-500">The wait starts when the previous batch finishes. Each recipient receives this campaign once.</p>
+                        </div>
+                      ) : <p className="text-[11px] text-slate-500">Send continuously without a deliberate wait between groups.</p>}
                     </div>
                   </div>
 
@@ -1736,11 +1808,14 @@ export default function CampaignsPage() {
                       <strong className="text-slate-850 dark:text-slate-150">
                         {wizardSendImmediately
                           ? "Send Immediately on Launch"
-                          : `Scheduled: ${wizardDate} at ${wizardTime}`}
+                          : `Scheduled: ${wizardDate} at ${wizardTime} IST`}
                       </strong>
                     </div>
                   </div>
 
+                  <div className="text-xs text-slate-700 dark:text-slate-300">
+                    <strong>Sending frequency: </strong>{describeCampaignSchedule({ batching_enabled: wizardBatching, first_batch_size: wizardFirstBatch, repeat_batch_size: wizardRepeatBatch, batch_interval_minutes: Number(wizardInterval) * wizardIntervalUnit })}
+                  </div>
                   <div>
                     <span className="text-[10px] text-slate-400 uppercase font-bold block mb-1">Target Filters Applied</span>
                     <div className="flex flex-wrap gap-1.5">
@@ -1879,14 +1954,36 @@ export default function CampaignsPage() {
                 </div>
 
                 <div className="text-left md:text-right text-xs shrink-0 text-slate-500 dark:text-slate-450 border-t md:border-t-0 border-slate-100 dark:border-slate-850 pt-3 md:pt-0 space-y-1 font-normal">
-                  <div><span className="font-normal text-slate-400 mr-1">Launched:</span> {selectedCampaignDetail.launched_at ? new Date(selectedCampaignDetail.launched_at).toLocaleString() : "Not launched"}</div>
+                  <div><span className="font-normal text-slate-400 mr-1">Launched:</span> {selectedCampaignDetail.launched_at ? formatCampaignTime(selectedCampaignDetail.launched_at) : "Not launched"}</div>
                   {selectedCampaignDetail.completed_at && (
-                    <div><span className="font-normal text-slate-400 mr-1">Completed:</span> {new Date(selectedCampaignDetail.completed_at).toLocaleString()}</div>
+                    <div><span className="font-normal text-slate-400 mr-1">Completed:</span> {formatCampaignTime(selectedCampaignDetail.completed_at)}</div>
                   )}
                   {selectedCampaignDetail.scheduled_at && !selectedCampaignDetail.launched_at && (
-                    <div><span className="font-normal text-slate-400 mr-1">Scheduled for:</span> {new Date(selectedCampaignDetail.scheduled_at).toLocaleString()}</div>
+                    <div><span className="font-normal text-slate-400 mr-1">Scheduled for:</span> {formatCampaignTime(selectedCampaignDetail.scheduled_at)}</div>
                   )}
                 </div>
+              </div>
+              <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 text-xs space-y-2 text-slate-600 dark:text-slate-300">
+                <p>{describeCampaignSchedule(selectedCampaignDetail)}</p>
+                {selectedCampaignDetail.scheduler_version === 1 && <>
+                  <p>Batch {selectedCampaignDetail.batch_number || 0}: {selectedCampaignDetail.batch_processed || 0} / {selectedCampaignDetail.batch_total || 0} processed · {selectedCampaignDetail.failed_count || 0} failed · {selectedCampaignDetail.skipped_count || 0} skipped</p>
+                  {selectedCampaignDetail.next_run_at && selectedCampaignDetail.status !== "Paused" && <p>Next processing time: {formatCampaignTime(selectedCampaignDetail.next_run_at)}</p>}
+                  {selectedCampaignDetail.last_error && <p role="alert" className="text-amber-600 dark:text-amber-400">{selectedCampaignDetail.last_error}</p>}
+                  {["Running", "Scheduled", "Paused"].includes(selectedCampaignDetail.status) && <button
+                    disabled={isUpdatingSchedule}
+                    className="px-3 py-2 rounded-lg bg-blue-600 text-white disabled:opacity-50"
+                    onClick={async () => {
+                      setIsUpdatingSchedule(true);
+                      try {
+                        const updated = await updateCampaign(selectedCampaignId, { status: selectedCampaignDetail.status === "Paused" ? "Running" : "Paused" });
+                        setSelectedCampaignDetail(previous => ({ ...previous, ...updated }));
+                        toast.success(updated.status === "Paused" ? "Campaign paused. In-flight emails may finish." : "Campaign resumed.");
+                      } catch (error) { toast.error(error.message || "Unable to update campaign."); }
+                      finally { setIsUpdatingSchedule(false); }
+                    }}>
+                    {isUpdatingSchedule ? "Updating…" : selectedCampaignDetail.status === "Paused" ? "Resume campaign" : "Pause campaign"}
+                  </button>}
+                </>}
               </div>
               {/* Stats Counters Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">

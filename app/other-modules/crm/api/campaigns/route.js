@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { adminClient } from "@/utils/supabase/admin";
-import { resolveAuthenticatedUserContext } from "@/utils/auth/context";
+import { resolveAuthenticatedUserContext, buildModuleAccessState } from "@/utils/auth/context";
+import { validateCampaignConfig } from "@/utils/crm-campaign-schedule";
 import { attachCampaignBounceMetrics } from "@/utils/crm-bounce-metrics";
 
 async function getAuthenticatedUser(supabase) {
@@ -29,158 +30,11 @@ async function getUserDetails(supabase, user) {
 }
 
 const TABLE = "crm_campaigns";
-const ZEPTOMAIL_URL = "https://api.zeptomail.in/v1.1/email";
-const ZEPTOMAIL_FROM = {
-  address: process.env.ZEPTOMAIL_FROM_ADDRESS || "noreply@bncglobal.in",
-  name: process.env.ZEPTOMAIL_FROM_NAME || "BNC Global",
-};
-
-// Helper for template variable substitution
-function substitute(templateStr, lead) {
-  if (!templateStr) return "";
-  
-  const getNormalizedValue = (key) => {
-    const norm = key.toLowerCase().replace(/[\s_\-]+/g, '');
-    
-    switch (norm) {
-      // Name mappings
-      case 'contactname':
-      case 'fullname':
-      case 'leadname':
-      case 'name':
-        return lead.full_name || '';
-      case 'firstname':
-        return lead.full_name ? lead.full_name.split(' ')[0] : '';
-        
-      // Company mappings
-      case 'companyname':
-      case 'company':
-        return lead.company_name || '';
-        
-      // Agent / Assigned to mappings
-      case 'agentname':
-      case 'agent':
-      case 'assignedto':
-        return lead.assigned_to || 'Sales Team';
-        
-      // Product
-      case 'productname':
-      case 'product':
-        return lead.product_name || lead.product || 'Enterprise Audit Package';
-        
-      // Estimated Value / Currency
-      case 'estimatedvalue':
-      case 'value':
-        return lead.estimated_value || lead.value || '$10,000';
-      case 'currency':
-        return lead.currency || 'USD';
-        
-      // Followup Date
-      case 'followupdate':
-      case 'nextfollowupdate':
-        return lead.next_followup_date || 'May 28, 2026';
-        
-      // Contact info
-      case 'phone':
-      case 'phonenumber':
-        return lead.phone || '';
-      case 'email':
-      case 'emailaddress':
-        return lead.email || '';
-        
-      // Other Lead fields
-      case 'leadsource':
-      case 'source':
-        return lead.lead_source || '';
-      case 'leadstatus':
-      case 'status':
-        return lead.lead_status || '';
-      case 'priority':
-        return lead.priority || '';
-      case 'designation':
-        return lead.designation || '';
-      case 'industry':
-        return lead.industry || '';
-        
-      default:
-        // Try looking up the property directly on lead
-        if (lead[key] !== undefined) return String(lead[key]);
-        const cleanKey = key.replace(/[\s_\-]+/g, '_').toLowerCase();
-        if (lead[cleanKey] !== undefined) return String(lead[cleanKey]);
-        return null;
-    }
-  };
-
-  return templateStr.replace(/\{\{\s*([a-zA-Z0-9_\s\-]+?)\s*\}\}/g, (match, key) => {
-    const val = getNormalizedValue(key);
-    return val !== null ? val : match;
-  });
-}
-
-function extractProviderMessageId(responseBody) {
-  const data = Array.isArray(responseBody?.data) ? responseBody.data[0] : responseBody?.data;
-  return (
-    responseBody?.message_id ||
-    responseBody?.email_reference ||
-    responseBody?.request_id ||
-    data?.message_id ||
-    data?.email_reference ||
-    data?.request_id ||
-    null
-  );
-}
-
-async function sendZeptoCampaignEmail({ token, lead, subject, body, format, campaignId, recipientId }) {
-  const targetEmail = lead.email || lead.primary_business_email || lead.email_alt;
-  const payload = {
-    from: ZEPTOMAIL_FROM,
-    to: [
-      {
-        email_address: {
-          address: targetEmail,
-          name: lead.full_name || targetEmail,
-        },
-      },
-    ],
-    subject,
-    client_reference: `campaign_id=${campaignId}&recipient_id=${recipientId}&lead_id=${lead.lead_id}`,
-  };
-
-  if (format === "text") {
-    payload.textbody = body || "";
-  } else {
-    payload.htmlbody = body || "";
-  }
-
-  const response = await fetch(ZEPTOMAIL_URL, {
-    method: "POST",
-    headers: {
-      Authorization: token,
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
-
-  const responseBody = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const message =
-      responseBody?.message ||
-      responseBody?.error ||
-      responseBody?.data?.[0]?.message ||
-      `ZeptoMail failed with status ${response.status}`;
-    throw new Error(String(message));
-  }
-
-  return {
-    providerMessageId: extractProviderMessageId(responseBody),
-    responseBody,
-  };
-}
-
 // GET all campaigns or single campaign detail
 export async function GET(request) {
   try {
+    const { accessError } = await authenticatedUser();
+    if (accessError) return accessError;
     const supabase = adminClient;
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
@@ -247,408 +101,75 @@ export async function GET(request) {
   }
 }
 
-// Helper to fetch all leads using pagination to overcome PostgREST 1000-row limit
-async function fetchAllLeads(supabase) {
-  const { data: firstChunk, count, error } = await supabase
-    .from("crm_leads")
-    .select("*", { count: "exact" })
-    .range(0, 999);
+const CONFIG_FIELDS = ["campaign_name", "campaign_type", "template_id", "email_format", "target_filter", "status", "scheduled_at",
+  "schedule_timezone", "batching_enabled", "first_batch_size", "repeat_batch_size", "batch_interval_minutes"];
 
-  if (error) throw error;
-
-  let leads = [...(firstChunk || [])];
-  if (count && count > 1000) {
-    const promises = [];
-    for (let i = 1000; i < count; i += 1000) {
-      promises.push(
-        supabase
-          .from("crm_leads")
-          .select("*")
-          .range(i, i + 999)
-      );
-    }
-    const results = await Promise.all(promises);
-    results.forEach((res) => {
-      if (res.data) leads.push(...res.data);
-    });
-  }
-  return leads;
+async function authenticatedUser() {
+  const client = await createClient();
+  const user = await getAuthenticatedUser(client);
+  if (!user) return { accessError: NextResponse.json({ error: "Authentication required" }, { status: 401 }) };
+  const context = await resolveAuthenticatedUserContext(client, user);
+  if (!buildModuleAccessState(context).crm.enabled) return { accessError: NextResponse.json({ error: "CRM access is required" }, { status: 403 }) };
+  return { client, user };
 }
 
-// Helper to launch a campaign
-async function launchCampaign(supabase, campaignId) {
-  const zohoToken = process.env.ZOHO_TOKEN;
-  // 1. Fetch campaign
-  const { data: campaign, error: campErr } = await supabase
-    .from(TABLE)
-    .select("*")
-    .eq("campaign_id", campaignId)
-    .single();
-
-  if (campErr || !campaign) throw new Error("Campaign not found");
-
-  // 2. Fetch template
-  const { data: template, error: tempErr } = await supabase
-    .from("crm_email_templates")
-    .select("*")
-    .eq("id", campaign.template_id)
-    .single();
-
-  if (tempErr || !template) throw new Error("Template not found");
-
-  // 3. Fetch all leads (paginated to fetch beyond default 1000 PostgREST cap)
-  const leads = await fetchAllLeads(supabase);
-
-  // 4. Fetch unsubscribed lead IDs
-  const { data: unsubscribedRecipients, error: unsubErr } = await supabase
-    .from("crm_campaign_recipients")
-    .select("lead_id")
-    .eq("unsubscribed", true);
-
-  if (unsubErr) throw unsubErr;
-  const unsubscribedIds = new Set((unsubscribedRecipients || []).map(r => String(r.lead_id)));
-
-  // 5. Apply filters from target_filter
-  const filter = campaign.target_filter || {};
-  let matchedLeads = [];
-
-  if (Array.isArray(filter.target_lead_ids) && filter.target_lead_ids.length > 0) {
-    const targetIdSet = new Set(filter.target_lead_ids.map(id => String(id)));
-    matchedLeads = leads.filter(lead => {
-      if (unsubscribedIds.has(String(lead.lead_id))) return false;
-      const targetEmail = lead.email || lead.primary_business_email || lead.email_alt || lead.secondary_email || lead.work_email;
-      if (!targetEmail) return false;
-      return targetIdSet.has(String(lead.lead_id));
-    });
-  } else if (filter.selected_list_id) {
-    const { data: savedList } = await supabase
-      .from("crm_lists")
-      .select("*")
-      .eq("list_id", filter.selected_list_id)
-      .maybeSingle();
-
-    const listSources = (savedList?.selected_sources || []).map(s => s.toLowerCase().trim());
-    const listTags = (savedList?.selected_tags || []).map(t => t.toLowerCase().trim());
-
-    matchedLeads = leads.filter(lead => {
-      if (unsubscribedIds.has(String(lead.lead_id))) return false;
-      const targetEmail = lead.email || lead.primary_business_email || lead.email_alt || lead.secondary_email || lead.work_email;
-      if (!targetEmail) return false;
-
-      let srcMatch = listSources.length === 0;
-      if (listSources.length > 0 && lead.lead_source) {
-        const lSrcs = lead.lead_source.split(',').map(s => s.toLowerCase().trim());
-        srcMatch = listSources.some(s => lSrcs.includes(s));
-      }
-
-      let tagMatch = listTags.length === 0;
-      if (listTags.length > 0 && lead.tags) {
-        const lTags = lead.tags.split(',').map(t => t.toLowerCase().trim());
-        tagMatch = listTags.some(t => lTags.includes(t));
-      }
-
-      return srcMatch && tagMatch;
-    });
-  } else {
-    matchedLeads = leads.filter(lead => {
-      if (unsubscribedIds.has(String(lead.lead_id))) return false;
-      const targetEmail = lead.email || lead.primary_business_email || lead.email_alt || lead.secondary_email || lead.work_email;
-      if (!targetEmail) return false;
-
-      for (const [key, filterValues] of Object.entries(filter)) {
-        if (key === "target_lead_ids" || key === "selected_list_id" || key === "manually_included_ids" || key === "manually_excluded_ids") continue;
-        if (!filterValues || (Array.isArray(filterValues) && filterValues.length === 0)) continue;
-
-        const leadValue = lead[key];
-        if (key === "tags") {
-          const filterTag = String(filterValues).toLowerCase();
-          const leadTags = String(lead.tags || "").toLowerCase();
-          if (!leadTags.includes(filterTag)) return false;
-        } else if (key === "lead_source") {
-          if (!lead.lead_source) return false;
-          const lSrcs = lead.lead_source.split(',').map(s => s.toLowerCase().trim());
-          const filterArr = Array.isArray(filterValues) ? filterValues : [filterValues];
-          const matched = filterArr.some(fv => lSrcs.includes(String(fv).toLowerCase().trim()));
-          if (!matched) return false;
-        } else if (Array.isArray(filterValues)) {
-          if (!filterValues.map(v => String(v).toLowerCase()).includes(String(leadValue || "").toLowerCase())) {
-            return false;
-          }
-        } else {
-          if (String(filterValues).toLowerCase() !== String(leadValue || "").toLowerCase()) {
-            return false;
-          }
-        }
-      }
-      return true;
-    });
-  }
-
-  const total = matchedLeads.length;
-  if (total === 0) {
-    // Update campaign stats
-    await supabase
-      .from(TABLE)
-      .update({
-        total_recipients: 0,
-        status: "Completed",
-        completed_at: new Date().toISOString()
-      })
-      .eq("campaign_id", campaignId);
-    return;
-  }
-
-  const isScheduled = campaign.scheduled_at && new Date(campaign.scheduled_at) > new Date();
-
-  if (!isScheduled && !zohoToken) {
-    console.warn("ZOHO_TOKEN is not set in environment. Simulating campaign email delivery for dev/test environment.");
-  }
-
-  // Create campaign_recipients for each matched lead
-  let sentCount = 0;
-  let failedCount = 0;
-  for (const lead of matchedLeads) {
-    // Recheck the database: this list may predate a bounce in another campaign.
-    const targetEmail = lead.email || lead.primary_business_email || lead.email_alt;
-    const { data: sendAllowed, error: suppressionError } = await supabase.rpc("crm_email_send_allowed", {
-      p_lead_id: lead.lead_id,
-      p_email: targetEmail,
-    });
-    if (suppressionError) throw new Error("Unable to verify campaign email suppression");
-    if (!sendAllowed) continue;
-    const subSubject = substitute(template.subject, lead);
-    const emailFormat = campaign.email_format || "html";
-    const bodyField = emailFormat === "text" ? (template.plain_text_body || "") : (template.html_body || "");
-    const subBody = substitute(bodyField, lead);
-
-    // Insert campaign_recipient
-    const { data: recipient, error: recErr } = await supabase
-      .from("crm_campaign_recipients")
-      .insert({
-        campaign_id: campaignId,
-        lead_id: lead.lead_id,
-        email_sent_to: targetEmail,
-        delivery_status: isScheduled ? "Pending" : (zohoToken ? "Pending" : "Sent"),
-        provider: zohoToken ? "zeptomail" : "simulated"
-      })
-      .select("*")
-      .single();
-
-    if (recErr) {
-      console.error(`Error inserting recipient for lead ${lead.lead_id}:`, recErr.message);
-      continue;
-    }
-
-    if (isScheduled) {
-      continue;
-    }
-
-    if (!zohoToken) {
-      // Simulation mode without ZOHO_TOKEN
-      sentCount += 1;
-      continue;
-    }
-
-    try {
-      const { data: stillAllowed, error: recheckError } = await supabase.rpc("crm_email_send_allowed", {
-        p_lead_id: lead.lead_id,
-        p_email: targetEmail,
-      });
-      if (recheckError) throw new Error("Unable to verify campaign email suppression");
-      if (!stillAllowed) continue;
-      const sentAt = new Date().toISOString();
-      const { providerMessageId } = await sendZeptoCampaignEmail({
-        token: zohoToken,
-        lead,
-        subject: subSubject,
-        body: subBody,
-        format: emailFormat,
-        campaignId,
-        recipientId: recipient.recipient_id,
-      });
-
-      // Persist acceptance even if concurrent cleanup has removed the recipient.
-      // The database also records ordinary Sent/Delivered updates idempotently.
-      const { error: sendMetricError } = await supabase.rpc("crm_record_campaign_send", {
-        p_campaign_id: campaignId,
-        p_email: targetEmail,
-      });
-      if (sendMetricError) {
-        console.error("Unable to preserve accepted campaign send", { code: sendMetricError.code });
-        await supabase.from(TABLE).update({ bounce_history_complete: false }).eq("campaign_id", campaignId);
-      }
-
-      await supabase
-        .from("crm_campaign_recipients")
-        .update({
-          delivery_status: "Sent",
-          sent_at: sentAt,
-          provider: "zeptomail",
-          provider_message_id: providerMessageId,
-        })
-        .eq("recipient_id", recipient.recipient_id);
-
-      sentCount += 1;
-    } catch (sendErr) {
-      failedCount += 1;
-      console.error(`ZeptoMail send failed for lead ${lead.lead_id}:`, sendErr.message);
-
-      await supabase
-        .from("crm_campaign_recipients")
-        .update({
-          delivery_status: "Failed",
-          provider: "zeptomail",
-        })
-        .eq("recipient_id", recipient.recipient_id);
-    }
-  }
-
-  // Update campaign
-  const campaignUpdates = {
-    total_recipients: total,
-    status: isScheduled ? "Scheduled" : failedCount > 0 && sentCount === 0 ? "Paused" : "Completed",
-    launched_at: new Date().toISOString(),
-    sent_count: isScheduled ? 0 : sentCount,
-    delivered_count: 0
-  };
-
-  if (!isScheduled) {
-    campaignUpdates.completed_at = new Date().toISOString();
-  }
-
-  await supabase
-    .from(TABLE)
-    .update(campaignUpdates)
-    .eq("campaign_id", campaignId);
-  // Use persisted rows rather than stale in-memory counts after concurrent bounces.
-  const { error: metricError } = await supabase.rpc("recalculate_crm_campaign_email_metrics", { p_campaign_id: campaignId });
-  if (metricError) throw metricError;
-}
-
-// POST new campaign
-export async function POST(request) {
+async function saveCampaign(request, updating = false) {
   try {
-    const supabaseClient = await createClient();
-    const user = await getAuthenticatedUser(supabaseClient);
-    let creatorName = "System";
-    if (user) {
-      creatorName = await getUserDetails(supabaseClient, user);
-    }
-
-    const supabase = adminClient;
+    const { client, user, accessError } = await authenticatedUser();
+    if (accessError) return accessError;
     const body = await request.json();
-
-    const templateId = Number(body.template_id);
-    if (!Number.isInteger(templateId) || templateId <= 0) {
-      return NextResponse.json({ error: "A valid template_id is required." }, { status: 400 });
-    }
-
-    const { data: templateExists, error: templateCheckError } = await supabase
-      .from("crm_email_templates")
-      .select("id")
-      .eq("id", templateId)
-      .single();
-
-    if (templateCheckError || !templateExists) {
-      return NextResponse.json({ error: "Selected email template was not found." }, { status: 400 });
-    }
-
-    const { data: campaign, error } = await supabase
-      .from(TABLE)
-      .insert({
-        campaign_name: body.campaign_name,
-        campaign_type: body.campaign_type || "Email",
-        template_id: templateId,
-        email_format: body.email_format || "html",
-        target_filter: body.target_filter || {},
-        status: body.status || "Draft",
-        scheduled_at: body.scheduled_at || null,
-        created_by: creatorName,
-      })
-      .select("*")
-      .single();
-
-    if (error) throw error;
-
-    // If campaign is launched directly
-    if (campaign.status === "Running" || campaign.status === "Scheduled") {
-      await launchCampaign(supabase, campaign.campaign_id);
-    }
-
-    const [enrichedCampaign] = await attachCampaignBounceMetrics(supabase, [campaign]);
-    return NextResponse.json({ campaign: enrichedCampaign });
-  } catch (error) {
-    console.error("POST Campaign error:", error);
-    return NextResponse.json({ error: error.message }, { status: 400 });
-  }
-}
-
-// PUT update campaign
-export async function PUT(request) {
-  try {
-    const supabase = adminClient;
-    const body = await request.json();
-    const { campaign_id, ...updates } = body;
-    // Aggregate metrics are maintained by trusted send/cleanup operations.
-    delete updates.original_sent_count;
-    delete updates.bounce_history_complete;
-    delete updates.bounce_metrics;
-
-    if (!campaign_id) {
+    const config = Object.fromEntries(CONFIG_FIELDS.filter(key => Object.hasOwn(body, key)).map(key => [key, body[key]]));
+    if (updating && (!Number.isSafeInteger(Number(body.campaign_id)) || Number(body.campaign_id) <= 0)) {
       return NextResponse.json({ error: "campaign_id is required" }, { status: 400 });
     }
-
-    // Fetch current status to see if it's changing
-    const { data: currentCampaign, error: fetchErr } = await supabase
-      .from(TABLE)
-      .select("status")
-      .eq("campaign_id", campaign_id)
-      .single();
-
-    if (fetchErr) throw fetchErr;
-
-    const { data: campaign, error } = await supabase
-      .from(TABLE)
-      .update(updates)
-      .eq("campaign_id", campaign_id)
-      .select("*")
-      .single();
-
-    if (error) throw error;
-
-    // If launching or pausing/resuming
-    if (
-      (updates.status === "Running" || updates.status === "Scheduled") &&
-      currentCampaign.status === "Draft"
-    ) {
-      await launchCampaign(supabase, campaign_id);
+    let current;
+    if (updating) {
+      const { data, error } = await adminClient.from(TABLE).select("*").eq("campaign_id", body.campaign_id).single();
+      if (error) throw error;
+      current = data;
     }
-
-    const [enrichedCampaign] = await attachCampaignBounceMetrics(supabase, [campaign]);
-    return NextResponse.json({ campaign: enrichedCampaign });
+    if (!current || current.status === "Draft") {
+      const combined = { ...current, ...config, status: config.status || current?.status || "Draft" };
+      const templateId = Number(combined.template_id);
+      if (!Number.isSafeInteger(templateId) || templateId <= 0) throw new Error("A valid template_id is required.");
+      if (!combined.campaign_name?.trim()) throw new Error("Campaign name is required.");
+      if (!["html", "text"].includes(combined.email_format || "html")) throw new Error("Choose HTML or text email format.");
+      if (combined.target_filter?.target_lead_ids !== undefined && (!Array.isArray(combined.target_filter.target_lead_ids)
+        || combined.target_filter.target_lead_ids.some(id => !Number.isSafeInteger(Number(id)) || Number(id) <= 0))) {
+        throw new Error("Audience IDs must be a list of valid lead IDs.");
+      }
+      Object.assign(config, validateCampaignConfig(combined), { template_id: templateId });
+    }
+    if (!updating) config.created_by = await getUserDetails(client, user);
+    const { data: campaign, error } = await adminClient.rpc("crm_save_campaign", {
+      p_config: config, p_campaign_id: updating ? Number(body.campaign_id) : null,
+    });
+    if (error) throw error;
+    if (campaign.scheduler_version === 1 && ["Running", "Scheduled"].includes(campaign.status)) {
+      const { error: dispatchError } = await adminClient.rpc("crm_request_campaign_dispatch");
+      if (dispatchError) console.error("Campaign wakeup deferred to cron", { code: dispatchError.code });
+    }
+    const [enriched] = await attachCampaignBounceMetrics(adminClient, [campaign]);
+    return NextResponse.json({ campaign: enriched });
   } catch (error) {
-    console.error("PUT Campaign error:", error);
+    console.error("Save campaign failed", { code: error.code });
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 }
 
-// DELETE campaign
+export async function POST(request) { return saveCampaign(request); }
+export async function PUT(request) { return saveCampaign(request, true); }
+
 export async function DELETE(request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const campaign_id = searchParams.get("campaign_id");
-
-    if (!campaign_id) {
-      return NextResponse.json({ error: "campaign_id is required" }, { status: 400 });
-    }
-
-    const supabase = adminClient;
-    const { error } = await supabase.from(TABLE).delete().eq("campaign_id", campaign_id);
+    const { accessError } = await authenticatedUser();
+    if (accessError) return accessError;
+    const id = Number(new URL(request.url).searchParams.get("campaign_id"));
+    if (!Number.isSafeInteger(id) || id <= 0) throw new Error("campaign_id is required");
+    const { error } = await adminClient.from(TABLE).delete().eq("campaign_id", id);
     if (error) throw error;
-
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("DELETE Campaign error:", error);
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 }

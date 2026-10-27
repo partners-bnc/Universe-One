@@ -162,14 +162,17 @@ export function CrmProvider({ children }) {
         headers: { "Content-Type": "application/json" }, 
         body: JSON.stringify({ campaign_id, ...updates }) 
       });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Unable to update campaign");
       if (res.ok) {
-        const { campaign: updatedCamp } = await res.json();
+        const updatedCamp = data.campaign;
         if (updatedCamp) {
           setCampaigns(prev => prev.map(c => c.campaign_id === campaign_id ? updatedCamp : c));
           refreshCrmData();
+          return updatedCamp;
         }
       }
-    } catch (e) { console.error("updateCampaign API error:", e); }
+    } catch (e) { console.error("updateCampaign API error:", e); throw e; }
   };
 
   const deleteCampaign = async (campaign_id) => {
