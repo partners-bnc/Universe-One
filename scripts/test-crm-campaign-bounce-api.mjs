@@ -11,7 +11,7 @@ function compileModule(source, require) {
 }
 const helpers = compileModule(fs.readFileSync('utils/crm-bounce-metrics.js', 'utf8'));
 const campaign = { campaign_id: 1, campaign_name: 'Verified fixture', status: 'Completed', sent_count: 3, bounced_count: 0 };
-let calls = 0, capturedUpdate;
+let calls = 0, capturedUpdate, recipientRows = [], batchLookupError = null;
 const adminClient = {
   from(table) {
     return {
@@ -19,10 +19,15 @@ const adminClient = {
       update(value) { capturedUpdate = value; return this; },
       async single() { return { data: { ...campaign }, error: null }; },
       async order() { return { data: [{ ...campaign }], error: null }; },
-      then(resolve) { return Promise.resolve({ data: table === 'crm_campaign_recipients' ? [] : [campaign], error: null }).then(resolve); },
+      then(resolve) { return Promise.resolve({ data: table === 'crm_campaign_recipients' ? recipientRows : [campaign], error: null }).then(resolve); },
     };
   },
   async rpc(name) {
+    if (name === 'crm_campaign_recipient_batches') {
+      assert.equal(arguments[1].p_campaign_id, 1);
+      assert.deepEqual(Array.from(arguments[1].p_recipient_ids), [10, 11, 12]);
+      return { data: [{ recipient_id: '11', batch_number: 2 }, { recipient_id: 10, batch_number: 1 }], error: batchLookupError };
+    }
     if (name === 'crm_save_campaign') {
       capturedUpdate = arguments[1].p_config;
       return { data: { ...campaign, ...capturedUpdate }, error: null };
@@ -61,3 +66,25 @@ assert.equal('original_sent_count' in capturedUpdate, false);
 assert.equal('bounce_history_complete' in capturedUpdate, false);
 assert.equal('bounce_metrics' in capturedUpdate, false);
 console.log('Campaign API tests passed: archive KPI in list/detail, original counters preserved, client metric edits blocked.');
+
+campaign.scheduler_version = 1;
+recipientRows = [
+  { recipient_id: 10, email_sent_to: 'first@example.invalid', delivery_status: 'Sent' },
+  { recipient_id: 11, email_sent_to: 'second@example.invalid', delivery_status: 'Sent' },
+  { recipient_id: 12, email_sent_to: 'pending@example.invalid', delivery_status: 'Pending' },
+];
+response = await route.GET(new Request('https://test.invalid/campaigns?id=1'));
+body = await response.json();
+assert.equal(response.status, 200);
+assert.deepEqual(body.recipients.map(row => [row.email_sent_to, row.batch_number]), [
+  ['first@example.invalid', 1], ['second@example.invalid', 2], ['pending@example.invalid', null],
+]);
+batchLookupError = { message: 'Batch lookup unavailable' };
+response = await route.GET(new Request('https://test.invalid/campaigns?id=1'));
+assert.equal(response.status, 500);
+batchLookupError = null;
+delete campaign.scheduler_version;
+response = await route.GET(new Request('https://test.invalid/campaigns?id=1'));
+body = await response.json();
+assert.ok(body.recipients.every(row => row.batch_number === null));
+console.log('Recipient batch tests passed: exact email mapping, reordered/numeric IDs, unassigned recipients, legacy campaigns and lookup failures.');

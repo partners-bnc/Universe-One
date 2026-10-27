@@ -495,10 +495,11 @@ export default function CampaignsPage() {
       return;
     }
 
-    const headers = ["Lead Name", "Email Sent To", "Lead Source", "Priority", "Delivery Status", "Unsubscribed", "Date"];
+    const headers = ["Lead Name", "Email Sent To", "Batch", "Lead Source", "Priority", "Delivery Status", "Unsubscribed", "Date"];
     const rows = recipients.map(r => [
       r.lead?.full_name || "Unknown Lead",
       r.email_sent_to || "",
+      r.batch_number ?? "",
       r.lead?.lead_source || "N/A",
       r.lead?.priority || "Medium",
       r.unsubscribed ? "Unsubscribed" : r.delivery_status,
@@ -2145,6 +2146,7 @@ export default function CampaignsPage() {
                       <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
                         <th className="py-3 px-4 font-medium text-slate-900 dark:text-slate-200 text-[14px]">Lead Name</th>
                         <th className="py-3 px-4 font-medium text-slate-900 dark:text-slate-200 text-[14px]">Email Sent To</th>
+                        <th className="py-3 px-4 font-medium text-slate-900 dark:text-slate-200 text-[14px]">Batch</th>
                         <th className="py-3 px-4 font-medium text-slate-900 dark:text-slate-200 text-[14px]">Lead Source</th>
                         <th className="py-3 px-4 font-medium text-slate-900 dark:text-slate-200 text-[14px]">Lead Priority</th>
                         <th className="py-3 px-4 font-medium text-slate-900 dark:text-slate-200 text-[14px]">Delivery Status</th>
@@ -2154,7 +2156,7 @@ export default function CampaignsPage() {
                     <tbody className="text-[14px] font-medium text-slate-900 dark:text-slate-105 bg-white dark:bg-slate-900">
                       {filteredRecipients.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="p-8 text-center text-slate-400 border border-slate-200 dark:border-slate-700">
+                          <td colSpan={7} className="p-8 text-center text-slate-400 border border-slate-200 dark:border-slate-700">
                             No recipients found.
                           </td>
                         </tr>
@@ -2168,6 +2170,9 @@ export default function CampaignsPage() {
                             </td>
                             <td className="py-1.5 px-4 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400">
                               {r.email_sent_to}
+                            </td>
+                            <td className="py-1.5 px-4 border border-slate-200 dark:border-slate-700 whitespace-nowrap">
+                              {r.batch_number != null ? `Batch ${r.batch_number}` : selectedCampaignDetail.scheduler_version === 1 && r.delivery_status === "Pending" ? "Not assigned" : "—"}
                             </td>
                             <td className="py-1.5 px-4 border border-slate-200 dark:border-slate-700">
                               <span className="bg-slate-100 text-slate-700 border border-slate-250 rounded px-2 py-0.5 text-[11px] font-semibold dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">

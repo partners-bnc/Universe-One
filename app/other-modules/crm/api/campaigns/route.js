@@ -77,8 +77,22 @@ export async function GET(request) {
 
       if (recError) throw recError;
 
+      let batchAssignments = [];
+      if (campaign.scheduler_version === 1 && recipients?.length) {
+        const { data, error: batchError } = await supabase.rpc("crm_campaign_recipient_batches", {
+          p_campaign_id: campaign.campaign_id,
+          p_recipient_ids: recipients.map(recipient => recipient.recipient_id),
+        });
+        if (batchError) throw batchError;
+        batchAssignments = data || [];
+      }
+      const batchesByRecipient = new Map(batchAssignments.map(assignment => [String(assignment.recipient_id), assignment.batch_number]));
+      const enrichedRecipients = (recipients || []).map(recipient => ({
+        ...recipient,
+        batch_number: batchesByRecipient.get(String(recipient.recipient_id)) ?? null,
+      }));
       const [enrichedCampaign] = await attachCampaignBounceMetrics(supabase, [campaign]);
-      return NextResponse.json({ campaign: enrichedCampaign, recipients: recipients || [] });
+      return NextResponse.json({ campaign: enrichedCampaign, recipients: enrichedRecipients });
     }
 
     // Fetch all campaigns

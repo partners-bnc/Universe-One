@@ -7,6 +7,13 @@ finish all outcomes in that batch, wait two hours, then process the next 10,000.
 The final batch contains the remaining recipients. Each destination is enrolled
 once. Frequency does not resend the campaign to the same people.
 
+Campaign details and the recipient CSV export show each recipient's stored batch
+number. The authenticated API uses the service-only `crm_campaign_recipient_batches`
+RPC to match private queue assignments by campaign and recipient ID. Pending
+recipients without an assignment show “Not assigned”; historical recipients with
+no recorded batch show “—”. A batch assignment does not imply successful delivery;
+the delivery-status column shows that outcome separately.
+
 ## Components
 
 - The Next.js campaign API authenticates the user and checks CRM access. Its
