@@ -37,13 +37,13 @@ export const FOUNDERS = [
   {
     name: 'Summit Goyal',
     title: 'Founder',
-    focus: 'CFO services, finance transformation, ERM, GRC, strategic MIS',
+    focus: 'Global finance and risk strategist',
     photo: summitPhoto.src,
   },
   {
     name: 'Gurvinder Singh',
     title: 'Co-Founder',
-    focus: 'Assurance, risk management, ICFR, internal audit, controls, automation',
+    focus: 'Finance strategist',
     photo: gurvinderPhoto.src,
   },
 ];
@@ -52,9 +52,7 @@ export const LEADERS = [
   { name: 'Karandeep Singh', area: 'GCC and CFO practice' },
   { name: 'Sushmeet Singh', area: 'Digital transformation' },
   { name: 'Praveen Ladha', area: 'KSA country head' },
-  { name: 'Saurabh Verma', area: 'UK division; climate and risk advisory' },
   { name: 'Pankhuri Jain', area: 'Social practice' },
-  { name: 'Pranav Bhardwaj', area: 'ESG practice' },
   { name: 'Anwar Akhtar', area: 'Cybersecurity' },
   { name: 'Shailesh Dayal', area: 'Growth, leadership training, workshops and podcasts' },
 ];
