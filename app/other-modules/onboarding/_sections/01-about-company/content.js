@@ -49,9 +49,9 @@ export const FOUNDERS = [
 ];
 
 export const LEADERS = [
-  { name: 'Karandeep Singh', area: 'GCC and CFO practice' },
+  { name: 'Karandeep Singh', area: 'Ex of Flipkart' },
   { name: 'Sushmeet Singh', area: 'Digital transformation' },
-  { name: 'Praveen Ladha', area: 'KSA country head' },
+  { name: 'Praveen Ladha', area: 'Saudi Arabia head' },
   { name: 'Pankhuri Jain', area: 'Social practice' },
   { name: 'Anwar Akhtar', area: 'Cybersecurity' },
   { name: 'Shailesh Dayal', area: 'Growth, leadership training, workshops and podcasts' },
