@@ -197,6 +197,8 @@ export default function FarCompanyLayout({ children }) {
           {children}
         </main>
       </div>
-    </ModuleAccessGate>
-  );
+    </div>
+  </ModuleAccessGate>
+);
 }
+
