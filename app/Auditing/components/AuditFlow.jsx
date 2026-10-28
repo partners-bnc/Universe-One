@@ -35,32 +35,92 @@ import {
 } from "lucide-react";
 
 // ─── FONTS ───────────────────────────────────────────────────────────────────
+// ─── FONTS & LIQUID GLASS EFFECT STYLES ────────────────────────────────────────
 const FontLink = () => (
   <style>{`
-    @import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@1,6..72,400;1,6..72,500;1,6..72,600&family=Playfair+Display:ital,wght@1,400;1,500;1,600&family=Sora:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@400;500;600;700&family=SF+Pro+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap');
     *{margin:0;padding:0;box-sizing:border-box;}
-    body,#root{height:100%;font-family:'Sora',sans-serif;}
-    ::-webkit-scrollbar{width:5px;height:5px;}
-    ::-webkit-scrollbar-track{background:#f1f5f9;}
-    ::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px;}
+    body,#root{
+      height:100%;
+      font-family:-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", sans-serif;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+    }
+    
+    /* Apple Liquid Glass Morphic Utilities */
+    .apple-glass {
+      background: rgba(255, 255, 255, 0.76) !important;
+      backdrop-filter: blur(28px) saturate(190%) !important;
+      -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
+      border: 1px solid rgba(255, 255, 255, 0.7) !important;
+      box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.04), inset 0 1px 1px 0 rgba(255, 255, 255, 0.9) !important;
+    }
+    .apple-glass-dark {
+      background: linear-gradient(145deg, rgba(29, 29, 31, 0.94) 0%, rgba(18, 18, 20, 0.98) 100%) !important;
+      backdrop-filter: blur(32px) saturate(180%) !important;
+      -webkit-backdrop-filter: blur(32px) saturate(180%) !important;
+      border: 1px solid rgba(255, 255, 255, 0.14) !important;
+      box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.35), inset 0 1px 1px 0 rgba(255, 255, 255, 0.18) !important;
+    }
+    .apple-glass-card {
+      background: rgba(255, 255, 255, 0.82) !important;
+      backdrop-filter: blur(24px) saturate(180%) !important;
+      -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+      border: 1px solid #D2D2D7 !important;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03), inset 0 1px 1px 0 rgba(255, 255, 255, 0.95) !important;
+    }
+
+    /* Apple Click Tactile Animation */
+    .apple-click {
+      transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.16s ease !important;
+    }
+    .apple-click:active {
+      transform: scale(0.97) !important;
+    }
+
+    /* Apple Smooth Momentum Scrolling */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #D2D2D7; border-radius: 980px; }
+    ::-webkit-scrollbar-thumb:hover { background: #86868B; }
+
     input[type=date]::-webkit-calendar-picker-indicator{opacity:0.5;cursor:pointer;}
-    @keyframes slideUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
     @keyframes slideInRight{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
     @keyframes fadeIn{from{opacity:0}to{opacity:1}}
   `}</style>
 );
 
-// ─── DESIGN TOKENS ───────────────────────────────────────────────────────────
+// ─── APPLE DESIGN TOKENS (DESIGN.md) ──────────────────────────────────────────
 const C = {
-  bg:"#f8fafc", bg2:"#f1f5f9", surface:"#ffffff", surface2:"#f8fafc",
-  border:"#e2e8f0", border2:"#cbd5e1",
-  teal:"#0d9488", teal2:"#0f766e", tealBg:"#f0fdfa", tealBorder:"#99f6e4",
-  amber:"#d97706", amberBg:"#fffbeb", amberBorder:"#fde68a",
-  red:"#dc2626", redBg:"#fef2f2", redBorder:"#fecaca",
-  blue:"#2563eb", blueBg:"#eff6ff", blueBorder:"#bfdbfe",
-  green:"#16a34a", greenBg:"#f0fdf4", greenBorder:"#bbf7d0",
-  purple:"#7c3aed", purpleBg:"#f5f3ff", purpleBorder:"#ddd6fe",
-  text1:"#0f172a", text2:"#475569", text3:"#94a3b8",
+  bg: "#F5F5F7",
+  bg2: "#E8E8ED",
+  surface: "#FFFFFF",
+  surface2: "#F5F5F7",
+  border: "#D2D2D7",
+  border2: "#E5E5EA",
+  teal: "#0071E3",
+  teal2: "#0076DF",
+  tealBg: "rgba(0, 113, 227, 0.08)",
+  tealBorder: "rgba(0, 113, 227, 0.25)",
+  amber: "#FF9500",
+  amberBg: "rgba(255, 149, 0, 0.12)",
+  amberBorder: "rgba(255, 149, 0, 0.25)",
+  red: "#FF3B30",
+  redBg: "rgba(255, 59, 48, 0.12)",
+  redBorder: "rgba(255, 59, 48, 0.25)",
+  blue: "#0071E3",
+  blueBg: "rgba(0, 113, 227, 0.08)",
+  blueBorder: "rgba(0, 113, 227, 0.25)",
+  green: "#34C759",
+  greenBg: "rgba(52, 199, 89, 0.12)",
+  greenBorder: "rgba(52, 199, 89, 0.25)",
+  purple: "#AF52DE",
+  purpleBg: "rgba(175, 82, 222, 0.12)",
+  purpleBorder: "rgba(175, 82, 222, 0.25)",
+  text1: "#1D1D1F",
+  text2: "#424245",
+  text3: "#86868B",
 };
 
 const AVATAR_COLORS = ['#2563eb','#0d9488','#d97706','#dc2626','#7c3aed','#16a34a','#db2777','#0891b2','#ea580c','#4338ca'];
@@ -303,12 +363,12 @@ const Sidebar=({activeView,setView,projectCount,onExcelExport,onPdfExport})=>{
 
 // ─── STAT CARD ────────────────────────────────────────────────────────────────
 const StatCard=({icon,value,label,change,changeType,accent})=>(
-  <div style={{background:'#fff',border:`1px solid ${C.border}`,borderRadius:14,padding:20,position:'relative',overflow:'hidden',boxShadow:'0 1px 3px rgba(0,0,0,0.04)'}}>
-    <div style={{position:'absolute',top:-10,right:-10,width:60,height:60,borderRadius:'50%',background:accent,opacity:0.08}}/>
+  <div style={{background:'rgba(255,255,255,0.85)',backdropFilter:'blur(20px)',WebkitBackdropFilter:'blur(20px)',border:`1px solid #D2D2D7`,borderRadius:18,padding:22,position:'relative',overflow:'hidden',boxShadow:'0 2px 8px rgba(0,0,0,0.03)'}}>
+    <div style={{position:'absolute',top:-10,right:-10,width:60,height:60,borderRadius:'50%',background:accent,opacity:0.06}}/>
     <div style={{fontSize:22,marginBottom:10}}>{icon}</div>
-    <div style={{fontSize:30,fontWeight:800,fontFamily:MONO,color:C.text1,lineHeight:1}}>{value}</div>
-    <div style={{fontSize:12,color:C.text2,marginTop:6,fontWeight:500}}>{label}</div>
-    <div style={{fontSize:11,fontFamily:MONO,marginTop:7,color:changeType==='up'?C.green:C.amber}}>{change}</div>
+    <div style={{fontSize:28,fontWeight:700,fontFamily:"-apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif",color:C.text1,lineHeight:1,letterSpacing:'-0.02em'}}>{value}</div>
+    <div style={{fontSize:13,color:C.text2,marginTop:6,fontWeight:500}}>{label}</div>
+    <div style={{fontSize:11.5,marginTop:7,color:changeType==='up'?C.green:C.amber,fontWeight:600}}>{change}</div>
   </div>
 );
 
@@ -320,32 +380,32 @@ const ProjectCard=({project,members,onClick})=>{
   const assigneeIds=[...new Set(allSteps.map(s=>s.assignee).filter(Boolean))].slice(0,4);
   const sb={active:{bg:C.tealBg,color:C.teal,border:C.tealBorder,label:'Active'},review:{bg:C.amberBg,color:C.amber,border:C.amberBorder,label:'Under Review'},closed:{bg:C.bg2,color:C.text3,border:C.border,label:'Closed'}}[project.status]||{bg:C.tealBg,color:C.teal,border:C.tealBorder,label:'Active'};
   return(
-    <div onClick={onClick} style={{background:`linear-gradient(180deg,#ffffff 0%,${tc.bg} 100%)`,border:`1px solid ${tc.border}`,borderRadius:18,padding:22,cursor:'pointer',position:'relative',overflow:'hidden',boxShadow:'0 10px 30px rgba(15,23,42,0.08)',transition:'all .2s',minHeight:260,display:'flex',flexDirection:'column'}}
-      onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-4px)';e.currentTarget.style.boxShadow='0 18px 40px rgba(15,23,42,0.12)';e.currentTarget.style.borderColor=tc.accent+'88';}}
-      onMouseLeave={e=>{e.currentTarget.style.transform='none';e.currentTarget.style.boxShadow='0 10px 30px rgba(15,23,42,0.08)';e.currentTarget.style.borderColor=tc.border;}}>
-      <div style={{position:'absolute',top:-28,right:-18,width:110,height:110,borderRadius:'50%',background:`radial-gradient(circle, ${tc.accent}18 0%, transparent 70%)`}}/>
+    <div onClick={onClick} className="apple-click" style={{background:`rgba(255,255,255,0.9)`,backdropFilter:'blur(20px)',WebkitBackdropFilter:'blur(20px)',border:`1px solid #D2D2D7`,borderRadius:18,padding:24,cursor:'pointer',position:'relative',overflow:'hidden',boxShadow:'0 2px 8px rgba(0,0,0,0.04)',transition:'all .25s cubic-bezier(0.16, 1, 0.3, 1)',minHeight:260,display:'flex',flexDirection:'column'}}
+      onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-4px)';e.currentTarget.style.boxShadow='0 14px 32px rgba(0,0,0,0.08)';e.currentTarget.style.borderColor='#0071E3';}}
+      onMouseLeave={e=>{e.currentTarget.style.transform='none';e.currentTarget.style.boxShadow='0 2px 8px rgba(0,0,0,0.04)';e.currentTarget.style.borderColor='#D2D2D7';}}>
+      <div style={{position:'absolute',top:-28,right:-18,width:110,height:110,borderRadius:'50%',background:`radial-gradient(circle, ${tc.accent}14 0%, transparent 70%)`}}/>
       <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:18,position:'relative'}}>
-        <div style={{width:52,height:52,borderRadius:16,display:'flex',alignItems:'center',justifyContent:'center',fontSize:24,background:'#ffffffcc',border:`1px solid ${tc.border}`,boxShadow:'0 6px 18px rgba(15,23,42,0.06)'}}>{project.icon}</div>
-        <span style={{fontSize:10.5,fontFamily:MONO,padding:'5px 12px',borderRadius:999,fontWeight:700,background:sb.bg,color:sb.color,border:`1px solid ${sb.border}`}}>{sb.label}</span>
+        <div style={{width:48,height:48,borderRadius:14,display:'flex',alignItems:'center',justifyContent:'center',fontSize:22,background:'#ffffff',border:`1px solid #D2D2D7`,boxShadow:'0 2px 8px rgba(0,0,0,0.04)'}}>{project.icon}</div>
+        <span style={{fontSize:11,borderRadius:980,padding:'4px 12px',fontWeight:600,background:sb.bg,color:sb.color,border:`1px solid ${sb.border}`}}>{sb.label}</span>
       </div>
-      <div style={{fontSize:11,color:tc.accent,fontFamily:MONO,letterSpacing:'0.8px',marginBottom:10}}>COMPANY PROJECT</div>
-      <div style={{fontSize:16.5,fontWeight:800,color:C.text1,marginBottom:8,lineHeight:1.35}}>{project.name}</div>
-      <div style={{fontSize:13,color:C.text2,lineHeight:1.6,minHeight:58}}>{project.desc}</div>
-      <div style={{marginTop:'auto',paddingTop:18,borderTop:`1px solid ${C.border}`}}>
-        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
-          <div style={{fontSize:11,color:C.text3,fontFamily:MONO}}>PROGRESS</div>
-          <span style={{fontSize:12.5,fontFamily:MONO,fontWeight:700,color:C.text2}}>{prog}%</span>
+      <div style={{fontSize:11,color:C.teal,fontWeight:600,letterSpacing:'0.06em',textTransform:'uppercase',marginBottom:8}}>COMPANY PROJECT</div>
+      <div style={{fontSize:17,fontWeight:600,color:C.text1,marginBottom:6,lineHeight:1.35,letterSpacing:'-0.015em'}}>{project.name}</div>
+      <div style={{fontSize:13,color:C.text2,lineHeight:1.55,minHeight:52}}>{project.desc}</div>
+      <div style={{marginTop:'auto',paddingTop:16,borderTop:`1px solid #E5E5EA`}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
+          <div style={{fontSize:11,color:C.text3,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em'}}>PROGRESS</div>
+          <span style={{fontSize:12,fontWeight:600,color:C.text1}}>{prog}%</span>
         </div>
         <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
-          <div style={{flex:1,height:6,background:'#e8eef7',borderRadius:999,overflow:'hidden'}}>
-            <div style={{height:'100%',borderRadius:999,background:`linear-gradient(90deg,${tc.accent},${tc.accent}cc)`,width:`${prog}%`,transition:'width .5s ease'}}/>
+          <div style={{flex:1,height:6,background:'#E8E8ED',borderRadius:980,overflow:'hidden'}}>
+            <div style={{height:'100%',borderRadius:980,background:C.teal,width:`${prog}%`,transition:'width .5s ease'}}/>
           </div>
         </div>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <div style={{display:'flex',alignItems:'center'}}>
             {assigneeIds.map((mid,i)=>{const m=members.find(t=>t.id===mid);return m?<div key={mid} title={m.name} style={{width:24,height:24,borderRadius:'50%',background:avatarColor(m.id),border:`2px solid #fff`,marginLeft:i?-6:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:9,fontWeight:700,color:'#fff'}}>{m.initials}</div>:null;})}
           </div>
-          <span style={{fontSize:11.5,color:C.text3,fontFamily:MONO}}>{allSteps.filter(s=>s.status==='done').length}/{allSteps.length} steps</span>
+          <span style={{fontSize:11.5,color:C.text3,fontWeight:500}}>{allSteps.filter(s=>s.status==='done').length}/{allSteps.length} steps</span>
         </div>
       </div>
     </div>
@@ -356,51 +416,54 @@ const TemplateCard=({template,onClick})=>(
   <button
     type="button"
     onClick={onClick}
+    className="apple-click"
     style={{
-      background:`linear-gradient(145deg, #ffffff 0%, ${template.bg} 100%)`,
-      border:`1.5px solid ${template.border}`,
-      borderRadius:20,
-      padding:'32px 30px',
+      background:'rgba(255, 255, 255, 0.85)',
+      backdropFilter:'blur(24px) saturate(180%)',
+      WebkitBackdropFilter:'blur(24px) saturate(180%)',
+      border:'1px solid #D2D2D7',
+      borderRadius:18,
+      padding:'28px 26px',
       cursor:'pointer',
       position:'relative',
       overflow:'hidden',
-      boxShadow:'0 8px 24px rgba(15,23,42,0.05)',
-      transition:'all .2s cubic-bezier(0.16, 1, 0.3, 1)',
+      boxShadow:'0 2px 8px rgba(0,0,0,0.03)',
+      transition:'all .25s cubic-bezier(0.16, 1, 0.3, 1)',
       textAlign:'left',
-      minHeight:260,
+      minHeight:250,
       display:'flex',
       flexDirection:'column',
       justifyContent:'space-between'
     }}
-    onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-4px)';e.currentTarget.style.boxShadow='0 16px 36px rgba(15,23,42,0.1)';e.currentTarget.style.borderColor=template.accent;}}
-    onMouseLeave={e=>{e.currentTarget.style.transform='none';e.currentTarget.style.boxShadow='0 8px 24px rgba(15,23,42,0.05)';e.currentTarget.style.borderColor=template.border;}}
+    onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-4px)';e.currentTarget.style.boxShadow='0 14px 32px rgba(0, 113, 227, 0.12)';e.currentTarget.style.borderColor='#0071E3';}}
+    onMouseLeave={e=>{e.currentTarget.style.transform='none';e.currentTarget.style.boxShadow='0 2px 8px rgba(0,0,0,0.03)';e.currentTarget.style.borderColor='#D2D2D7';}}
   >
-    <div style={{position:'absolute',inset:0,background:`radial-gradient(circle at top right, ${template.accent}14 0%, transparent 50%)`,pointerEvents:'none'}} />
+    <div style={{position:'absolute',inset:0,background:`radial-gradient(circle at top right, ${template.accent}10 0%, transparent 50%)`,pointerEvents:'none'}} />
     
     <div>
-      <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:14,marginBottom:20,position:'relative'}}>
+      <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:14,marginBottom:18,position:'relative'}}>
         <div style={{display:'flex',alignItems:'center',gap:14}}>
-          <div style={{width:56,height:56,borderRadius:16,background:'#ffffff',border:`1px solid ${template.border}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:26,boxShadow:'0 4px 14px rgba(15,23,42,0.06)'}}>
+          <div style={{width:52,height:52,borderRadius:14,background:'#FFFFFF',border:`1px solid #D2D2D7`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:24,boxShadow:'0 2px 8px rgba(0,0,0,0.04)'}}>
             {template.icon}
           </div>
           <div>
-            <div style={{fontSize:22,fontWeight:800,color:C.text1,lineHeight:1.2,letterSpacing:'-0.4px'}}>{template.name}</div>
-            <div style={{fontSize:11.5,fontWeight:700,color:template.accent,fontFamily:MONO,marginTop:5,letterSpacing:'0.8px'}}>{template.shortCode}</div>
+            <div style={{fontSize:20,fontWeight:600,color:C.text1,lineHeight:1.2,letterSpacing:'-0.02em'}}>{template.name}</div>
+            <div style={{fontSize:11.5,fontWeight:600,color:'#0071E3',marginTop:4,letterSpacing:'0.04em'}}>{template.shortCode}</div>
           </div>
         </div>
-        <span style={{fontSize:11,fontFamily:MONO,padding:'4px 12px',borderRadius:20,fontWeight:700,background:'#ffffff',color:template.accent,border:`1px solid ${template.border}`,boxShadow:'0 2px 6px rgba(0,0,0,0.03)'}}>
+        <span style={{fontSize:11,padding:'4px 12px',borderRadius:980,fontWeight:600,background:'rgba(0, 113, 227, 0.08)',color:'#0071E3',border:'1px solid rgba(0, 113, 227, 0.2)'}}>
           {template.status}
         </span>
       </div>
 
-      <div style={{fontSize:14,color:C.text2,lineHeight:1.7,position:'relative',marginTop:6}}>
+      <div style={{fontSize:13.5,color:C.text2,lineHeight:1.6,position:'relative',marginTop:4}}>
         {template.description}
       </div>
     </div>
 
-    <div style={{display:'inline-flex',alignItems:'center',gap:8,fontSize:13,fontWeight:700,color:template.accent,position:'relative',marginTop:24}}>
+    <div style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:13,fontWeight:600,color:'#0071E3',position:'relative',marginTop:20}}>
       <span>Open audit category</span>
-      <span style={{fontSize:15}}>→</span>
+      <span style={{fontSize:14,transition:'transform 0.15s ease'}}>→</span>
     </div>
   </button>
 );
@@ -1499,136 +1562,176 @@ export default function AuditFlow() {
   // ════════════════════════════════════════════════════════════════════════════
   if (platformMode === "selection") {
     return (
-      <div style={{ height: "100vh", maxHeight: "100vh", overflow: "hidden", background: "linear-gradient(180deg, #f5f6f1 0%, #ebeee7 100%)", fontFamily: "'Sora', -apple-system, sans-serif", padding: "16px 24px 20px", display: "flex", flexDirection: "column", boxSizing: "border-box", position: "relative" }}>
+      <div style={{
+        height: "100vh",
+        maxHeight: "100vh",
+        overflowY: "auto",
+        background: "radial-gradient(120% 85% at 50% 0%, #FFFFFF 0%, #F5F5F7 55%, #E8E8ED 100%)",
+        fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', sans-serif",
+        padding: "20px 28px 32px",
+        display: "flex",
+        flexDirection: "column",
+        boxSizing: "border-box",
+        position: "relative"
+      }}>
         <FontLink />
         
-        {/* Top Right Home Navigation button in the page corner */}
-        <div style={{ position: "absolute", top: 20, right: 28, zIndex: 10 }}>
+        {/* Soft Liquid Ambient Glow Orbs */}
+        <div style={{ position: "absolute", top: -80, left: "20%", width: 500, height: 500, background: "radial-gradient(circle, rgba(0, 113, 227, 0.08) 0%, transparent 70%)", filter: "blur(60px)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", top: 140, right: "15%", width: 450, height: 450, background: "radial-gradient(circle, rgba(52, 199, 89, 0.06) 0%, transparent 70%)", filter: "blur(60px)", pointerEvents: "none" }} />
+
+        {/* Top Right Home Navigation button */}
+        <div style={{ position: "absolute", top: 24, right: 32, zIndex: 10 }}>
           <Link
             href="/other-modules"
+            className="apple-click"
             style={{
               display: "inline-flex",
               alignItems: "center",
-              gap: 7,
-              padding: "7px 16px",
-              borderRadius: 10,
-              backgroundColor: "#ffffff",
-              border: "1px solid #dce2d8",
-              color: "#2d473b",
-              fontSize: 12,
-              fontWeight: 600,
+              gap: 8,
+              padding: "0 18px",
+              height: 38,
+              borderRadius: 980,
+              backgroundColor: "rgba(255, 255, 255, 0.8)",
+              backdropFilter: "blur(20px)",
+              WebkitBackdropFilter: "blur(20px)",
+              border: "1px solid #D2D2D7",
+              color: "#1D1D1F",
+              fontSize: 13,
+              fontWeight: 500,
               textDecoration: "none",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
-              transition: "all 0.15s ease"
+              boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+              transition: "all 0.2s cubic-bezier(0.16, 1, 0.3, 1)"
             }}
-            onMouseEnter={e => { e.currentTarget.style.backgroundColor = "#e8ede4"; e.currentTarget.style.color = "#1f3329"; }}
-            onMouseLeave={e => { e.currentTarget.style.backgroundColor = "#ffffff"; e.currentTarget.style.color = "#2d473b"; }}
+            onMouseEnter={e => { e.currentTarget.style.backgroundColor = "#FFFFFF"; e.currentTarget.style.borderColor = "#0071E3"; }}
+            onMouseLeave={e => { e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.8)"; e.currentTarget.style.borderColor = "#D2D2D7"; }}
           >
-            <Home size={14} color="#2d473b" />
+            <Home size={14} color="#1D1D1F" />
             <span>Other Modules</span>
           </Link>
         </div>
 
-        <div style={{ maxWidth: 840, margin: "0 auto", width: "100%", flex: 1, display: "flex", flexDirection: "column", justifyContent: "flex-start" }}>
+        <div style={{ maxWidth: 880, margin: "0 auto", width: "100%", flex: 1, display: "flex", flexDirection: "column", justifyContent: "flex-start", zIndex: 2 }}>
 
-          {/* Header with Universe One • Audit Flow badge & Editorial Serif Italic Styling */}
-          <div style={{ textAlign: "center", margin: "54px 0 0" }}>
+          {/* Header with Universe One • Audit Flow pill badge & SF Pro Headline */}
+          <div style={{ textAlign: "center", margin: "46px 0 0" }}>
             <div style={{
               display: "inline-flex",
               alignItems: "center",
-              gap: 9,
+              gap: 8,
               padding: "6px 18px",
-              borderRadius: 22,
-              backgroundColor: "#ffffff",
-              border: "1px solid #dce2d8",
-              color: "#475569",
-              fontSize: 13,
-              fontWeight: 700,
-              letterSpacing: "1px",
+              borderRadius: 980,
+              backgroundColor: "rgba(255, 255, 255, 0.82)",
+              backdropFilter: "blur(20px)",
+              WebkitBackdropFilter: "blur(20px)",
+              border: "1px solid #D2D2D7",
+              color: "#6E6E73",
+              fontSize: 12,
+              fontWeight: 600,
+              letterSpacing: "0.06em",
               textTransform: "uppercase",
-              marginBottom: 10,
-              boxShadow: "0 1px 3px rgba(0,0,0,0.03)"
+              marginBottom: 14,
+              boxShadow: "0 2px 8px rgba(0,0,0,0.03)"
             }}>
-              <span>Universe One</span>
-              <span style={{ color: "#cbd5e1" }}>•</span>
-              <span style={{ color: "#2d473b" }}>Audit Flow</span>
+              <span style={{ color: "#1D1D1F" }}>Universe One</span>
+              <span style={{ color: "#D2D2D7" }}>•</span>
+              <span style={{ color: "#0071E3" }}>Audit Flow</span>
             </div>
             
             <h1 style={{
-              fontFamily: "'Newsreader', 'Playfair Display', Georgia, serif",
-              fontStyle: "italic",
+              fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif",
               fontSize: "44px",
-              fontWeight: 400,
-              color: "#1c2e26",
-              letterSpacing: "-0.8px",
+              fontWeight: 600,
+              color: "#1D1D1F",
+              letterSpacing: "-0.025em",
               margin: 0,
-              lineHeight: 1.15
+              lineHeight: 1.12
             }}>
               Select Auditing Environment
             </h1>
+            <p style={{
+              fontSize: "16px",
+              fontWeight: 400,
+              color: "#86868B",
+              letterSpacing: "-0.01em",
+              marginTop: 10,
+              marginBottom: 0
+            }}>
+              Choose your auditing workspace to begin continuous monitoring or framework verification.
+            </p>
           </div>
 
-          {/* 2 Choice Cards Grid - Shifted Further Down */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(330px, 1fr))", gap: 26, marginTop: 48, marginBottom: 16 }}>
+          {/* 2 Choice Cards Grid */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(350px, 1fr))", gap: 28, marginTop: 42, marginBottom: 20 }}>
             
-            {/* CARD 1: DYNAMIC AUDIT PLATFORM (DARK FOREST GREEN) */}
+            {/* CARD 1: DYNAMIC AUDIT PLATFORM (LIQUID APPLE PRO DARK GLASS) */}
             <div
               onClick={() => setPlatformMode("dynamic")}
+              className="apple-click"
               style={{
-                backgroundColor: "#2d473b",
-                borderRadius: 16,
-                padding: "26px 28px 22px",
+                background: "linear-gradient(150deg, rgba(29, 29, 31, 0.95) 0%, rgba(18, 18, 20, 0.98) 100%)",
+                backdropFilter: "blur(32px) saturate(180%)",
+                WebkitBackdropFilter: "blur(32px) saturate(180%)",
+                borderRadius: 22,
+                padding: "32px 32px 28px",
                 cursor: "pointer",
                 position: "relative",
                 display: "flex",
                 flexDirection: "column",
-                boxShadow: "0 10px 30px rgba(45,71,59,0.22)",
-                transition: "all 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
-                border: "1px solid rgba(255,255,255,0.08)"
+                boxShadow: "0 18px 44px -10px rgba(0, 0, 0, 0.35), inset 0 1px 1px 0 rgba(255, 255, 255, 0.16)",
+                transition: "all 0.28s cubic-bezier(0.16, 1, 0.3, 1)",
+                border: "1px solid rgba(255, 255, 255, 0.14)",
+                overflow: "hidden"
               }}
               onMouseEnter={e => {
                 e.currentTarget.style.transform = "translateY(-6px) scale(1.008)";
-                e.currentTarget.style.boxShadow = "0 22px 46px -10px rgba(45,71,59,0.45)";
+                e.currentTarget.style.borderColor = "rgba(0, 113, 227, 0.6)";
+                e.currentTarget.style.boxShadow = "0 28px 56px -12px rgba(0, 113, 227, 0.35), inset 0 1px 1px 0 rgba(255, 255, 255, 0.25)";
                 const btn = e.currentTarget.querySelector(".circle-arrow-btn");
-                if (btn) btn.style.transform = "translateX(4px) scale(1.06)";
+                if (btn) { btn.style.transform = "translateX(4px) scale(1.08)"; btn.style.backgroundColor = "#0076DF"; }
               }}
               onMouseLeave={e => {
                 e.currentTarget.style.transform = "none";
-                e.currentTarget.style.boxShadow = "0 10px 30px rgba(45,71,59,0.22)";
+                e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.14)";
+                e.currentTarget.style.boxShadow = "0 18px 44px -10px rgba(0, 0, 0, 0.35), inset 0 1px 1px 0 rgba(255, 255, 255, 0.16)";
                 const btn = e.currentTarget.querySelector(".circle-arrow-btn");
-                if (btn) btn.style.transform = "none";
+                if (btn) { btn.style.transform = "none"; btn.style.backgroundColor = "#0071E3"; }
               }}
             >
+              {/* Subtle specular sheen */}
+              <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "45%", background: "linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, transparent 100%)", pointerEvents: "none" }} />
+              
               {/* Top Row: Number 01 & Center Circular Icon Ring */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                <div style={{ fontSize: 24, fontWeight: 800, color: "#f5f0db", letterSpacing: "-0.5px" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                <div style={{ fontSize: 28, fontWeight: 700, color: "#0071E3", letterSpacing: "-0.03em" }}>
                   01
                 </div>
                 <div style={{
-                  width: 48,
-                  height: 48,
+                  width: 50,
+                  height: 50,
                   borderRadius: "50%",
-                  border: "1.5px solid rgba(245, 240, 219, 0.45)",
+                  background: "rgba(0, 113, 227, 0.16)",
+                  border: "1.5px solid rgba(0, 113, 227, 0.45)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  marginRight: 24
+                  boxShadow: "0 0 20px rgba(0, 113, 227, 0.2)"
                 }}>
-                  <Sparkles size={22} color="#f5f0db" />
+                  <Sparkles size={22} color="#0071E3" />
                 </div>
-                <div style={{ width: 24 }} />
+                <div style={{ width: 28 }} />
               </div>
 
-              {/* Title: Centered */}
-              <h2 style={{ fontSize: 19, fontWeight: 700, color: "#ffffff", textAlign: "center", margin: "14px 0 14px", letterSpacing: "-0.3px" }}>
+              {/* Title */}
+              <h2 style={{ fontSize: 21, fontWeight: 600, color: "#FFFFFF", textAlign: "center", margin: "8px 0 16px", letterSpacing: "-0.02em" }}>
                 Dynamic Audit Platform
               </h2>
 
-              {/* Divider Line */}
-              <div style={{ width: "100%", height: 1, backgroundColor: "rgba(255, 255, 255, 0.14)", marginBottom: 16 }} />
+              {/* Hairline Divider */}
+              <div style={{ width: "100%", height: 1, backgroundColor: "rgba(255, 255, 255, 0.12)", marginBottom: 18 }} />
 
               {/* Subpoints List */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 9, marginBottom: 18, flex: 1, paddingLeft: 12 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 11, marginBottom: 24, flex: 1, paddingLeft: 8 }}>
                 {[
                   { icon: <Calendar size={14} />, title: "Pre-Execution Schedule" },
                   { icon: <Mail size={14} />, title: "Automated Client Email Pipeline" },
@@ -1636,95 +1739,103 @@ export default function AuditFlow() {
                   { icon: <CheckSquare size={14} />, title: "Audit Testing Engine" },
                   { icon: <MessageSquare size={14} />, title: "Resolution Tracker" },
                 ].map((item, idx) => (
-                  <div key={idx} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, fontWeight: 500, color: "rgba(255, 255, 255, 0.88)" }}>
-                    <span style={{ display: "inline-flex", color: "#f5f0db", opacity: 0.85 }}>{item.icon}</span>
+                  <div key={idx} style={{ display: "flex", alignItems: "center", gap: 11, fontSize: 13.5, fontWeight: 500, color: "rgba(255, 255, 255, 0.9)" }}>
+                    <span style={{ display: "inline-flex", color: "#0071E3", filter: "drop-shadow(0 0 6px rgba(0, 113, 227, 0.4))" }}>{item.icon}</span>
                     <span>{item.title}</span>
                   </div>
                 ))}
               </div>
 
-              {/* Bottom Right Floating Circular Arrow Action Button */}
-              <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", marginTop: "auto" }}>
+              {/* Bottom Row Action Button */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "auto", paddingTop: 12 }}>
+                <span style={{ fontSize: 13, fontWeight: 500, color: "#86868B" }}>Launch Workspace</span>
                 <div
                   className="circle-arrow-btn"
                   style={{
-                    width: 38,
-                    height: 38,
+                    width: 42,
+                    height: 42,
                     borderRadius: "50%",
-                    backgroundColor: "#f5f0db",
-                    color: "#2d473b",
+                    backgroundColor: "#0071E3",
+                    color: "#FFFFFF",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    boxShadow: "0 2px 8px rgba(0,0,0,0.18)",
-                    transition: "transform 0.2s ease"
+                    boxShadow: "0 4px 16px rgba(0, 113, 227, 0.4)",
+                    transition: "all 0.25s cubic-bezier(0.16, 1, 0.3, 1)"
                   }}
                 >
-                  <ArrowRight size={17} />
+                  <ArrowRight size={18} />
                 </div>
               </div>
             </div>
 
-            {/* CARD 2: STATIC AUDIT PLATFORM (CRISP WHITE) */}
+            {/* CARD 2: STATIC AUDIT PLATFORM (LIQUID APPLE PURE WHITE GLASS) */}
             <div
               onClick={() => { setPlatformMode("classic"); setView("templates"); }}
+              className="apple-click"
               style={{
-                backgroundColor: "#ffffff",
-                borderRadius: 16,
-                border: "1px solid #dce2d8",
-                padding: "26px 28px 22px",
+                backgroundColor: "rgba(255, 255, 255, 0.85)",
+                backdropFilter: "blur(32px) saturate(180%)",
+                WebkitBackdropFilter: "blur(32px) saturate(180%)",
+                borderRadius: 22,
+                border: "1px solid #D2D2D7",
+                padding: "32px 32px 28px",
                 cursor: "pointer",
                 position: "relative",
                 display: "flex",
                 flexDirection: "column",
-                boxShadow: "0 10px 30px rgba(0,0,0,0.04)",
-                transition: "all 0.25s cubic-bezier(0.16, 1, 0.3, 1)"
+                boxShadow: "0 12px 32px -8px rgba(0, 0, 0, 0.05), inset 0 1px 1px 0 rgba(255, 255, 255, 0.95)",
+                transition: "all 0.28s cubic-bezier(0.16, 1, 0.3, 1)",
+                overflow: "hidden"
               }}
               onMouseEnter={e => {
                 e.currentTarget.style.transform = "translateY(-6px) scale(1.008)";
-                e.currentTarget.style.borderColor = "#2d473b";
-                e.currentTarget.style.boxShadow = "0 22px 46px -10px rgba(45,71,59,0.18)";
+                e.currentTarget.style.borderColor = "#0071E3";
+                e.currentTarget.style.boxShadow = "0 24px 50px -10px rgba(0, 113, 227, 0.16), inset 0 1px 1px 0 rgba(255, 255, 255, 0.98)";
                 const btn = e.currentTarget.querySelector(".circle-arrow-btn");
-                if (btn) btn.style.transform = "translateX(4px) scale(1.06)";
+                if (btn) { btn.style.transform = "translateX(4px) scale(1.08)"; btn.style.backgroundColor = "#0071E3"; }
               }}
               onMouseLeave={e => {
                 e.currentTarget.style.transform = "none";
-                e.currentTarget.style.borderColor = "#dce2d8";
-                e.currentTarget.style.boxShadow = "0 10px 30px rgba(0,0,0,0.04)";
+                e.currentTarget.style.borderColor = "#D2D2D7";
+                e.currentTarget.style.boxShadow = "0 12px 32px -8px rgba(0, 0, 0, 0.05), inset 0 1px 1px 0 rgba(255, 255, 255, 0.95)";
                 const btn = e.currentTarget.querySelector(".circle-arrow-btn");
-                if (btn) btn.style.transform = "none";
+                if (btn) { btn.style.transform = "none"; btn.style.backgroundColor = "#1D1D1F"; }
               }}
             >
+              {/* Specular sheen */}
+              <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "45%", background: "linear-gradient(180deg, rgba(255, 255, 255, 0.6) 0%, transparent 100%)", pointerEvents: "none" }} />
+
               {/* Top Row: Number 02 & Center Circular Icon Ring */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                <div style={{ fontSize: 24, fontWeight: 800, color: "#2d473b", letterSpacing: "-0.5px" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                <div style={{ fontSize: 28, fontWeight: 700, color: "#1D1D1F", letterSpacing: "-0.03em" }}>
                   02
                 </div>
                 <div style={{
-                  width: 48,
-                  height: 48,
+                  width: 50,
+                  height: 50,
                   borderRadius: "50%",
-                  border: "1.5px solid #2d473b",
+                  background: "rgba(0, 113, 227, 0.08)",
+                  border: "1.5px solid rgba(0, 113, 227, 0.25)",
                   display: "flex",
                   alignItems: "center",
-                  justifyContent: "center",
-                  marginRight: 24
+                  justifyContent: "center"
                 }}>
-                  <Layers size={22} color="#2d473b" />
+                  <Layers size={22} color="#0071E3" />
                 </div>
-                <div style={{ width: 24 }} />
+                <div style={{ width: 28 }} />
               </div>
 
-              {/* Title: Centered */}
-              <h2 style={{ fontSize: 19, fontWeight: 700, color: "#1c2e26", textAlign: "center", margin: "14px 0 14px", letterSpacing: "-0.3px" }}>
+              {/* Title */}
+              <h2 style={{ fontSize: 21, fontWeight: 600, color: "#1D1D1F", textAlign: "center", margin: "8px 0 16px", letterSpacing: "-0.02em" }}>
                 Static Audit platform
               </h2>
 
-              {/* Divider Line */}
-              <div style={{ width: "100%", height: 1, backgroundColor: "#e8ede4", marginBottom: 16 }} />
+              {/* Hairline Divider */}
+              <div style={{ width: "100%", height: 1, backgroundColor: "#E5E5EA", marginBottom: 18 }} />
 
               {/* Subpoints List */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 9, marginBottom: 18, flex: 1, paddingLeft: 12 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 11, marginBottom: 24, flex: 1, paddingLeft: 8 }}>
                 {[
                   { icon: <Users size={14} />, title: "HR Audit Framework" },
                   { icon: <Shield size={14} />, title: "PDPL Compliance Matrix" },
@@ -1732,31 +1843,32 @@ export default function AuditFlow() {
                   { icon: <FileText size={14} />, title: "Saudi Master RCM" },
                   { icon: <Layers size={14} />, title: "Isolated Categories" },
                 ].map((item, idx) => (
-                  <div key={idx} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, fontWeight: 500, color: "#334155" }}>
-                    <span style={{ display: "inline-flex", color: "#2d473b", opacity: 0.85 }}>{item.icon}</span>
+                  <div key={idx} style={{ display: "flex", alignItems: "center", gap: 11, fontSize: 13.5, fontWeight: 500, color: "#424245" }}>
+                    <span style={{ display: "inline-flex", color: "#0071E3" }}>{item.icon}</span>
                     <span>{item.title}</span>
                   </div>
                 ))}
               </div>
 
-              {/* Bottom Right Floating Circular Arrow Action Button */}
-              <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", marginTop: "auto" }}>
+              {/* Bottom Row Action Button */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "auto", paddingTop: 12 }}>
+                <span style={{ fontSize: 13, fontWeight: 500, color: "#86868B" }}>Open Frameworks</span>
                 <div
                   className="circle-arrow-btn"
                   style={{
-                    width: 38,
-                    height: 38,
+                    width: 42,
+                    height: 42,
                     borderRadius: "50%",
-                    backgroundColor: "#2d473b",
-                    color: "#f5f0db",
+                    backgroundColor: "#1D1D1F",
+                    color: "#FFFFFF",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    boxShadow: "0 2px 8px rgba(45,71,59,0.22)",
-                    transition: "transform 0.2s ease"
+                    boxShadow: "0 4px 16px rgba(0, 0, 0, 0.15)",
+                    transition: "all 0.25s cubic-bezier(0.16, 1, 0.3, 1)"
                   }}
                 >
-                  <ArrowRight size={17} />
+                  <ArrowRight size={18} />
                 </div>
               </div>
             </div>
@@ -1828,40 +1940,55 @@ export default function AuditFlow() {
   }
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: C.bg, fontFamily: 'Sora,sans-serif' }}>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: C.bg, fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', sans-serif" }}>
       <FontLink />
 
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
         {/* ── TOP PLATFORM SWITCHER BANNER ── */}
-        <div style={{ backgroundColor: "#ffffff", borderBottom: `1px solid ${C.border}`, padding: "12px 48px", flexShrink: 0, boxShadow: "0 1px 2px rgba(0,0,0,0.02)" }}>
-          <div style={{ maxWidth: 1240, margin: "0 auto", width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <ShieldCheck size={24} color={C.teal} />
-              <div style={{ fontSize: 20, fontWeight: 800, color: C.teal, letterSpacing: "-0.5px" }}>AuditFlow</div>
+        <div style={{
+          backgroundColor: "rgba(255,255,255,0.85)",
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+          borderBottom: `1px solid ${C.border}`,
+          padding: "12px 40px",
+          flexShrink: 0,
+          boxShadow: "0 1px 8px rgba(0,0,0,0.03)"
+        }}>
+          <div style={{ maxWidth: 1280, margin: "0 auto", width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ width: 32, height: 32, borderRadius: 10, background: "rgba(0,113,227,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <ShieldCheck size={18} color={C.blue} />
+              </div>
+              <div>
+                <div style={{ fontSize: 17, fontWeight: 700, color: C.text1, letterSpacing: "-0.015em" }}>AuditFlow</div>
+                <div style={{ fontSize: 11, color: C.text2, letterSpacing: "-0.01em" }}>Static Audit Platform • Universe One</div>
+              </div>
             </div>
-            <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <button
                 onClick={() => setPlatformMode("selection")}
                 title="Switch between Dynamic SaaS & Classic Templates"
+                className="apple-click"
                 style={{
-                  padding: "7px 14px",
-                  borderRadius: 8,
+                  padding: "7px 16px",
+                  borderRadius: 980,
                   border: `1px solid ${C.border}`,
-                  backgroundColor: C.surface,
-                  color: C.text2,
+                  backgroundColor: "rgba(255,255,255,0.7)",
+                  color: C.text1,
                   fontSize: 12,
                   fontWeight: 600,
                   cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
                   gap: 6,
-                  transition: "all 0.15s ease"
+                  transition: "all 0.15s ease",
+                  boxShadow: "0 1px 2px rgba(0,0,0,0.04)"
                 }}
-                onMouseEnter={e => { e.currentTarget.style.backgroundColor = C.bg2; e.currentTarget.style.color = C.text1; }}
-                onMouseLeave={e => { e.currentTarget.style.backgroundColor = C.surface; e.currentTarget.style.color = C.text2; }}
+                onMouseEnter={e => { e.currentTarget.style.backgroundColor = "#fff"; e.currentTarget.style.borderColor = C.blue; }}
+                onMouseLeave={e => { e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.7)"; e.currentTarget.style.borderColor = C.border; }}
               >
-                ⇄ Switch Platform / Hub
+                ⇄ Switch Platform
               </button>
             </div>
           </div>
@@ -1869,13 +1996,14 @@ export default function AuditFlow() {
 
         {/* ── TEMPLATES GRID VIEW ── */}
         {view === 'templates' && (
-          <div style={{ flex: 1, overflowY: 'auto', padding: '44px 48px 60px' }}>
-            <div style={{ maxWidth: 1240, margin: '0 auto' }}>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '40px 40px 60px' }}>
+            <div style={{ maxWidth: 1280, margin: '0 auto' }}>
               <div style={{ marginBottom: 32 }}>
-                <h1 style={{ fontSize: 28, fontWeight: 800, color: C.text1, letterSpacing: '-0.6px', marginBottom: 6 }}>Audit Categories</h1>
-                <div style={{ fontSize: 14, color: C.text2 }}>Select an auditing structure to launch its workspace</div>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: C.blue, marginBottom: 6 }}>Framework Library</div>
+                <h1 style={{ fontSize: 32, fontWeight: 700, color: C.text1, letterSpacing: '-0.03em', margin: 0, marginBottom: 8 }}>Audit Categories & Templates</h1>
+                <div style={{ fontSize: 15, color: C.text2, letterSpacing: '-0.01em' }}>Select an enterprise compliance framework to launch its dedicated workspace.</div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 28 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 24 }}>
                 {AUDIT_TEMPLATES.map(template => (
                   <TemplateCard key={template.id} template={template} onClick={() => openTemplate(template.id)} />
                 ))}
@@ -1886,70 +2014,82 @@ export default function AuditFlow() {
 
         {/* ── DASHBOARD VIEW ── */}
         {view === 'dashboard' && selectedTemplate && (
-          <div style={{ flex: 1, overflowY: 'auto', padding: '28px 32px 40px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <button onClick={backToTemplateLibrary} style={{ border: `1px solid ${C.border}`, background: '#fff', color: C.text2, borderRadius: 8, padding: '7px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-                  ← Categories
-                </button>
-                <div style={{ fontSize: 20, fontWeight: 800, color: C.text1 }}>
-                  {selectedTemplate.name} Workspace
+          <div style={{ flex: 1, overflowY: 'auto', padding: '32px 40px 50px' }}>
+            <div style={{ maxWidth: 1280, margin: '0 auto' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28, flexWrap: 'wrap', gap: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <button onClick={backToTemplateLibrary} className="apple-click" style={{ border: `1px solid ${C.border}`, background: 'rgba(255,255,255,0.8)', color: C.text1, borderRadius: 980, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s ease' }}>
+                    ← Categories
+                  </button>
+                  <div>
+                    <h2 style={{ fontSize: 24, fontWeight: 700, color: C.text1, letterSpacing: '-0.02em', margin: 0 }}>
+                      {selectedTemplate.name} Workspace
+                    </h2>
+                    <div style={{ fontSize: 12, color: C.text2, marginTop: 2 }}>{selectedTemplate.category || 'Compliance'} Framework</div>
+                  </div>
                 </div>
+                <button onClick={() => setNewProjModal(true)} className="apple-click" style={{ background: C.blue, color: '#fff', border: 'none', borderRadius: 980, padding: '9px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, boxShadow: `0 4px 14px ${C.blue}40`, transition: 'all 0.15s ease' }}>
+                  ＋ Add Company Workspace
+                </button>
               </div>
-              <button onClick={() => setNewProjModal(true)} style={{ background: C.teal, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, boxShadow: `0 2px 8px ${C.teal}44` }}>
-                ＋ Add Company Workspace
-              </button>
-            </div>
 
-            {/* Stats Row */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 28 }}>
-              <StatCard icon="📁" value={templateProjects.length} label="Active Companies" change={`${templateProjects.length} configured`} changeType="up" accent={C.teal} />
-              <StatCard icon="📋" value={allSteps.length} label="Total Audit Steps" change={`${done} completed`} changeType="up" accent={C.blue} />
-              <StatCard icon="⏳" value={inProgress} label="In Progress Steps" change={`${allSteps.length - done - inProgress} pending`} changeType="down" accent={C.amber} />
-              <StatCard icon="📎" value={totalDocs} label="Attached Evidence" change="Files tracked" changeType="up" accent={C.purple} />
-            </div>
+              {/* Stats Row */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 18, marginBottom: 32 }}>
+                <StatCard icon="📁" value={templateProjects.length} label="Active Companies" change={`${templateProjects.length} configured`} changeType="up" accent={C.blue} />
+                <StatCard icon="📋" value={allSteps.length} label="Total Audit Steps" change={`${done} completed`} changeType="up" accent={C.emerald} />
+                <StatCard icon="⏳" value={inProgress} label="In Progress Steps" change={`${allSteps.length - done - inProgress} pending`} changeType="down" accent={C.amber} />
+                <StatCard icon="📎" value={totalDocs} label="Attached Evidence" change="Files tracked" changeType="up" accent={C.purple} />
+              </div>
 
-            {/* Projects list */}
-            <div style={{ fontSize: 16, fontWeight: 800, color: C.text1, marginBottom: 14 }}>
-              Company Workspaces ({filteredProjects.length})
+              {/* Projects list */}
+              <div style={{ fontSize: 18, fontWeight: 700, color: C.text1, letterSpacing: '-0.02em', marginBottom: 16 }}>
+                Company Workspaces ({filteredProjects.length})
+              </div>
+              {filteredProjects.length === 0 ? (
+                <div style={{ padding: 48, textAlign: 'center', background: 'rgba(255,255,255,0.7)', backdropFilter: 'blur(16px)', borderRadius: 20, border: `1px solid ${C.border}`, color: C.text3 }}>
+                  <div style={{ fontSize: 40, marginBottom: 12 }}>🏢</div>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: C.text1 }}>No company workspaces found</div>
+                  <div style={{ fontSize: 13, marginTop: 4, color: C.text2 }}>Click "+ Add Company Workspace" to initialize your first audit project.</div>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
+                  {filteredProjects.map(p => (
+                    <ProjectCard key={p.id} project={p} members={members} onClick={() => openProject(p.id)} />
+                  ))}
+                </div>
+              )}
             </div>
-            {filteredProjects.length === 0 ? (
-              <div style={{ padding: 40, textAlign: 'center', background: '#fff', borderRadius: 14, border: `1px solid ${C.border}`, color: C.text3 }}>
-                <div style={{ fontSize: 36, marginBottom: 10 }}>🏢</div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: C.text2 }}>No company workspaces found</div>
-                <div style={{ fontSize: 12, marginTop: 4 }}>Click "+ Add Company Workspace" to initialize your first audit project.</div>
-              </div>
-            ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
-                {filteredProjects.map(p => (
-                  <ProjectCard key={p.id} project={p} members={members} onClick={() => openProject(p.id)} />
-                ))}
-              </div>
-            )}
           </div>
         )}
 
         {/* ── PROJECT DETAILS / TABLE / KANBAN VIEW ── */}
         {view === 'project' && currentProj && (
           <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
-            <div style={topbarStyle}>
-              <button onClick={() => setView('dashboard')} style={{ border: `1px solid ${C.border}`, background: '#fff', color: C.text2, borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+            <div style={{
+              ...topbarStyle,
+              backgroundColor: "rgba(255,255,255,0.85)",
+              backdropFilter: "blur(20px)",
+              WebkitBackdropFilter: "blur(20px)",
+              borderBottom: `1px solid ${C.border}`,
+              padding: "12px 32px"
+            }}>
+              <button onClick={() => setView('dashboard')} className="apple-click" style={{ border: `1px solid ${C.border}`, background: 'rgba(255,255,255,0.8)', color: C.text1, borderRadius: 980, padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                 ← Projects
               </button>
-              <div style={{ fontSize: 17, fontWeight: 800, color: C.text1 }}>
+              <div style={{ fontSize: 17, fontWeight: 700, color: C.text1, letterSpacing: '-0.015em' }}>
                 {currentProj.icon} {currentProj.name}
               </div>
               <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-                <button onClick={() => setActiveTab('table')} style={{ padding: '6px 12px', borderRadius: 7, border: `1px solid ${activeTab === 'table' ? C.teal : C.border}`, background: activeTab === 'table' ? C.tealBg : '#fff', color: activeTab === 'table' ? C.teal : C.text2, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                <button onClick={() => setActiveTab('table')} className="apple-click" style={{ padding: '6px 16px', borderRadius: 980, border: `1px solid ${activeTab === 'table' ? C.blue : C.border}`, background: activeTab === 'table' ? C.blueBg : '#fff', color: activeTab === 'table' ? C.blue : C.text2, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                   📋 Table
                 </button>
-                <button onClick={() => setActiveTab('kanban')} style={{ padding: '6px 12px', borderRadius: 7, border: `1px solid ${activeTab === 'kanban' ? C.teal : C.border}`, background: activeTab === 'kanban' ? C.tealBg : '#fff', color: activeTab === 'kanban' ? C.teal : C.text2, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                <button onClick={() => setActiveTab('kanban')} className="apple-click" style={{ padding: '6px 16px', borderRadius: 980, border: `1px solid ${activeTab === 'kanban' ? C.blue : C.border}`, background: activeTab === 'kanban' ? C.blueBg : '#fff', color: activeTab === 'kanban' ? C.blue : C.text2, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                   📊 Kanban
                 </button>
-                <button onClick={() => setImportModal(true)} style={{ padding: '6px 12px', borderRadius: 7, border: `1px solid ${C.tealBorder}`, background: C.tealBg, color: C.teal, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                <button onClick={() => setImportModal(true)} className="apple-click" style={{ padding: '6px 16px', borderRadius: 980, border: `1px solid ${C.blueBorder}`, background: C.blueBg, color: C.blue, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                   ⬆ Import CSV
                 </button>
-                <button onClick={exportCurrentProject} style={{ padding: '6px 12px', borderRadius: 7, border: `1px solid ${C.border}`, background: '#fff', color: C.text2, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                <button onClick={exportCurrentProject} className="apple-click" style={{ padding: '6px 16px', borderRadius: 980, border: `1px solid ${C.border}`, background: '#fff', color: C.text2, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                   ⬇ Export CSV
                 </button>
               </div>

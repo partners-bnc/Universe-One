@@ -11,6 +11,7 @@ import {
 import EmployeePageHeader from '../ui/EmployeePageHeader';
 import { MetricCardSkeleton, Skeleton } from '../ui/Skeleton';
 import DailyWorkLogModal from './DailyWorkLogModal';
+import SwipesModal from './SwipesModal';
 
 interface AttendanceProps {
   onOpenRegularizeAttendance: () => void;
@@ -43,6 +44,7 @@ export default function Attendance({ onOpenRegularizeAttendance }: AttendancePro
   const selectedDateRef = useRef(selectedDate);
 
   const [logsModalDate, setLogsModalDate] = useState<string | null>(null);
+  const [isSwipesModalOpen, setIsSwipesModalOpen] = useState(false);
   const [tasks, setTasks] = useState<{ id: string; task_name: string; created_at: string }[]>([]);
 
   useEffect(() => {
@@ -320,7 +322,20 @@ export default function Attendance({ onOpenRegularizeAttendance }: AttendancePro
 
         <div className="col-span-12 xl:col-span-4">
           <div className="bg-surface-container-lowest rounded-2xl editorial-shadow p-6 h-full flex flex-col">
-            <h4 className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-5">Selected Date</h4>
+            <div className="flex items-center gap-2 mb-5">
+              <button
+                type="button"
+                onClick={() => setIsSwipesModalOpen(true)}
+                className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors shadow-xs"
+                title="View All Swipes for Selected Date"
+                aria-label="View Swipes"
+              >
+                <span className="material-symbols-outlined text-[17px]">fingerprint</span>
+              </button>
+              <h4 className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">
+                Selected Date
+              </h4>
+            </div>
 
             {isLoading ? (
               <div className="flex-1 space-y-5">
@@ -477,6 +492,13 @@ export default function Attendance({ onOpenRegularizeAttendance }: AttendancePro
           isCheckout={false}
           onSubmitAndCheckout={handleSaveLogs}
           onClose={() => setLogsModalDate(null)}
+        />
+      )}
+      {isSwipesModalOpen && (
+        <SwipesModal
+          isOpen={isSwipesModalOpen}
+          onClose={() => setIsSwipesModalOpen(false)}
+          date={selectedDate}
         />
       )}
     </div>

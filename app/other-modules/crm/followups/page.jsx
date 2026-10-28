@@ -459,44 +459,44 @@ export default function FollowupsPage() {
   // FULL PAGE LEAD DETAIL VIEWS
   if (selectedLeadId && leadDetail) {
     return (
-      <div className="p-6 text-slate-800 dark:text-slate-150 transition-colors duration-300 h-full overflow-y-auto bg-slate-50 dark:bg-slate-900 font-sans">
+      <div className="p-8 text-[#1D1D1F] dark:text-white transition-colors duration-300 h-full overflow-y-auto bg-[#F5F5F7] dark:bg-[#1D1D1F] font-sans">
         
         {/* Header navigation bar */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 border-b border-slate-200/60 dark:border-slate-800/80 pb-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 border-b border-[#D2D2D7]/70 dark:border-white/10 pb-5">
           <div className="flex items-center gap-3">
             <button
               onClick={handleCloseLead}
-              className="p-2 bg-white dark:bg-slate-950 border border-slate-100 dark:border-slate-800 hover:bg-slate-55 dark:hover:bg-slate-850 text-slate-655 dark:text-slate-355 rounded-full shadow-xs cursor-pointer active:scale-95 transition-all"
+              className="w-10 h-10 bg-white dark:bg-white/10 border border-[#D2D2D7]/80 dark:border-white/10 hover:bg-[#F5F5F7] dark:hover:bg-white/15 text-[#1D1D1F] dark:text-white rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.04)] flex items-center justify-center cursor-pointer active:scale-95 transition-all"
             >
               <ArrowLeft size={16} />
             </button>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Lead details</span>
-                <span className={`text-[9px] font-bold uppercase px-2 py-0.5 border rounded-full ${getLeadStatusColor(leadDetail.lead_status)}`}>
+                <span className="text-[11px] font-semibold text-[#86868B] uppercase tracking-wider">Lead details</span>
+                <span className={`text-[11px] font-semibold uppercase px-2.5 py-0.5 rounded-full ${getLeadStatusColor(leadDetail.lead_status)}`}>
                   {leadDetail.lead_status}
                 </span>
                 {leadDetail.lead_category && (
-                  <span className="text-[9px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-350 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                  <span className="text-[11px] bg-[#F5F5F7] dark:bg-white/10 text-[#6E6E73] dark:text-white/70 px-2.5 py-0.5 rounded-full font-semibold uppercase tracking-wider">
                     {leadDetail.lead_category} Temperature
                   </span>
                 )}
               </div>
-              <h1 className="text-2xl font-semibold text-slate-800 dark:text-white mt-1 leading-tight tracking-tight">{leadDetail.full_name}</h1>
+              <h1 className="text-[28px] font-semibold text-[#1D1D1F] dark:text-white mt-1 leading-tight tracking-[-0.015em]">{leadDetail.full_name}</h1>
             </div>
           </div>
           
           <button
             onClick={() => fetchLeadDetail(selectedLeadId)}
-            className="px-4 py-2 border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-955 hover:bg-slate-55 dark:hover:bg-slate-855 text-xs font-semibold text-slate-700 dark:text-slate-300 rounded-full inline-flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
+            className="h-10 px-5 border border-[#D2D2D7]/80 dark:border-white/10 bg-white dark:bg-white/10 hover:bg-[#F5F5F7] dark:hover:bg-white/15 text-[13px] font-medium text-[#1D1D1F] dark:text-white rounded-full inline-flex items-center gap-2 cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.04)] active:scale-95 transition-all"
           >
-            <RefreshCw size={12} />
+            <RefreshCw size={14} />
             <span>Refresh details</span>
           </button>
         </div>
 
-        {/* THREE SECTION TABS - Full page width, perfectly aligned to the left */}
-        <div className="flex border-b border-slate-200/60 dark:border-slate-800/80 mb-6 w-full">
+        {/* THREE SECTION TABS - Apple Segmented / Underline Control */}
+        <div className="flex border-b border-[#D2D2D7]/70 dark:border-white/10 mb-7 w-full gap-2">
           {[
             { id: 'timeline', label: 'Timeline Pipeline', icon: History },
             { id: 'log', label: 'Log Follow-up Action', icon: Sparkles },
@@ -508,13 +508,13 @@ export default function FollowupsPage() {
               <button
                 key={tab.id}
                 onClick={() => setDetailTab(tab.id)}
-                className={`py-3 px-5 font-semibold text-xs border-b-2 inline-flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap -mb-[2px] ${
+                className={`py-3 px-5 font-semibold text-[13px] border-b-2 inline-flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap -mb-[2px] ${
                   active
-                    ? 'border-[#6057DA] text-[#6057DA] dark:border-[#7C74F0] dark:text-[#7C74F0]'
-                    : 'border-transparent text-slate-450 hover:text-slate-850 dark:hover:text-white'
+                    ? 'border-[#0071E3] text-[#0071E3]'
+                    : 'border-transparent text-[#6E6E73] hover:text-[#1D1D1F] dark:text-white/60 dark:hover:text-white'
                 }`}
               >
-                <Icon size={14} />
+                <Icon size={15} />
                 <span>{tab.label}</span>
               </button>
             );
@@ -870,105 +870,110 @@ export default function FollowupsPage() {
   }
 
   return (
-    <div className="p-6 text-slate-800 dark:text-slate-150 transition-colors duration-300 h-full overflow-y-auto bg-slate-50 dark:bg-slate-900 font-sans">
+    <div className="p-8 text-[#1D1D1F] dark:text-white transition-colors duration-300 h-full overflow-y-auto bg-[#F5F5F7] dark:bg-[#1D1D1F] font-sans">
       
       {/* HEADER SECTION */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 border-b border-slate-200 dark:border-slate-800 pb-5">
-        <div className="flex items-start gap-3">
-          <History size={38} className="text-[#6057DA] stroke-[1.8] shrink-0 mt-0.5" />
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-7 border-b border-[#D2D2D7]/70 dark:border-white/10 pb-5">
+        <div className="flex items-center gap-3.5">
+          <div className="w-11 h-11 rounded-full bg-[#0071E3]/10 dark:bg-[#0071E3]/20 flex items-center justify-center text-[#0071E3] shrink-0">
+            <History size={22} className="stroke-[2]" />
+          </div>
           <div>
-            <h1 className="text-3xl font-semibold tracking-tight dark:text-white bg-gradient-to-r from-blue-600 to-indigo-500 bg-clip-text text-transparent leading-none">Follow-up Management</h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mt-1.5">
-              Track communication pipeline, log interactions, and schedule subsequent customer check-ins.
+            <h1 className="text-[28px] font-semibold tracking-[-0.015em] text-[#1D1D1F] dark:text-white leading-tight">
+              Follow-up Pipeline
+            </h1>
+            <p className="text-[13px] text-[#86868B] font-normal mt-0.5">
+              Track communication cadence, log customer interactions, and schedule subsequent touchpoints.
             </p>
           </div>
         </div>
         
         <button
           onClick={fetchFollowupData}
-          className="p-2 border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-955 rounded-full hover:bg-slate-55 dark:hover:bg-slate-850 text-slate-505 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-all shadow-xs cursor-pointer active:scale-95"
+          className="h-10 px-5 border border-[#D2D2D7]/80 dark:border-white/10 bg-white dark:bg-white/10 rounded-full hover:bg-[#F5F5F7] dark:hover:bg-white/15 text-[#1D1D1F] dark:text-white transition-all shadow-[0_1px_2px_rgba(0,0,0,0.04)] cursor-pointer active:scale-95 flex items-center gap-2 text-[13px] font-medium"
           title="Refresh logs"
         >
-          <RefreshCw size={17} />
+          <RefreshCw size={14} />
+          <span>Refresh</span>
         </button>
       </div>
 
-      {/* STATS OVERVIEW CARD GRID */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4.5 mb-6">
-        <div className="bg-white dark:bg-slate-855 p-4.5 rounded-2xl border border-slate-100 dark:border-slate-800/80 shadow-xs flex items-center justify-between">
+      {/* STATS OVERVIEW CARD GRID - Apple 18px radius cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-7">
+        <div className="bg-white dark:bg-[#1D1D1F] p-5 rounded-[18px] border border-[#D2D2D7]/80 dark:border-white/10 shadow-[0_2px_8px_rgba(0,0,0,0.04)] flex items-center justify-between">
           <div>
-            <span className="text-[10px] font-semibold text-slate-455 uppercase tracking-wider block">Total Leads</span>
-            <span className="text-3xl font-medium text-slate-800 dark:text-white mt-1 block leading-none">{stats.totalLeads}</span>
+            <span className="text-[11px] font-semibold text-[#86868B] uppercase tracking-wider block">Total Leads</span>
+            <span className="text-[28px] font-semibold text-[#1D1D1F] dark:text-white mt-1 block leading-none">{stats.totalLeads}</span>
           </div>
-          <div className="p-3 bg-blue-50 dark:bg-blue-955/20 text-blue-650 dark:text-blue-400 rounded-xl">
-            <Briefcase size={22} className="stroke-[1.8]" />
+          <div className="w-10 h-10 bg-[#0071E3]/10 text-[#0071E3] dark:bg-[#0071E3]/20 dark:text-[#2997FF] rounded-full flex items-center justify-center">
+            <Briefcase size={18} />
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-855 p-4.5 rounded-2xl border border-slate-100 dark:border-slate-800/80 shadow-xs flex items-center justify-between">
+        <div className="bg-white dark:bg-[#1D1D1F] p-5 rounded-[18px] border border-[#D2D2D7]/80 dark:border-white/10 shadow-[0_2px_8px_rgba(0,0,0,0.04)] flex items-center justify-between">
           <div>
-            <span className="text-[10px] font-semibold text-rose-500 dark:text-rose-455 uppercase tracking-wider block">Overdue followups</span>
-            <span className="text-3xl font-medium text-rose-655 mt-1 block leading-none">{stats.overdue}</span>
+            <span className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 uppercase tracking-wider block">Overdue</span>
+            <span className="text-[28px] font-semibold text-rose-600 dark:text-rose-400 mt-1 block leading-none">{stats.overdue}</span>
           </div>
-          <div className="p-3 bg-rose-50 dark:bg-rose-955/20 text-rose-500 dark:text-rose-400 rounded-xl">
-            <AlertCircle size={22} className="stroke-[1.8]" />
+          <div className="w-10 h-10 bg-rose-50 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400 rounded-full flex items-center justify-center">
+            <AlertCircle size={18} />
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-855 p-4.5 rounded-2xl border border-slate-100 dark:border-slate-800/80 shadow-xs flex items-center justify-between">
+        <div className="bg-white dark:bg-[#1D1D1F] p-5 rounded-[18px] border border-[#D2D2D7]/80 dark:border-white/10 shadow-[0_2px_8px_rgba(0,0,0,0.04)] flex items-center justify-between">
           <div>
-            <span className="text-[10px] font-semibold text-amber-500 dark:text-amber-450 uppercase tracking-wider block">Scheduled Today</span>
-            <span className="text-3xl font-medium text-amber-600 dark:text-amber-450 mt-1 block leading-none">{stats.today}</span>
+            <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider block">Due Today</span>
+            <span className="text-[28px] font-semibold text-amber-600 dark:text-amber-400 mt-1 block leading-none">{stats.today}</span>
           </div>
-          <div className="p-3 bg-amber-50 dark:bg-amber-955/20 text-amber-500 dark:text-amber-405 rounded-xl">
-            <Clock size={22} className="stroke-[1.8]" />
+          <div className="w-10 h-10 bg-amber-50 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400 rounded-full flex items-center justify-center">
+            <Clock size={18} />
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-855 p-4.5 rounded-2xl border border-slate-100 dark:border-slate-800/80 shadow-xs flex items-center justify-between">
+        <div className="bg-white dark:bg-[#1D1D1F] p-5 rounded-[18px] border border-[#D2D2D7]/80 dark:border-white/10 shadow-[0_2px_8px_rgba(0,0,0,0.04)] flex items-center justify-between">
           <div>
-            <span className="text-[10px] font-semibold text-indigo-500 dark:text-indigo-400 uppercase tracking-wider block">Scheduled This Week</span>
-            <span className="text-3xl font-medium text-indigo-655 mt-1 block leading-none">{stats.thisWeek}</span>
+            <span className="text-[11px] font-semibold text-[#0071E3] dark:text-[#2997FF] uppercase tracking-wider block">This Week</span>
+            <span className="text-[28px] font-semibold text-[#0071E3] dark:text-[#2997FF] mt-1 block leading-none">{stats.thisWeek}</span>
           </div>
-          <div className="p-3 bg-indigo-50 dark:bg-indigo-955/20 text-indigo-500 dark:text-indigo-400 rounded-xl">
-            <Calendar size={22} className="stroke-[1.8]" />
+          <div className="w-10 h-10 bg-[#0071E3]/10 text-[#0071E3] dark:bg-[#0071E3]/20 dark:text-[#2997FF] rounded-full flex items-center justify-center">
+            <Calendar size={18} />
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-855 p-4.5 rounded-2xl border border-slate-100 dark:border-slate-800/80 shadow-xs flex items-center justify-between">
+        <div className="bg-white dark:bg-[#1D1D1F] p-5 rounded-[18px] border border-[#D2D2D7]/80 dark:border-white/10 shadow-[0_2px_8px_rgba(0,0,0,0.04)] flex items-center justify-between">
           <div>
-            <span className="text-[10px] font-semibold text-emerald-500 dark:text-emerald-455 uppercase tracking-wider block">Completed Actions</span>
-            <span className="text-3xl font-medium text-emerald-600 dark:text-emerald-400 mt-1 block leading-none">{stats.completed}</span>
+            <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">Completed</span>
+            <span className="text-[28px] font-semibold text-emerald-600 dark:text-emerald-400 mt-1 block leading-none">{stats.completed}</span>
           </div>
-          <div className="p-3 bg-emerald-50 dark:bg-emerald-955/20 text-emerald-500 dark:text-emerald-455 rounded-xl">
-            <CheckCircle size={22} className="stroke-[1.8]" />
+          <div className="w-10 h-10 bg-emerald-50 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400 rounded-full flex items-center justify-center">
+            <CheckCircle size={18} />
           </div>
         </div>
       </div>
 
       {/* FILTER BAR ROW */}
-      <div className="bg-white dark:bg-slate-950 border border-slate-100 dark:border-slate-800 p-4 rounded-2xl shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+      <div className="bg-white dark:bg-[#1D1D1F] border border-[#D2D2D7]/80 dark:border-white/10 p-4 rounded-[18px] shadow-[0_2px_8px_rgba(0,0,0,0.04)] flex flex-col md:flex-row md:items-center justify-between gap-4 mb-7">
         
         {/* Search */}
         <div className="relative max-w-md w-full">
-          <Search className="absolute left-3.5 top-3 w-4 h-4 text-slate-400 dark:text-slate-500" />
+          <Search className="absolute left-3.5 top-3 w-4 h-4 text-[#86868B]" />
           <input
             type="text"
             placeholder="Search leads by name, company, or email..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 text-sm border border-slate-100 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:border-[#6057DA] dark:focus:border-[#7C74F0] focus:ring-1 focus:ring-indigo-500/20 outline-none transition-all"
+            className="w-full h-[40px] pl-10 pr-4 text-[14px] border border-[#D2D2D7] dark:border-white/15 rounded-[11px] bg-white dark:bg-[#2C2C2E] text-[#1D1D1F] dark:text-white placeholder-[#86868B] focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 outline-none transition-all"
           />
         </div>
 
         {/* Action Filters */}
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2">
-            <Filter size={14} className="text-slate-400" />
+            <Filter size={14} className="text-[#86868B]" />
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-1.5 border border-slate-100 dark:border-slate-800 rounded-xl text-xs bg-white dark:bg-slate-900 text-slate-650 dark:text-slate-350 outline-none"
+              className="h-[40px] px-3.5 border border-[#D2D2D7] dark:border-white/15 rounded-[11px] text-[13px] bg-white dark:bg-[#2C2C2E] text-[#1D1D1F] dark:text-white focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"
             >
               <option value="All">All Statuses</option>
               <option value="New">New</option>
@@ -983,7 +988,7 @@ export default function FollowupsPage() {
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
-            className="px-3 py-1.5 border border-slate-100 dark:border-slate-800 rounded-xl text-xs bg-white dark:bg-slate-900 text-slate-655 dark:text-slate-355 outline-none"
+            className="h-[40px] px-3.5 border border-[#D2D2D7] dark:border-white/15 rounded-[11px] text-[13px] bg-white dark:bg-[#2C2C2E] text-[#1D1D1F] dark:text-white focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"
           >
             <option value="All">All Temperatures</option>
             <option value="Hot">Hot</option>
@@ -994,7 +999,7 @@ export default function FollowupsPage() {
           <select
             value={urgencyFilter}
             onChange={(e) => setUrgencyFilter(e.target.value)}
-            className="px-3 py-1.5 border border-slate-100 dark:border-slate-800 rounded-xl text-xs bg-white dark:bg-slate-900 text-slate-655 dark:text-slate-355 outline-none"
+            className="h-[40px] px-3.5 border border-[#D2D2D7] dark:border-white/15 rounded-[11px] text-[13px] bg-white dark:bg-[#2C2C2E] text-[#1D1D1F] dark:text-white focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"
           >
             <option value="All">All Urgencies</option>
             <option value="Overdue">Overdue</option>
@@ -1006,33 +1011,33 @@ export default function FollowupsPage() {
           </select>
 
           {/* View Modes */}
-          <div className="border-l border-slate-100 dark:border-slate-800 pl-3 flex gap-1 items-center">
+          <div className="border-l border-[#D2D2D7]/70 dark:border-white/10 pl-3 flex gap-1 items-center bg-[#F5F5F7] dark:bg-white/5 p-1 rounded-full">
             <button
               onClick={() => setViewMode('table')}
-              className={`p-1.5 rounded-lg border transition-all hover:bg-slate-55 dark:hover:bg-slate-850 cursor-pointer ${
-                viewMode === 'table' ? 'bg-indigo-50 border-indigo-100 text-[#6057DA] dark:bg-indigo-955/20 dark:border-indigo-900/30' : 'bg-transparent border-transparent text-slate-400'
+              className={`p-1.5 rounded-full transition-all cursor-pointer ${
+                viewMode === 'table' ? 'bg-[#0071E3] text-white shadow-xs' : 'text-[#86868B] hover:text-[#1D1D1F] dark:hover:text-white'
               }`}
               title="Table view"
             >
-              <TableIcon size={16} />
+              <TableIcon size={15} />
             </button>
             <button
               onClick={() => setViewMode('kanban')}
-              className={`p-1.5 rounded-lg border transition-all hover:bg-slate-55 dark:hover:bg-slate-855 cursor-pointer ${
-                viewMode === 'kanban' ? 'bg-indigo-50 border-indigo-100 text-[#6057DA] dark:bg-indigo-955/20 dark:border-indigo-900/30' : 'bg-transparent border-transparent text-slate-400'
+              className={`p-1.5 rounded-full transition-all cursor-pointer ${
+                viewMode === 'kanban' ? 'bg-[#0071E3] text-white shadow-xs' : 'text-[#86868B] hover:text-[#1D1D1F] dark:hover:text-white'
               }`}
               title="Kanban Board view"
             >
-              <Trello size={16} />
+              <Trello size={15} />
             </button>
             <button
               onClick={() => setViewMode('card')}
-              className={`p-1.5 rounded-lg border transition-all hover:bg-slate-55 dark:hover:bg-slate-855 cursor-pointer ${
-                viewMode === 'card' ? 'bg-indigo-50 border-indigo-100 text-[#6057DA] dark:bg-indigo-955/20 dark:border-indigo-900/30' : 'bg-transparent border-transparent text-slate-400'
+              className={`p-1.5 rounded-full transition-all cursor-pointer ${
+                viewMode === 'card' ? 'bg-[#0071E3] text-white shadow-xs' : 'text-[#86868B] hover:text-[#1D1D1F] dark:hover:text-white'
               }`}
               title="Grid Card view"
             >
-              <LayoutGrid size={16} />
+              <LayoutGrid size={15} />
             </button>
           </div>
         </div>
@@ -1054,84 +1059,84 @@ export default function FollowupsPage() {
         </div>
       ) : (
         <>
-          {/* VIEW 1: TABLE VIEW */}
-          <div className="overflow-x-auto border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm bg-white dark:bg-slate-900">
+          {/* VIEW 1: TABLE VIEW - Apple Refined Container */}
+          <div className="overflow-x-auto border border-[#D2D2D7]/80 dark:border-white/10 rounded-[18px] shadow-[0_2px_8px_rgba(0,0,0,0.04)] bg-white dark:bg-[#1D1D1F]">
             <table className="w-full text-left border-collapse min-w-[700px]">
               <thead>
-                <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
-                  <th className="py-3 px-4 font-medium text-slate-900 dark:text-slate-200 text-[14px] whitespace-nowrap">Lead ID</th>
-                  <th className="py-3 px-4 font-medium text-slate-900 dark:text-slate-200 text-[14px] whitespace-nowrap">Name</th>
-                  <th className="py-3 px-4 font-medium text-slate-900 dark:text-slate-200 text-[14px] whitespace-nowrap">Company</th>
-                  <th className="py-3 px-4 font-medium text-slate-900 dark:text-slate-200 text-[14px] text-center w-36 whitespace-nowrap">Status</th>
-                  <th className="py-3 px-4 font-medium text-slate-900 dark:text-slate-200 text-[14px] whitespace-nowrap">Last Contacted</th>
-                  <th className="py-3 px-4 font-medium text-slate-900 dark:text-slate-200 text-[14px] whitespace-nowrap">Next Follow-up</th>
-                  <th className="py-3 px-4 font-medium text-slate-900 dark:text-slate-200 text-[14px] whitespace-nowrap">Latest Outcome</th>
-                  <th className="py-3 px-4 font-medium text-slate-900 dark:text-slate-200 text-[14px] text-center w-36 whitespace-nowrap">Actions</th>
+                <tr className="bg-[#F5F5F7]/80 dark:bg-white/[0.04] border-b border-[#D2D2D7]/70 dark:border-white/10">
+                  <th className="py-3.5 px-4 font-semibold text-[#86868B] text-[11px] uppercase tracking-wider whitespace-nowrap">Lead ID</th>
+                  <th className="py-3.5 px-4 font-semibold text-[#86868B] text-[11px] uppercase tracking-wider whitespace-nowrap">Name</th>
+                  <th className="py-3.5 px-4 font-semibold text-[#86868B] text-[11px] uppercase tracking-wider whitespace-nowrap">Company</th>
+                  <th className="py-3.5 px-4 font-semibold text-[#86868B] text-[11px] uppercase tracking-wider text-center w-36 whitespace-nowrap">Status</th>
+                  <th className="py-3.5 px-4 font-semibold text-[#86868B] text-[11px] uppercase tracking-wider whitespace-nowrap">Last Contacted</th>
+                  <th className="py-3.5 px-4 font-semibold text-[#86868B] text-[11px] uppercase tracking-wider whitespace-nowrap">Next Follow-up</th>
+                  <th className="py-3.5 px-4 font-semibold text-[#86868B] text-[11px] uppercase tracking-wider whitespace-nowrap">Latest Outcome</th>
+                  <th className="py-3.5 px-4 font-semibold text-[#86868B] text-[11px] uppercase tracking-wider text-center w-36 whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
-              <tbody className="text-[14px] font-medium text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-900">
+              <tbody className="text-[14px] font-normal text-[#1D1D1F] dark:text-white bg-white dark:bg-[#1D1D1F]">
                 {filteredLeads.map((lead, index) => (
                   <tr
                     key={lead.lead_id ?? index}
-                    className="hover:bg-slate-50/30 dark:hover:bg-slate-800/20 transition-colors border-b border-slate-200 dark:border-slate-700 cursor-pointer"
+                    className="hover:bg-[#F5F5F7]/60 dark:hover:bg-white/[0.03] transition-colors border-b border-[#D2D2D7]/50 dark:border-white/5 cursor-pointer last:border-0"
                     onClick={() => handleOpenLead(lead.lead_id)}
                   >
-                    <td className="py-1.5 px-4 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400">
-                      {lead.lead_id}
+                    <td className="py-3 px-4 text-[#86868B] text-[13px] font-medium">
+                      #{lead.lead_id}
                     </td>
-                    <td className="py-1.5 px-4 border border-slate-200 dark:border-slate-700">
-                      <span className="text-[14px] font-medium text-slate-900 dark:text-white">{lead.full_name}</span>
+                    <td className="py-3 px-4">
+                      <span className="text-[14px] font-semibold text-[#1D1D1F] dark:text-white">{lead.full_name}</span>
                     </td>
-                    <td className="py-1.5 px-4 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400">
+                    <td className="py-3 px-4 text-[#6E6E73] dark:text-white/70">
                       {lead.company_name || 'No Company'}
                     </td>
-                    <td className="py-1.5 px-4 border border-slate-200 dark:border-slate-700 text-center">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${getLeadStatusColor(lead.lead_status)}`}>
+                    <td className="py-3 px-4 text-center">
+                      <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${getLeadStatusColor(lead.lead_status)}`}>
                         {lead.lead_status}
                       </span>
                     </td>
-                    <td className="py-1.5 px-4 border border-slate-200 dark:border-slate-700">
+                    <td className="py-3 px-4">
                       {lead.lastCompleted ? (
                         <div className="flex items-center gap-2">
-                          <span className="w-7 h-7 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-lg flex items-center justify-center p-1">
-                            {renderOfficialLogo(lead.lastCompleted.followup_type, "w-4.5 h-4.5")}
+                          <span className="w-7 h-7 bg-[#F5F5F7] dark:bg-white/10 rounded-full flex items-center justify-center p-1">
+                            {renderOfficialLogo(lead.lastCompleted.followup_type, "w-4 h-4")}
                           </span>
-                          <span className="text-slate-705 dark:text-slate-355">
+                          <span className="text-[#6E6E73] dark:text-white/70 text-[13px]">
                             {lead.last_contacted ? new Date(lead.last_contacted).toLocaleDateString() : 'N/A'}
                           </span>
                         </div>
                       ) : (
-                        <span className="text-slate-400 italic">—</span>
+                        <span className="text-[#86868B] italic">—</span>
                       )}
                     </td>
-                    <td className="py-1.5 px-4 border border-slate-200 dark:border-slate-700">
+                    <td className="py-3 px-4">
                       {lead.next_followup_date ? (
                         <div className="flex items-center gap-2">
-                          <span className={`px-2 py-0.5 text-[9px] font-semibold border rounded-full uppercase tracking-wider ${getUrgencyColor(lead.urgency)}`}>
+                          <span className={`px-2.5 py-0.5 text-[10px] font-semibold rounded-full uppercase tracking-wider ${getUrgencyColor(lead.urgency)}`}>
                             {lead.urgency}
                           </span>
-                          <span className="text-slate-805 dark:text-slate-250 font-medium">
+                          <span className="text-[#1D1D1F] dark:text-white font-medium text-[13px]">
                             {new Date(lead.next_followup_date).toLocaleDateString()}
                           </span>
                         </div>
                       ) : (
-                        <span className="text-slate-400 italic">—</span>
+                        <span className="text-[#86868B] italic">—</span>
                       )}
                     </td>
-                    <td className="py-1.5 px-4 border border-slate-200 dark:border-slate-700 max-w-xs text-slate-600 dark:text-slate-450 truncate">
+                    <td className="py-3 px-4 max-w-xs text-[#6E6E73] dark:text-white/70 truncate text-[13px]">
                       <p className="truncate leading-normal">
                         {lead.notes || (lead.lastCompleted ? lead.lastCompleted.outcome : '—')}
                       </p>
                     </td>
-                    <td className="py-1.5 px-4 border border-slate-200 dark:border-slate-700 text-center">
+                    <td className="py-3 px-4 text-center">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           handleOpenLead(lead.lead_id);
                         }}
-                        className="px-4 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-750 hover:border-slate-350 text-[12px] font-medium text-slate-800 dark:text-slate-200 rounded-full shadow-sm inline-flex items-center gap-1.5 transition-all active:scale-[0.97] whitespace-nowrap cursor-pointer"
+                        className="h-8 px-4 bg-white dark:bg-white/10 border border-[#D2D2D7]/80 dark:border-white/15 hover:bg-[#F5F5F7] dark:hover:bg-white/15 text-[12px] font-medium text-[#1D1D1F] dark:text-white rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.04)] inline-flex items-center gap-1.5 transition-all active:scale-[0.97] whitespace-nowrap cursor-pointer"
                       >
-                        <Eye size={15} className="stroke-[1.8]" />
+                        <Eye size={13} />
                         <span>View Timeline</span>
                       </button>
                     </td>

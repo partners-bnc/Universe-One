@@ -363,59 +363,69 @@ export default function TemplatesPage() {
   }
 
   return (
-    <div className="h-full overflow-y-auto bg-slate-100 p-6 text-slate-900 transition-colors dark:bg-slate-900 dark:text-slate-100">
-      <div className="mb-5 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+    <div className="h-full overflow-y-auto bg-[#F5F5F7] p-8 text-[#1D1D1F] transition-colors dark:bg-[#1D1D1F] dark:text-white font-sans">
+      <div className="mb-7 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between border-b border-[#D2D2D7]/70 dark:border-white/10 pb-5">
         <div>
-          <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-blue-600 dark:text-blue-400">
+          <div className="mb-2 flex items-center gap-2 text-[12px] font-semibold text-[#0071E3]">
             <Mail className="h-4 w-4" />
             CRM Email Studio
           </div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-950 dark:text-white">Email Templates</h1>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Design professional outreach and follow-up emails with live HTML preview.
+          <h1 className="text-[28px] font-semibold tracking-[-0.015em] text-[#1D1D1F] dark:text-white leading-tight">Email Templates</h1>
+          <p className="mt-1 text-[13px] text-[#86868B]">
+            Design professional outreach and follow-up emails with live HTML preview and merge tags.
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          <button onClick={createBlankTemplate} className="inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
-            <Plus className="mr-2 h-4 w-4" />
+        <div className="flex flex-wrap gap-2.5">
+          <button 
+            onClick={createBlankTemplate} 
+            className="h-10 px-5 inline-flex items-center rounded-full border border-[#D2D2D7]/80 bg-white text-[13px] font-medium text-[#1D1D1F] shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-[#F5F5F7] dark:border-white/15 dark:bg-white/10 dark:text-white dark:hover:bg-white/15 cursor-pointer"
+          >
+            <Plus className="mr-1.5 h-4 w-4" />
             New
           </button>
-          <button onClick={copyHtml} className="inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
-            <Copy className="mr-2 h-4 w-4" />
+          <button 
+            onClick={copyHtml} 
+            className="h-10 px-5 inline-flex items-center rounded-full border border-[#D2D2D7]/80 bg-white text-[13px] font-medium text-[#1D1D1F] shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-[#F5F5F7] dark:border-white/15 dark:bg-white/10 dark:text-white dark:hover:bg-white/15 cursor-pointer"
+          >
+            <Copy className="mr-1.5 h-4 w-4" />
             Copy HTML
           </button>
-          <button onClick={() => saveTemplate()} disabled={isSaving || isLoading} className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400">
-            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+          <button 
+            onClick={() => saveTemplate()} 
+            disabled={isSaving || isLoading} 
+            className="h-10 px-6 inline-flex items-center rounded-full bg-[#0071E3] text-[13px] font-semibold text-white shadow-[0_2px_8px_rgba(0,113,227,0.25)] transition hover:bg-[#0076DF] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+          >
+            {isSaving ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Save className="mr-1.5 h-4 w-4" />}
             Save
           </button>
         </div>
       </div>
 
       {(notice || error) && (
-        <div className={`mb-4 rounded-md border px-4 py-3 text-sm ${error ? "border-red-200 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300" : "border-green-200 bg-green-50 text-green-700 dark:border-green-900/60 dark:bg-green-950/30 dark:text-green-300"}`}>
+        <div className={`mb-6 rounded-[14px] border px-4 py-3 text-[13px] font-medium ${error ? "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300" : "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300"}`}>
           {error || notice}
         </div>
       )}
 
-      <div className="grid min-h-[calc(100vh-190px)] grid-cols-1 gap-4 xl:grid-cols-[300px_minmax(360px,0.9fr)_minmax(420px,1.1fr)]">
-        <aside className="rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-          <div className="border-b border-slate-200 p-4 dark:border-slate-700">
+      <div className="grid min-h-[calc(100vh-210px)] grid-cols-1 gap-5 xl:grid-cols-[300px_minmax(360px,0.9fr)_minmax(420px,1.1fr)]">
+        <aside className="rounded-[18px] border border-[#D2D2D7]/80 bg-white shadow-[0_2px_8px_rgba(0,0,0,0.04)] dark:border-white/10 dark:bg-[#1D1D1F]">
+          <div className="border-b border-[#D2D2D7]/70 p-4 dark:border-white/10">
             <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+              <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-[#86868B]" />
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search templates"
-                className="w-full rounded-md border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+                className="w-full h-[40px] rounded-[11px] border border-[#D2D2D7] bg-white py-2 pl-9 pr-3 text-[13px] text-[#1D1D1F] outline-none transition focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 dark:border-white/15 dark:bg-[#2C2C2E] dark:text-white placeholder-[#86868B]"
               />
             </div>
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="mt-3 flex flex-wrap gap-1.5">
               {["All", ...TEMPLATE_CATEGORIES].map((category) => (
                 <button
                   key={category}
                   onClick={() => setCategoryFilter(category)}
-                  className={`rounded-md px-2.5 py-1.5 text-xs font-semibold transition ${categoryFilter === category ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"}`}
+                  className={`rounded-full px-3 py-1 text-[11px] font-semibold transition cursor-pointer ${categoryFilter === category ? "bg-[#0071E3] text-white" : "bg-[#F5F5F7] text-[#6E6E73] hover:bg-[#E8E8ED] dark:bg-white/10 dark:text-white/70 dark:hover:bg-white/15"}`}
                 >
                   {category}
                 </button>
@@ -423,31 +433,31 @@ export default function TemplatesPage() {
             </div>
           </div>
 
-          <div className="max-h-[72vh] overflow-y-auto p-2">
+          <div className="max-h-[72vh] overflow-y-auto p-2.5 space-y-1">
             {isLoading ? (
-              <div className="flex items-center justify-center py-16 text-sm text-slate-500">
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <div className="flex items-center justify-center py-16 text-[13px] text-[#86868B]">
+                <Loader2 className="mr-2 h-4 w-4 animate-spin text-[#0071E3]" />
                 Loading templates
               </div>
             ) : filteredTemplates.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-slate-400 dark:text-slate-500">
-                <FileCode2 className="h-8 w-8 mb-2 text-slate-300 dark:text-slate-700" />
-                <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">No Templates Found</div>
-                <div className="text-[10px] mt-0.5 text-center px-4 text-slate-400">Create a blank template or use AI builder to get started.</div>
+              <div className="flex flex-col items-center justify-center py-16 text-[#86868B]">
+                <FileCode2 className="h-8 w-8 mb-2 opacity-50" />
+                <div className="text-[13px] font-semibold text-[#1D1D1F] dark:text-white">No Templates Found</div>
+                <div className="text-[11px] mt-0.5 text-center px-4 text-[#86868B]">Create a blank template or use AI builder to get started.</div>
               </div>
             ) : (
               filteredTemplates.map((template) => (
                 <button
                   key={template.id}
                   onClick={() => selectTemplate(template)}
-                  className={`mb-2 w-full rounded-md border p-3 text-left transition ${selectedId === template.id ? "border-blue-300 bg-blue-50 dark:border-blue-700 dark:bg-blue-950/40" : "border-transparent hover:bg-slate-50 dark:hover:bg-slate-700/60"}`}
+                  className={`w-full rounded-[12px] p-3 text-left transition cursor-pointer ${selectedId === template.id ? "bg-[#0071E3]/10 border border-[#0071E3]/30 dark:bg-[#0071E3]/20" : "hover:bg-[#F5F5F7] dark:hover:bg-white/5 border border-transparent"}`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="truncate text-sm font-bold text-slate-900 dark:text-white">{template.name}</div>
-                      <div className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">{template.subject}</div>
+                      <div className="truncate text-[13px] font-semibold text-[#1D1D1F] dark:text-white">{template.name}</div>
+                      <div className="mt-0.5 truncate text-[11px] text-[#86868B]">{template.subject || "No Subject"}</div>
                     </div>
-                    {template.source === "AI" ? <Sparkles className="h-4 w-4 shrink-0 text-blue-500" /> : <FileCode2 className="h-4 w-4 shrink-0 text-slate-400" />}
+                    {template.source === "AI" ? <Sparkles className="h-4 w-4 shrink-0 text-[#0071E3]" /> : <FileCode2 className="h-4 w-4 shrink-0 text-[#86868B]" />}
                   </div>
                   <div className="mt-3 flex items-center gap-2 text-[11px] font-semibold">
                     <span className="rounded bg-slate-100 px-2 py-1 text-slate-600 dark:bg-slate-700 dark:text-slate-300">{template.category}</span>

@@ -105,7 +105,71 @@ function getDerivedProgress(task) {
   return Math.round((completed / subtasks.length) * 100);
 }
 
-function buildTaskPayload(assignments = [], activities = [], ratingMap = new Map()) {
+async function fetchPagedRows(buildQuery, pageSize = 1000) {
+  let allRows = [];
+  let from = 0;
+  let hasMore = true;
+  while (hasMore) {
+    const { data, error } = await buildQuery().range(from, from + pageSize - 1);
+    if (error) return { data: allRows, error };
+    if (!data || data.length === 0) break;
+    allRows = allRows.concat(data);
+    if (data.length < pageSize) {
+      hasMore = false;
+    } else {
+      from += pageSize;
+    }
+  }
+  return { data: allRows, error: null };
+}
+
+async function getTaskHoursMaps(taskIds = [], targetEmployeeId) {
+  const employeeHoursMap = new Map();
+  const totalHoursMap = new Map();
+
+  if (!Array.isArray(taskIds) || taskIds.length === 0) {
+    return { employeeHoursMap, totalHoursMap };
+  }
+
+  const PAGE_SIZE = 1000;
+  let from = 0;
+  let hasMore = true;
+  const taskIdSet = new Set(taskIds);
+
+  while (hasMore) {
+    let query = adminClient
+      .from('hrm_daily_work_logs')
+      .select('task_id, employee_id, hours_spent')
+      .not('task_id', 'is', null);
+
+    if (taskIds.length <= 500) {
+      query = query.in('task_id', taskIds);
+    }
+
+    const { data: logs, error } = await query.range(from, from + PAGE_SIZE - 1);
+    if (error || !logs || logs.length === 0) break;
+
+    for (const log of logs) {
+      if (log.task_id && taskIdSet.has(log.task_id)) {
+        const hrs = parseFloat(log.hours_spent) || 0;
+        totalHoursMap.set(log.task_id, (totalHoursMap.get(log.task_id) || 0) + hrs);
+        if (log.employee_id === targetEmployeeId) {
+          employeeHoursMap.set(log.task_id, (employeeHoursMap.get(log.task_id) || 0) + hrs);
+        }
+      }
+    }
+
+    if (logs.length < PAGE_SIZE) {
+      hasMore = false;
+    } else {
+      from += PAGE_SIZE;
+    }
+  }
+
+  return { employeeHoursMap, totalHoursMap };
+}
+
+function buildTaskPayload(assignments = [], activities = [], ratingMap = new Map(), employeeHoursMap = new Map(), totalHoursMap = new Map()) {
   const latestActivityByTaskId = getLatestTaskActivityByTaskId(activities);
 
   return assignments
@@ -135,6 +199,8 @@ function buildTaskPayload(assignments = [], activities = [], ratingMap = new Map
         assigned_by: latestActivity ? getActorName(latestActivity) : 'Assigned',
         assignment_action: latestActivity?.action || 'assigned',
         assignment_source: latestActivity?.entity_type || 'task',
+        employee_logged_hours: employeeHoursMap.get(task.id) || 0,
+        total_logged_hours: totalHoursMap.get(task.id) || 0,
         assignees: Array.isArray(task.task_assignments)
           ? task.task_assignments.map((ta) => ta?.employee).filter(Boolean)
           : [],
@@ -196,41 +262,48 @@ export async function GET(request, { params }) {
         .select('id, employee_id, name, username, email, role, profile_picture_url, created_at, updated_at')
         .eq('id', id)
         .maybeSingle(),
-      adminClient
-        .from('task_assignments')
-        .select(`
-          assigned_at,
-          task:tasks (
-            id, task_name, description, priority, status, due_date,
-            created_at, updated_at, progress_percentage,
-            task_assignments (employee:hrm_employees!task_assignments_employee_id_fkey (id, name, email, role, profile_picture_url)),
-            task_subtasks (id, title, is_completed, assigned_employee_id, created_at, updated_at)
-          )
-        `)
-        .eq('employee_id', id),
-      adminClient
-        .from('task_assignment_activity')
-        .select(EMPLOYEE_ANALYTICS_ACTIVITY_SELECT)
-        .eq('to_employee_id', id)
-        .order('created_at', { ascending: false }),
-      adminClient
-        .from('task_employee_ratings')
-        .select(`
-          id,
-          task_id,
-          employee_id,
-          rating,
-          created_at,
-          updated_at,
-          task:tasks (
+      fetchPagedRows(() =>
+        adminClient
+          .from('task_assignments')
+          .select(`
+            assigned_at,
+            task:tasks (
+              id, task_name, description, priority, status, due_date,
+              created_at, updated_at, progress_percentage,
+              task_assignments (employee:hrm_employees!task_assignments_employee_id_fkey (id, name, email, role, profile_picture_url)),
+              task_subtasks (id, title, is_completed, assigned_employee_id, created_at, updated_at)
+            )
+          `)
+          .eq('employee_id', id)
+          .order('assigned_at', { ascending: false })
+      ),
+      fetchPagedRows(() =>
+        adminClient
+          .from('task_assignment_activity')
+          .select(EMPLOYEE_ANALYTICS_ACTIVITY_SELECT)
+          .eq('to_employee_id', id)
+          .order('created_at', { ascending: false })
+      ),
+      fetchPagedRows(() =>
+        adminClient
+          .from('task_employee_ratings')
+          .select(`
             id,
-            task_name,
-            status,
-            due_date
-          )
-        `)
-        .eq('employee_id', id)
-        .order('updated_at', { ascending: false }),
+            task_id,
+            employee_id,
+            rating,
+            created_at,
+            updated_at,
+            task:tasks (
+              id,
+              task_name,
+              status,
+              due_date
+            )
+          `)
+          .eq('employee_id', id)
+          .order('updated_at', { ascending: false })
+      ),
     ]);
 
     if (employeeResult.error) {
@@ -252,15 +325,66 @@ export async function GET(request, { params }) {
     const rawActivities = activityResult.data || [];
     const ratingRows = ratingResult.data || [];
     const ratingMap = buildEmployeeTaskRatingMap(ratingRows, id);
-    const tasks = buildTaskPayload(assignmentResult.data || [], rawActivities, ratingMap);
+
+    // Compute both individual employee logged hours and total team hours for each task
+    const taskIds = (assignmentResult.data || []).map((a) => a?.task?.id).filter(Boolean);
+    const { employeeHoursMap, totalHoursMap } = await getTaskHoursMaps(taskIds, id);
+
+    const tasks = buildTaskPayload(assignmentResult.data || [], rawActivities, ratingMap, employeeHoursMap, totalHoursMap);
     const stats = buildStats(tasks, ratingRows);
     const assignmentActivity = rawActivities.map(mapActivity);
+
+    // Optional ticket statistics for this employee
+    let ticketStats = {
+      total: 0,
+      open: 0,
+      late: 0,
+      breached: 0,
+      avgResolutionHours: 0,
+    };
+
+    try {
+      const { data: ticketRows } = await fetchPagedRows(() =>
+        adminClient
+          .from('tickets')
+          .select('id, status, is_late, is_sla_breached, created_at, closed_at, resolved_at, assigned_to_employee_id, created_by_employee_id')
+          .or(`assigned_to_employee_id.eq.${id},created_by_employee_id.eq.${id}`)
+      );
+
+      if (Array.isArray(ticketRows) && ticketRows.length > 0) {
+        const open = ticketRows.filter((t) => !['closed', 'resolved'].includes(t.status));
+        const closed = ticketRows.filter((t) => ['closed', 'resolved'].includes(t.status));
+        const durations = closed
+          .map((t) => {
+            const start = t.created_at ? new Date(t.created_at).getTime() : NaN;
+            const end = t.closed_at || t.resolved_at ? new Date(t.closed_at || t.resolved_at).getTime() : NaN;
+            if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return null;
+            return (end - start) / (1000 * 60 * 60);
+          })
+          .filter((v) => typeof v === 'number');
+
+        const avgResolutionHours = durations.length > 0
+          ? Math.round((durations.reduce((a, b) => a + b, 0) / durations.length) * 10) / 10
+          : 0;
+
+        ticketStats = {
+          total: ticketRows.length,
+          open: open.length,
+          late: open.filter((t) => t.is_late && !t.is_sla_breached).length,
+          breached: open.filter((t) => t.is_sla_breached).length,
+          avgResolutionHours,
+        };
+      }
+    } catch {
+      // Graceful fallback if tickets schema differs
+    }
 
     return NextResponse.json({
       success: true,
       employee: employeeResult.data,
       tasks,
       stats,
+      ticketStats,
       assignmentActivity,
     });
   } catch (error) {

@@ -13,6 +13,7 @@ import {
   Building2,
   ChevronLeft,
 } from 'lucide-react';
+import { ModuleAccessGate } from '@/app/components-homepage/ModuleAccessGate';
 
 export default function FarCompanyLayout({ children }) {
   const params = useParams();
@@ -68,7 +69,8 @@ export default function FarCompanyLayout({ children }) {
   };
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-slate-50 text-slate-800 font-sans" style={{ fontFamily: "'Inter', sans-serif" }}>
+    <ModuleAccessGate moduleKey="far" moduleLabel="FAR">
+      <div className="flex h-screen w-screen overflow-hidden bg-slate-50 text-slate-800 font-sans" style={{ fontFamily: "'Inter', sans-serif" }}>
       {/* Mobile Sidebar backdrop overlay */}
       {isSidebarOpen && (
         <div
@@ -195,6 +197,6 @@ export default function FarCompanyLayout({ children }) {
           {children}
         </main>
       </div>
-    </div>
+    </ModuleAccessGate>
   );
 }

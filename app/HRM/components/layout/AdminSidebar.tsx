@@ -38,6 +38,9 @@ export default function AdminSidebar({
     { id: 'admin-employee-list', label: 'Employee Directory', icon: 'groups' },
     { id: 'admin-certificates', label: 'Certificate Gen', icon: 'workspace_premium' },
     { id: 'admin-onboarding', label: 'Employee Onboarding', icon: 'how_to_reg' },
+    { id: 'admin-onboarding-progress', label: 'Onboarding Progress', icon: 'school' },
+    // sub-item of Onboarding Progress (drawn indented)
+    { id: 'admin-onboarding-employee', label: 'Employee Tracker', icon: 'person_search', sub: true },
     { id: 'admin-payouts', label: 'Payouts & Payroll', icon: 'account_balance_wallet' },
     { id: 'admin-organization-chart', label: 'Organization Chart', icon: 'account_tree' },
     { id: 'admin-module-access', label: 'Module Access', icon: 'verified_user' },
@@ -66,7 +69,7 @@ export default function AdminSidebar({
     <aside
       className={`subtle-scrollbar fixed left-0 top-0 z-50 flex h-screen w-72 max-w-[86vw] -translate-x-full flex-col overflow-y-auto border-r border-outline-variant/15 bg-[#EEF2F5] py-5 shadow-[0_20px_60px_rgba(15,23,42,0.18)] transition-all duration-300 md:max-w-none md:translate-x-0 md:shadow-none ${
         isMobileOpen ? 'translate-x-0' : ''
-      } ${isCollapsed ? 'md:w-24' : 'md:w-64'}`}
+      } ${isCollapsed ? 'md:w-20' : 'md:w-56'}`}
     >
       <div className={`mb-8 ${isCollapsed ? 'px-3' : 'px-5'}`}>
         <div className="mb-4 flex items-center justify-between px-2 md:hidden">
@@ -85,7 +88,7 @@ export default function AdminSidebar({
         </div>
         <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between gap-3'}`}>
           {!isCollapsed ? (
-            <div className="flex min-w-0 flex-1 items-center justify-between gap-3 pl-9">
+            <div className="flex min-w-0 flex-1 items-center justify-between gap-3 pl-5">
               <p className="truncate font-headline text-xl font-extrabold tracking-tight text-on-surface">
                 HR Admin
               </p>
@@ -114,10 +117,11 @@ export default function AdminSidebar({
         </div>
       </div>
 
-      <nav className="flex-grow space-y-2 pr-3">
+      <nav className="flex-grow space-y-1 pr-3">
         {navItems.map((item) => {
           const isActive = currentTab === item.id;
           const count = Number(requestCounts[item.id] || 0);
+          const isSub = 'sub' in item && item.sub && !isCollapsed;
           return (
             <button
               key={item.id}
@@ -129,11 +133,12 @@ export default function AdminSidebar({
                 isActive
                   ? 'rounded-r-2xl border-y border-r border-outline-variant/10 bg-surface-container-lowest font-bold text-primary shadow-sm'
                   : 'text-on-surface-variant hover:bg-surface-container-lowest/50 hover:text-primary'
-              } ${isCollapsed ? 'justify-center px-3 py-3.5' : 'gap-3 px-5 py-3'} ${isActive ? '' : 'rounded-r-2xl'}`}
+              } ${isCollapsed ? 'justify-center px-3 py-3' : isSub ? 'gap-2.5 py-2 pl-11 pr-4' : 'gap-3 px-4 py-2.5'} ${isActive ? '' : 'rounded-r-2xl'}`}
               title={isCollapsed ? item.label : undefined}
             >
+              {isSub ? <span className="absolute bottom-1 left-[26px] top-1 w-px bg-outline-variant/30" aria-hidden="true" /> : null}
               <span
-                className="material-symbols-outlined shrink-0"
+                className={`material-symbols-outlined shrink-0 ${isSub ? 'text-[18px]' : ''}`}
                 style={isActive ? { fontVariationSettings: "'FILL' 1" } : {}}
               >
                 {item.icon}
@@ -141,7 +146,7 @@ export default function AdminSidebar({
               {!isCollapsed ? (
                 <>
                   <span
-                    className={`min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-left font-body text-sm ${
+                    className={`min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-left font-body text-[13px] ${
                       isActive ? 'font-bold' : 'font-medium'
                     }`}
                   >
@@ -181,7 +186,7 @@ export default function AdminSidebar({
           onClick={onLogout}
           disabled={isLoggingOut}
           className={`w-full flex items-center text-on-surface-variant transition-colors hover:text-primary disabled:cursor-not-allowed disabled:opacity-60 ${
-            isCollapsed ? 'justify-center rounded-r-2xl px-3 py-3' : 'gap-3 rounded-r-2xl px-5 py-3 hover:bg-surface-container-lowest/50'
+            isCollapsed ? 'justify-center rounded-r-2xl px-3 py-3' : 'gap-3 rounded-r-2xl px-4 py-2.5 hover:bg-surface-container-lowest/50'
           }`}
           title={isCollapsed ? (isLoggingOut ? 'Logging Out...' : 'Log Out') : undefined}
         >
@@ -193,7 +198,7 @@ export default function AdminSidebar({
         <Link
           href="/"
           className={`w-full flex items-center text-on-surface-variant transition-colors hover:text-primary ${
-            isCollapsed ? 'justify-center rounded-r-2xl px-3 py-3' : 'gap-3 rounded-r-2xl px-5 py-3 hover:bg-surface-container-lowest/50'
+            isCollapsed ? 'justify-center rounded-r-2xl px-3 py-3' : 'gap-3 rounded-r-2xl px-4 py-2.5 hover:bg-surface-container-lowest/50'
           }`}
           title={isCollapsed ? 'Home Page' : undefined}
         >

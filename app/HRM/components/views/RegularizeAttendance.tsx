@@ -43,6 +43,9 @@ function getDetectedCurrentStatus(selectedDay?: RegularizationDay) {
     const leaveName = selectedDay?.leaveTypeName ? ` (${selectedDay.leaveTypeName})` : '';
     return session === 'second_half' ? `Absent - 1st Half${leaveName}` : `Absent - 2nd Half${leaveName}`;
   }
+  if (selectedDay?.hasCompletedHours && selectedDay?.workHoursFormatted) {
+    return `Half Day (Completed ${selectedDay.workHoursFormatted} • Missing Final Check-out)`;
+  }
   if (label === 'half day') return 'Half Day';
   if (label === 'absent') return 'Absent';
   return '';
@@ -61,6 +64,9 @@ function getDefaultCheckIn(selectedDay?: RegularizationDay) {
     const session = selectedDay?.leaveSession || 'second_half';
     return session === 'second_half' ? '09:00' : '13:30';
   }
+  if (selectedDay?.checkIn24) {
+    return selectedDay.checkIn24;
+  }
   return '09:00';
 }
 
@@ -68,6 +74,9 @@ function getDefaultCheckOut(selectedDay?: RegularizationDay) {
   if (selectedDay?.hasHalfDayLeave) {
     const session = selectedDay?.leaveSession || 'second_half';
     return session === 'second_half' ? '13:30' : '17:30';
+  }
+  if (selectedDay?.checkOut24) {
+    return selectedDay.checkOut24;
   }
   return '17:30';
 }
@@ -521,6 +530,11 @@ export default function RegularizeAttendance() {
               <div className="rounded-2xl bg-surface-container-low px-4 py-4">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-on-surface-variant">Current Status</p>
                 <p className="mt-2 text-sm font-semibold text-on-surface">{currentStatusDisplay}</p>
+                {selectedDay?.hasCompletedHours ? (
+                  <p className="mt-2 text-xs font-medium text-amber-700 leading-snug">
+                    Work hours completed ({selectedDay.workHoursFormatted}), but final check-out was not closed.
+                  </p>
+                ) : null}
               </div>
             </div>
           </div>
@@ -604,6 +618,15 @@ export default function RegularizeAttendance() {
                       <p className="mt-2 text-sm text-on-surface-variant">
                         {selectedDay ? `${selectedDay.label} is available for correction.` : 'Only half day and absent dates can be regularized.'}
                       </p>
+                      {selectedDay?.hasCompletedHours ? (
+                        <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 flex items-start gap-2">
+                          <span className="material-symbols-outlined text-[16px] text-amber-600 shrink-0 mt-0.5">warning</span>
+                          <div>
+                            <span className="font-bold">Shift hours completed ({selectedDay.workHoursFormatted}):</span>
+                            <span className="ml-1">You logged full shift hours, but the final check-out was unclosed or missing. Regularize with your correct check-out time to mark Full Day Present.</span>
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
 
                     <div>
@@ -679,6 +702,18 @@ export default function RegularizeAttendance() {
                           <span className="material-symbols-outlined text-[14px]">info</span>
                           Approved {selectedDay.leaveSession === 'second_half' ? '2nd Half' : '1st Half'} {selectedDay.leaveTypeName || 'Leave'} detected. You are applying for {selectedDay.leaveSession === 'second_half' ? '1st Half' : '2nd Half'} Attendance ({getDefaultCheckIn(selectedDay) === '09:00' ? '09:00 AM - 01:30 PM' : '01:30 PM - 05:30 PM'}).
                         </p>
+                      ) : selectedDay?.hasCompletedHours ? (
+                        <div className="mt-2 rounded-xl border border-amber-300 bg-amber-50/90 p-3 text-xs text-amber-900 flex items-start gap-2">
+                          <span className="material-symbols-outlined text-[16px] text-amber-600 shrink-0 mt-0.5">info</span>
+                          <div>
+                            <p className="font-bold text-amber-950">
+                              Work hours completed ({selectedDay.workHoursFormatted}) • Final check-out not closed
+                            </p>
+                            <p className="mt-1 text-amber-800 leading-relaxed">
+                              Full shift hours were completed, but the attendance session remained open or missing final check-out. Apply for <strong>Full Day</strong> regularization with your check-in and check-out times to resolve this Half Day.
+                            </p>
+                          </div>
+                        </div>
                       ) : (
                         <p className="mt-2 text-xs text-on-surface-variant">
                           Choose the final attendance result you want after approval.

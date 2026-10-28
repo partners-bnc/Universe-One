@@ -18,13 +18,13 @@ export function WorkspaceShellLoader({ title, message } = {}) {
   );
 }
 
-export function ModuleCardsSkeleton() {
+export function ModuleCardsSkeleton({ count = 4, cardClassName = 'h-[300px]' } = {}) {
   return (
-    <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4 w-full animate-pulse">
-      {Array.from({ length: 4 }, (_, index) => (
+    <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4 w-full animate-pulse">
+      {Array.from({ length: count }, (_, index) => (
         <div
           key={index}
-          className="relative block w-full h-[300px] overflow-hidden rounded-[28px] border border-violet-200/70 bg-slate-300/30 shadow-[0_18px_60px_rgba(15,23,42,0.08)]"
+          className={`relative block w-full ${cardClassName} overflow-hidden rounded-[28px] border border-violet-200/70 bg-slate-300/30 shadow-[0_18px_60px_rgba(15,23,42,0.08)]`}
         >
           {/* Status Badge Placeholder */}
           <div className="absolute top-4 right-4 z-20 h-6 w-20 rounded-full bg-slate-300/60" />

@@ -51,37 +51,61 @@ export default function AddTaskModal({ isOpen, onClose, onAdd }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-      <div className="bg-white dark:bg-slate-800 w-full max-w-2xl rounded-md shadow-2xl flex flex-col overflow-hidden max-h-[90vh]">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-md transition-opacity">
+      <div className="bg-white dark:bg-[#1D1D1F] w-full max-w-2xl rounded-[24px] border border-[#D2D2D7]/80 dark:border-white/10 shadow-[0_24px_64px_rgba(0,0,0,0.18)] flex flex-col overflow-hidden max-h-[88vh] animate-in fade-in zoom-in-95 duration-200">
 
         {/* Header */}
-        <div className="bg-[#0b1f3d] px-6 py-4 flex items-center justify-between text-white shrink-0">
-          <h2 className="text-lg font-semibold flex items-center">
-            <ListChecks className="w-5 h-5 mr-2" /> Add Task
-          </h2>
-          <button onClick={onClose} className="text-slate-300 hover:text-white transition">
-            <X className="w-5 h-5" />
+        <div className="bg-white/90 dark:bg-[#1D1D1F]/90 backdrop-blur-xl px-7 py-4 flex items-center justify-between text-[#1D1D1F] dark:text-white border-b border-[#D2D2D7]/70 dark:border-white/10 shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-full bg-[#0071E3]/10 dark:bg-[#0071E3]/20 flex items-center justify-center text-[#0071E3]">
+              <ListChecks className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-[17px] font-semibold tracking-[-0.015em] text-[#1D1D1F] dark:text-white">
+                Create New Task
+              </h2>
+              <p className="text-[12px] text-[#86868B]">Schedule follow-ups, calls, and action items</p>
+            </div>
+          </div>
+          <button 
+            onClick={onClose} 
+            className="w-8 h-8 rounded-full bg-[#F5F5F7] dark:bg-white/10 flex items-center justify-center text-[#6E6E73] hover:text-[#1D1D1F] dark:text-white/70 dark:hover:text-white hover:bg-[#E8E8ED] dark:hover:bg-white/15 transition-all"
+          >
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Form */}
-        <div className="p-6 overflow-y-auto flex-1">
+        <div className="p-7 overflow-y-auto flex-1 space-y-6">
           <form id="add-task-form" onSubmit={handleSubmit} className="space-y-6">
 
             {/* Task Details */}
-            <section>
-              <div className="flex items-center text-[#0b1f3d] dark:text-blue-400 font-bold mb-4 border-b border-slate-300 dark:border-slate-700 pb-2">
-                <ListChecks className="w-4 h-4 mr-2" />
-                <h3 className="text-sm tracking-wide">Task Details</h3>
+            <section className="bg-[#F5F5F7]/60 dark:bg-white/[0.03] p-5 rounded-[16px] border border-[#D2D2D7]/50 dark:border-white/5 space-y-4">
+              <div className="flex items-center gap-2 font-semibold text-[#1D1D1F] dark:text-white pb-2 border-b border-[#D2D2D7]/50 dark:border-white/10">
+                <ListChecks className="w-4 h-4 text-[#0071E3]" />
+                <h3 className="text-[13px] uppercase tracking-wider font-semibold">Task Details</h3>
               </div>
-              <div className="mb-4">
-                <label className="block text-xs text-slate-600 dark:text-slate-400 mb-1 font-semibold">Task Title *</label>
-                <input type="text" name="title" value={formData.title} onChange={handleChange} placeholder="Enter task title" required className="w-full border border-slate-300 dark:border-slate-600 rounded p-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 dark:text-white text-sm" />
+              <div>
+                <label className="block text-[13px] font-medium text-[#1D1D1F] dark:text-white/90 mb-1.5">Task Title *</label>
+                <input 
+                  type="text" 
+                  name="title" 
+                  value={formData.title} 
+                  onChange={handleChange} 
+                  placeholder="e.g. Follow up on Q4 Enterprise proposal" 
+                  required 
+                  className="w-full h-[42px] px-3.5 bg-white dark:bg-[#2C2C2E] border border-[#D2D2D7] dark:border-white/15 rounded-[11px] text-[14px] text-[#1D1D1F] dark:text-white placeholder-[#86868B] focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 transition-all" 
+                />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs text-slate-600 dark:text-slate-400 mb-1 font-semibold">Task Type</label>
-                  <select name="type" value={formData.type} onChange={handleChange} className="w-full border border-slate-300 dark:border-slate-600 rounded p-2.5 bg-white dark:bg-slate-700 dark:text-white text-sm focus:outline-none">
+                  <label className="block text-[13px] font-medium text-[#1D1D1F] dark:text-white/90 mb-1.5">Task Type</label>
+                  <select 
+                    name="type" 
+                    value={formData.type} 
+                    onChange={handleChange} 
+                    className="w-full h-[42px] px-3.5 bg-white dark:bg-[#2C2C2E] border border-[#D2D2D7] dark:border-white/15 rounded-[11px] text-[14px] text-[#1D1D1F] dark:text-white focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 transition-all"
+                  >
                     <option value="Follow Up Call">Follow Up Call</option>
                     <option value="Send Email">Send Email</option>
                     <option value="Prepare Quote">Prepare Quote</option>
@@ -89,11 +113,16 @@ export default function AddTaskModal({ isOpen, onClose, onAdd }) {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-600 dark:text-slate-400 mb-1 font-semibold">Lead *</label>
-                  <select name="leadId" value={formData.leadId} onChange={handleChange} className="w-full border border-slate-300 dark:border-slate-600 rounded p-2.5 bg-white dark:bg-slate-700 dark:text-white text-sm focus:outline-none">
+                  <label className="block text-[13px] font-medium text-[#1D1D1F] dark:text-white/90 mb-1.5">Associated Lead *</label>
+                  <select 
+                    name="leadId" 
+                    value={formData.leadId} 
+                    onChange={handleChange} 
+                    className="w-full h-[42px] px-3.5 bg-white dark:bg-[#2C2C2E] border border-[#D2D2D7] dark:border-white/15 rounded-[11px] text-[14px] text-[#1D1D1F] dark:text-white focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 transition-all"
+                  >
                     <option value="">Select Lead</option>
                     {MOCK_DATA.leads.map(l => (
-                      <option key={l.id} value={l.id}>{l.contact} (LEAD{String(l.id).padStart(3,'0')})</option>
+                      <option key={l.id} value={l.id}>{l.contact} ({l.company})</option>
                     ))}
                   </select>
                 </div>
@@ -101,104 +130,130 @@ export default function AddTaskModal({ isOpen, onClose, onAdd }) {
             </section>
 
             {/* Scheduling */}
-            <section>
-              <div className="flex items-center text-[#0b1f3d] dark:text-blue-400 font-bold mb-4 border-b border-slate-300 dark:border-slate-700 pb-2">
-                <span className="mr-2">📅</span>
-                <h3 className="text-sm tracking-wide">Scheduling</h3>
+            <section className="bg-[#F5F5F7]/60 dark:bg-white/[0.03] p-5 rounded-[16px] border border-[#D2D2D7]/50 dark:border-white/5 space-y-4">
+              <div className="flex items-center gap-2 font-semibold text-[#1D1D1F] dark:text-white pb-2 border-b border-[#D2D2D7]/50 dark:border-white/10">
+                <CalendarIcon className="w-4 h-4 text-[#0071E3]" />
+                <h3 className="text-[13px] uppercase tracking-wider font-semibold">Scheduling & Priority</h3>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs text-slate-600 dark:text-slate-400 mb-1 font-semibold">Due Date *</label>
-                  <input type="date" name="dueDate" value={formData.dueDate} onChange={handleChange} required className="w-full border border-slate-300 dark:border-slate-600 rounded p-2.5 bg-white dark:bg-slate-700 dark:text-white text-sm focus:outline-none" />
+                  <label className="block text-[13px] font-medium text-[#1D1D1F] dark:text-white/90 mb-1.5">Due Date *</label>
+                  <input 
+                    type="date" 
+                    name="dueDate" 
+                    value={formData.dueDate} 
+                    onChange={handleChange} 
+                    required 
+                    className="w-full h-[42px] px-3.5 bg-white dark:bg-[#2C2C2E] border border-[#D2D2D7] dark:border-white/15 rounded-[11px] text-[14px] text-[#1D1D1F] dark:text-white focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 transition-all" 
+                  />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-600 dark:text-slate-400 mb-1 font-semibold">Due Time</label>
-                  <input type="time" name="dueTime" value={formData.dueTime} onChange={handleChange} className="w-full border border-slate-300 dark:border-slate-600 rounded p-2.5 bg-white dark:bg-slate-700 dark:text-white text-sm focus:outline-none" />
+                  <label className="block text-[13px] font-medium text-[#1D1D1F] dark:text-white/90 mb-1.5">Due Time</label>
+                  <input 
+                    type="time" 
+                    name="dueTime" 
+                    value={formData.dueTime} 
+                    onChange={handleChange} 
+                    className="w-full h-[42px] px-3.5 bg-white dark:bg-[#2C2C2E] border border-[#D2D2D7] dark:border-white/15 rounded-[11px] text-[14px] text-[#1D1D1F] dark:text-white focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 transition-all" 
+                  />
                 </div>
-              </div>
-              <div className="w-1/2 pr-2">
-                <label className="block text-xs text-slate-600 dark:text-slate-400 mb-1 font-semibold">Priority</label>
-                <select name="priority" value={formData.priority} onChange={handleChange} className="w-full border border-slate-300 dark:border-slate-600 rounded p-2.5 bg-white dark:bg-slate-700 dark:text-white text-sm focus:outline-none">
-                  <option value="Low">Low</option>
-                  <option value="Medium">Medium</option>
-                  <option value="High">High</option>
-                </select>
+                <div>
+                  <label className="block text-[13px] font-medium text-[#1D1D1F] dark:text-white/90 mb-1.5">Priority</label>
+                  <select 
+                    name="priority" 
+                    value={formData.priority} 
+                    onChange={handleChange} 
+                    className="w-full h-[42px] px-3.5 bg-white dark:bg-[#2C2C2E] border border-[#D2D2D7] dark:border-white/15 rounded-[11px] text-[14px] text-[#1D1D1F] dark:text-white focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 transition-all"
+                  >
+                    <option value="Low">Low</option>
+                    <option value="Medium">Medium</option>
+                    <option value="High">High</option>
+                  </select>
+                </div>
               </div>
             </section>
 
-            {/* Recurrence */}
-            <section>
-              <div className="flex items-center text-[#0b1f3d] dark:text-blue-400 font-bold mb-4 border-b border-slate-300 dark:border-slate-700 pb-2">
-                <RefreshCw className="w-4 h-4 mr-2" />
-                <h3 className="text-sm tracking-wide">Recurrence</h3>
+            {/* Recurrence & Assignment */}
+            <section className="bg-[#F5F5F7]/60 dark:bg-white/[0.03] p-5 rounded-[16px] border border-[#D2D2D7]/50 dark:border-white/5 space-y-4">
+              <div className="flex items-center gap-2 font-semibold text-[#1D1D1F] dark:text-white pb-2 border-b border-[#D2D2D7]/50 dark:border-white/10">
+                <Users className="w-4 h-4 text-[#0071E3]" />
+                <h3 className="text-[13px] uppercase tracking-wider font-semibold">Assignment & Recurrence</h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs text-slate-600 dark:text-slate-400 mb-1 font-semibold">Repeat</label>
-                  <select name="repeat" value={formData.repeat} onChange={handleChange} className="w-full border border-slate-300 dark:border-slate-600 rounded p-2.5 bg-white dark:bg-slate-700 dark:text-white text-sm focus:outline-none">
+                  <label className="block text-[13px] font-medium text-[#1D1D1F] dark:text-white/90 mb-1.5">Assigned To *</label>
+                  <select 
+                    name="assigneeId" 
+                    value={formData.assigneeId} 
+                    onChange={handleChange} 
+                    className="w-full h-[42px] px-3.5 bg-white dark:bg-[#2C2C2E] border border-[#D2D2D7] dark:border-white/15 rounded-[11px] text-[14px] text-[#1D1D1F] dark:text-white focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 transition-all"
+                  >
+                    <option value="">Select Assignee</option>
+                    {Object.values(MOCK_USERS).map(u => (
+                      <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[13px] font-medium text-[#1D1D1F] dark:text-white/90 mb-1.5">Repeat Cadence</label>
+                  <select 
+                    name="repeat" 
+                    value={formData.repeat} 
+                    onChange={handleChange} 
+                    className="w-full h-[42px] px-3.5 bg-white dark:bg-[#2C2C2E] border border-[#D2D2D7] dark:border-white/15 rounded-[11px] text-[14px] text-[#1D1D1F] dark:text-white focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 transition-all"
+                  >
                     <option value="None">None (One-time)</option>
                     <option value="Daily">Daily</option>
                     <option value="Weekly">Weekly</option>
                     <option value="Monthly">Monthly</option>
                   </select>
                 </div>
-                {formData.repeat !== 'None' && (
-                  <div>
-                    <label className="block text-xs text-slate-600 dark:text-slate-400 mb-1 font-semibold">End Date (Optional)</label>
-                    <input type="date" name="repeatEndDate" value={formData.repeatEndDate} onChange={handleChange} className="w-full border border-slate-300 dark:border-slate-600 rounded p-2.5 bg-white dark:bg-slate-700 dark:text-white text-sm focus:outline-none" />
-                  </div>
-                )}
               </div>
+              {formData.repeat !== 'None' && (
+                <div>
+                  <label className="block text-[13px] font-medium text-[#1D1D1F] dark:text-white/90 mb-1.5">End Date (Optional)</label>
+                  <input 
+                    type="date" 
+                    name="repeatEndDate" 
+                    value={formData.repeatEndDate} 
+                    onChange={handleChange} 
+                    className="w-full h-[42px] px-3.5 bg-white dark:bg-[#2C2C2E] border border-[#D2D2D7] dark:border-white/15 rounded-[11px] text-[14px] text-[#1D1D1F] dark:text-white focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 transition-all" 
+                  />
+                </div>
+              )}
             </section>
 
-            {/* Assignment */}
-            <section>
-              <div className="flex items-center text-[#0b1f3d] dark:text-blue-400 font-bold mb-4 border-b border-slate-300 dark:border-slate-700 pb-2">
-                <Users className="w-4 h-4 mr-2" />
-                <h3 className="text-sm tracking-wide">Assignment</h3>
-              </div>
-              <div className="w-1/2 pr-2">
-                <label className="block text-xs text-slate-600 dark:text-slate-400 mb-1 font-semibold">Assigned To *</label>
-                <select name="assigneeId" value={formData.assigneeId} onChange={handleChange} className="w-full border border-slate-300 dark:border-slate-600 rounded p-2.5 bg-white dark:bg-slate-700 dark:text-white text-sm focus:outline-none">
-                  <option value="">Select User</option>
-                  {Object.values(MOCK_USERS).map(u => (
-                    <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
-                  ))}
-                </select>
-              </div>
-            </section>
-
-            {/* Additional Details */}
-            <section>
-              <div className="flex items-center text-[#0b1f3d] dark:text-blue-400 font-bold mb-4 border-b border-slate-300 dark:border-slate-700 pb-2">
-                <FileText className="w-4 h-4 mr-2" />
-                <h3 className="text-sm tracking-wide">Additional Details</h3>
-              </div>
-              <div className="mb-4">
-                <label className="block text-xs text-slate-600 dark:text-slate-400 mb-1 font-semibold">Related Activity</label>
-                <select name="relatedActivity" value={formData.relatedActivity} onChange={handleChange} className="w-full border border-slate-300 dark:border-slate-600 rounded p-2.5 bg-white dark:bg-slate-700 dark:text-white text-sm focus:outline-none">
-                  <option value="">None</option>
-                  {MOCK_DATA.activities.map(a => (
-                    <option key={a.id} value={a.id}>{a.type} - {a.subject || a.description?.substring(0,30)}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs text-slate-600 dark:text-slate-400 mb-1 font-semibold">Notes</label>
-                <textarea name="notes" value={formData.notes} onChange={handleChange} rows={3} placeholder="Additional notes..." className="w-full border border-slate-300 dark:border-slate-600 rounded p-2.5 bg-white dark:bg-slate-700 dark:text-white text-sm resize-none focus:outline-none focus:ring-1 focus:ring-blue-500" />
-              </div>
+            {/* Notes */}
+            <section className="bg-[#F5F5F7]/60 dark:bg-white/[0.03] p-5 rounded-[16px] border border-[#D2D2D7]/50 dark:border-white/5 space-y-2">
+              <label className="block text-[13px] font-medium text-[#1D1D1F] dark:text-white/90">Task Instructions & Notes</label>
+              <textarea 
+                name="notes" 
+                value={formData.notes} 
+                onChange={handleChange} 
+                rows={3} 
+                placeholder="Additional notes or action steps..." 
+                className="w-full p-3.5 bg-white dark:bg-[#2C2C2E] border border-[#D2D2D7] dark:border-white/15 rounded-[11px] text-[14px] text-[#1D1D1F] dark:text-white placeholder-[#86868B] resize-none focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 transition-all" 
+              />
             </section>
 
           </form>
         </div>
 
-        {/* Footer */}
-        <div className="bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 p-4 flex justify-start space-x-3 shrink-0">
-          <button type="submit" form="add-task-form" className="px-5 py-2 text-sm font-medium bg-[#0b1f3d] hover:bg-[#16345e] dark:bg-blue-600 dark:hover:bg-blue-700 text-white rounded transition shadow flex items-center">
-            <span className="mr-1">💾</span> Save
+        {/* Footer actions - Apple Clean Pills */}
+        <div className="bg-[#F5F5F7]/80 dark:bg-[#1D1D1F]/80 backdrop-blur-md border-t border-[#D2D2D7]/70 dark:border-white/10 px-7 py-4 flex justify-end gap-3 shrink-0">
+          <button 
+            type="button" 
+            onClick={onClose} 
+            className="h-11 px-6 rounded-full text-[14px] font-medium text-[#1D1D1F] dark:text-white bg-white dark:bg-white/10 border border-[#D2D2D7] dark:border-white/15 hover:bg-[#F5F5F7] dark:hover:bg-white/15 transition-all shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
+          >
+            Cancel
           </button>
-          <button type="button" onClick={onClose} className="px-5 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 rounded transition flex items-center">
-            <X className="w-3 h-3 mr-1" /> Cancel
+          <button 
+            type="submit" 
+            form="add-task-form" 
+            className="h-11 px-7 rounded-full text-[14px] font-semibold text-white bg-[#0071E3] hover:bg-[#0076DF] active:scale-[0.98] transition-all shadow-[0_2px_8px_rgba(0,113,227,0.25)]"
+          >
+            Create Task
           </button>
         </div>
       </div>

@@ -47,42 +47,64 @@ export default function AddActivityModal({ isOpen, onClose, onAdd }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-      <div className="bg-white dark:bg-slate-800 w-full max-w-2xl rounded-md shadow-2xl flex flex-col overflow-hidden max-h-[90vh]">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-md transition-opacity">
+      <div className="bg-white dark:bg-[#1D1D1F] w-full max-w-2xl rounded-[24px] border border-[#D2D2D7]/80 dark:border-white/10 shadow-[0_24px_64px_rgba(0,0,0,0.18)] flex flex-col overflow-hidden max-h-[88vh] animate-in fade-in zoom-in-95 duration-200">
         
         {/* Header */}
-        <div className="bg-[#0b1f3d] px-6 py-4 flex items-center justify-between text-white shrink-0">
-          <h2 className="text-lg font-semibold flex items-center">
-             <span className="mr-2 text-xl leading-none">+</span> Add Activity
-          </h2>
-          <button onClick={onClose} className="text-slate-300 hover:text-white transition">
-            <X className="w-5 h-5" />
+        <div className="bg-white/90 dark:bg-[#1D1D1F]/90 backdrop-blur-xl px-7 py-4 flex items-center justify-between text-[#1D1D1F] dark:text-white border-b border-[#D2D2D7]/70 dark:border-white/10 shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-full bg-[#0071E3]/10 dark:bg-[#0071E3]/20 flex items-center justify-center text-[#0071E3]">
+              <span className="text-lg font-semibold leading-none">+</span>
+            </div>
+            <div>
+              <h2 className="text-[17px] font-semibold tracking-[-0.015em] text-[#1D1D1F] dark:text-white">
+                Log Activity
+              </h2>
+              <p className="text-[12px] text-[#86868B]">Record calls, emails, notes, and milestones</p>
+            </div>
+          </div>
+          <button 
+            onClick={onClose} 
+            className="w-8 h-8 rounded-full bg-[#F5F5F7] dark:bg-white/10 flex items-center justify-center text-[#6E6E73] hover:text-[#1D1D1F] dark:text-white/70 dark:hover:text-white hover:bg-[#E8E8ED] dark:hover:bg-white/15 transition-all"
+          >
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Form Body */}
-        <div className="p-6 overflow-y-auto flex-1">
+        <div className="p-7 overflow-y-auto flex-1 space-y-6">
           <form id="add-activity-form" onSubmit={handleSubmit} className="space-y-6">
             
             {/* Activity Details */}
-            <section>
-              <div className="flex items-center text-[#0b1f3d] dark:text-blue-400 font-bold mb-4 border-b border-slate-300 dark:border-slate-700 pb-2">
-                <Phone className="w-4 h-4 mr-2" />
-                <h3 className="text-sm tracking-wide">Activity Details</h3>
+            <section className="bg-[#F5F5F7]/60 dark:bg-white/[0.03] p-5 rounded-[16px] border border-[#D2D2D7]/50 dark:border-white/5 space-y-4">
+              <div className="flex items-center gap-2 font-semibold text-[#1D1D1F] dark:text-white pb-2 border-b border-[#D2D2D7]/50 dark:border-white/10">
+                <Phone className="w-4 h-4 text-[#0071E3]" />
+                <h3 className="text-[13px] uppercase tracking-wider font-semibold">Activity Details</h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs text-slate-600 dark:text-slate-400 mb-1">Lead *</label>
-                  <select name="leadId" value={formData.leadId} onChange={handleChange} required className="w-full border border-slate-300 dark:border-slate-600 rounded p-2 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white dark:bg-slate-700 dark:text-white text-sm">
+                  <label className="block text-[13px] font-medium text-[#1D1D1F] dark:text-white/90 mb-1.5">Associated Lead *</label>
+                  <select 
+                    name="leadId" 
+                    value={formData.leadId} 
+                    onChange={handleChange} 
+                    required 
+                    className="w-full h-[42px] px-3.5 bg-white dark:bg-[#2C2C2E] border border-[#D2D2D7] dark:border-white/15 rounded-[11px] text-[14px] text-[#1D1D1F] dark:text-white focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 transition-all"
+                  >
                     <option value="">Select Lead</option>
                     {MOCK_DATA.leads.map(lead => (
-                      <option key={lead.id} value={lead.id}>{lead.contact} (LEAD{String(lead.id).padStart(3, '0')})</option>
+                      <option key={lead.id} value={lead.id}>{lead.contact} ({lead.company})</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-600 dark:text-slate-400 mb-1">Activity Type *</label>
-                  <select name="type" value={formData.type} onChange={handleChange} className="w-full border border-slate-300 dark:border-slate-600 rounded p-2 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white dark:bg-slate-700 dark:text-white text-sm">
+                  <label className="block text-[13px] font-medium text-[#1D1D1F] dark:text-white/90 mb-1.5">Activity Type *</label>
+                  <select 
+                    name="type" 
+                    value={formData.type} 
+                    onChange={handleChange} 
+                    className="w-full h-[42px] px-3.5 bg-white dark:bg-[#2C2C2E] border border-[#D2D2D7] dark:border-white/15 rounded-[11px] text-[14px] text-[#1D1D1F] dark:text-white focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 transition-all"
+                  >
                     <option value="registered">registered</option>
                     <option value="logged in">logged in</option>
                     <option value="profile updated">profile updated</option>
@@ -97,26 +119,46 @@ export default function AddActivityModal({ isOpen, onClose, onAdd }) {
                   </select>
                 </div>
               </div>
-              <div className="mt-4">
-                <label className="block text-xs text-slate-600 dark:text-slate-400 mb-1">Subject *</label>
-                <input type="text" name="subject" value={formData.subject} onChange={handleChange} required className="w-full border border-slate-300 dark:border-slate-600 rounded p-2 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white dark:bg-slate-700 dark:text-white text-sm" />
+              <div>
+                <label className="block text-[13px] font-medium text-[#1D1D1F] dark:text-white/90 mb-1.5">Subject *</label>
+                <input 
+                  type="text" 
+                  name="subject" 
+                  value={formData.subject} 
+                  onChange={handleChange} 
+                  placeholder="e.g. Introduction call with Operations head"
+                  required 
+                  className="w-full h-[42px] px-3.5 bg-white dark:bg-[#2C2C2E] border border-[#D2D2D7] dark:border-white/15 rounded-[11px] text-[14px] text-[#1D1D1F] dark:text-white focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 transition-all" 
+                />
               </div>
             </section>
 
             {/* Description & Outcome */}
-            <section>
-              <div className="flex items-center text-[#0b1f3d] dark:text-blue-400 font-bold mb-4 border-b border-slate-300 dark:border-slate-700 pb-2">
-                <FileText className="w-4 h-4 mr-2" />
-                <h3 className="text-sm tracking-wide">Description & Outcome</h3>
+            <section className="bg-[#F5F5F7]/60 dark:bg-white/[0.03] p-5 rounded-[16px] border border-[#D2D2D7]/50 dark:border-white/5 space-y-4">
+              <div className="flex items-center gap-2 font-semibold text-[#1D1D1F] dark:text-white pb-2 border-b border-[#D2D2D7]/50 dark:border-white/10">
+                <FileText className="w-4 h-4 text-[#0071E3]" />
+                <h3 className="text-[13px] uppercase tracking-wider font-semibold">Description & Outcome</h3>
               </div>
-              <div className="mb-4">
-                <label className="block text-xs text-slate-600 dark:text-slate-400 mb-1">Description</label>
-                <textarea name="description" value={formData.description} onChange={handleChange} rows={3} className="w-full border border-slate-300 dark:border-slate-600 rounded p-2 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white dark:bg-slate-700 dark:text-white text-sm resize-none" />
+              <div>
+                <label className="block text-[13px] font-medium text-[#1D1D1F] dark:text-white/90 mb-1.5">Summary / Notes</label>
+                <textarea 
+                  name="description" 
+                  value={formData.description} 
+                  onChange={handleChange} 
+                  rows={3} 
+                  placeholder="Key discussion points and remarks..."
+                  className="w-full p-3.5 bg-white dark:bg-[#2C2C2E] border border-[#D2D2D7] dark:border-white/15 rounded-[11px] text-[14px] text-[#1D1D1F] dark:text-white placeholder-[#86868B] resize-none focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 transition-all" 
+                />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs text-slate-600 dark:text-slate-400 mb-1">Outcome</label>
-                  <select name="outcome" value={formData.outcome} onChange={handleChange} className="w-full border border-slate-300 dark:border-slate-600 rounded p-2 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white dark:bg-slate-700 dark:text-white text-sm">
+                  <label className="block text-[13px] font-medium text-[#1D1D1F] dark:text-white/90 mb-1.5">Outcome</label>
+                  <select 
+                    name="outcome" 
+                    value={formData.outcome} 
+                    onChange={handleChange} 
+                    className="w-full h-[42px] px-3.5 bg-white dark:bg-[#2C2C2E] border border-[#D2D2D7] dark:border-white/15 rounded-[11px] text-[14px] text-[#1D1D1F] dark:text-white focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 transition-all"
+                  >
                     <option value="">Select Outcome</option>
                     <option value="Positive">Positive</option>
                     <option value="Neutral">Neutral</option>
@@ -125,26 +167,45 @@ export default function AddActivityModal({ isOpen, onClose, onAdd }) {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-600 dark:text-slate-400 mb-1">Next Action</label>
-                  <input type="text" name="nextAction" value={formData.nextAction} onChange={handleChange} className="w-full border border-slate-300 dark:border-slate-600 rounded p-2 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white dark:bg-slate-700 dark:text-white text-sm" />
+                  <label className="block text-[13px] font-medium text-[#1D1D1F] dark:text-white/90 mb-1.5">Next Action</label>
+                  <input 
+                    type="text" 
+                    name="nextAction" 
+                    placeholder="e.g. Follow up in 3 days"
+                    value={formData.nextAction} 
+                    onChange={handleChange} 
+                    className="w-full h-[42px] px-3.5 bg-white dark:bg-[#2C2C2E] border border-[#D2D2D7] dark:border-white/15 rounded-[11px] text-[14px] text-[#1D1D1F] dark:text-white focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 transition-all" 
+                  />
                 </div>
-              </div>
-              <div className="mt-4 w-1/2 pr-2">
-                <label className="block text-xs text-slate-600 dark:text-slate-400 mb-1">Duration (Minutes)</label>
-                <input type="number" name="duration" value={formData.duration} onChange={handleChange} className="w-full border border-slate-300 dark:border-slate-600 rounded p-2 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white dark:bg-slate-700 dark:text-white text-sm" />
+                <div>
+                  <label className="block text-[13px] font-medium text-[#1D1D1F] dark:text-white/90 mb-1.5">Duration (Mins)</label>
+                  <input 
+                    type="number" 
+                    name="duration" 
+                    placeholder="e.g. 15"
+                    value={formData.duration} 
+                    onChange={handleChange} 
+                    className="w-full h-[42px] px-3.5 bg-white dark:bg-[#2C2C2E] border border-[#D2D2D7] dark:border-white/15 rounded-[11px] text-[14px] text-[#1D1D1F] dark:text-white focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 transition-all" 
+                  />
+                </div>
               </div>
             </section>
 
             {/* Call Details — only if type is call completed */}
             {(formData.type === 'call completed') && (
-              <section>
-                <div className="flex items-center text-[#0b1f3d] dark:text-blue-400 font-bold mb-4 border-b border-slate-300 dark:border-slate-700 pb-2">
-                  <Phone className="w-4 h-4 mr-2" />
-                  <h3 className="text-sm tracking-wide">Call Details</h3>
+              <section className="bg-[#F5F5F7]/60 dark:bg-white/[0.03] p-5 rounded-[16px] border border-[#D2D2D7]/50 dark:border-white/5 space-y-4">
+                <div className="flex items-center gap-2 font-semibold text-[#1D1D1F] dark:text-white pb-2 border-b border-[#D2D2D7]/50 dark:border-white/10">
+                  <Phone className="w-4 h-4 text-[#0071E3]" />
+                  <h3 className="text-[13px] uppercase tracking-wider font-semibold">Call Details</h3>
                 </div>
-                <div className="w-1/2 pr-2">
-                  <label className="block text-xs text-slate-600 dark:text-slate-400 mb-1">Call Status</label>
-                  <select name="callStatus" value={formData.callStatus} onChange={handleChange} className="w-full border border-slate-300 dark:border-slate-600 rounded p-2 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white dark:bg-slate-700 dark:text-white text-sm">
+                <div className="w-full md:w-1/2">
+                  <label className="block text-[13px] font-medium text-[#1D1D1F] dark:text-white/90 mb-1.5">Call Status</label>
+                  <select 
+                    name="callStatus" 
+                    value={formData.callStatus} 
+                    onChange={handleChange} 
+                    className="w-full h-[42px] px-3.5 bg-white dark:bg-[#2C2C2E] border border-[#D2D2D7] dark:border-white/15 rounded-[11px] text-[14px] text-[#1D1D1F] dark:text-white focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 transition-all"
+                  >
                     <option value="N/A">N/A</option>
                     <option value="Completed">Completed</option>
                     <option value="No Answer">No Answer</option>
@@ -155,19 +216,33 @@ export default function AddActivityModal({ isOpen, onClose, onAdd }) {
             )}
 
             {/* Additional */}
-            <section>
-              <div className="flex items-center text-[#0b1f3d] dark:text-blue-400 font-bold mb-4 border-b border-slate-300 dark:border-slate-700 pb-2">
-                <Paperclip className="w-4 h-4 mr-2" />
-                <h3 className="text-sm tracking-wide">Additional</h3>
+            <section className="bg-[#F5F5F7]/60 dark:bg-white/[0.03] p-5 rounded-[16px] border border-[#D2D2D7]/50 dark:border-white/5 space-y-4">
+              <div className="flex items-center gap-2 font-semibold text-[#1D1D1F] dark:text-white pb-2 border-b border-[#D2D2D7]/50 dark:border-white/10">
+                <Paperclip className="w-4 h-4 text-[#0071E3]" />
+                <h3 className="text-[13px] uppercase tracking-wider font-semibold">Additional Details</h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs text-slate-600 dark:text-slate-400 mb-1">Participants</label>
-                  <input type="text" name="participants" value={formData.participants} onChange={handleChange} className="w-full border border-slate-300 dark:border-slate-600 rounded p-2 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white dark:bg-slate-700 dark:text-white text-sm" />
+                  <label className="block text-[13px] font-medium text-[#1D1D1F] dark:text-white/90 mb-1.5">Participants</label>
+                  <input 
+                    type="text" 
+                    name="participants" 
+                    placeholder="e.g. John Doe, Sarah Smith"
+                    value={formData.participants} 
+                    onChange={handleChange} 
+                    className="w-full h-[42px] px-3.5 bg-white dark:bg-[#2C2C2E] border border-[#D2D2D7] dark:border-white/15 rounded-[11px] text-[14px] text-[#1D1D1F] dark:text-white focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 transition-all" 
+                  />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-600 dark:text-slate-400 mb-1">Attachment URL</label>
-                  <input type="text" name="attachmentUrl" value={formData.attachmentUrl} onChange={handleChange} placeholder="https://" className="w-full border border-slate-300 dark:border-slate-600 rounded p-2 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white dark:bg-slate-700 dark:text-white text-sm placeholder:text-slate-400" />
+                  <label className="block text-[13px] font-medium text-[#1D1D1F] dark:text-white/90 mb-1.5">Attachment URL</label>
+                  <input 
+                    type="text" 
+                    name="attachmentUrl" 
+                    value={formData.attachmentUrl} 
+                    onChange={handleChange} 
+                    placeholder="https://" 
+                    className="w-full h-[42px] px-3.5 bg-white dark:bg-[#2C2C2E] border border-[#D2D2D7] dark:border-white/15 rounded-[11px] text-[14px] text-[#1D1D1F] dark:text-white placeholder-[#86868B] focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 transition-all" 
+                  />
                 </div>
               </div>
             </section>
@@ -176,12 +251,20 @@ export default function AddActivityModal({ isOpen, onClose, onAdd }) {
         </div>
 
         {/* Footer */}
-        <div className="bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 p-4 flex justify-start space-x-3 shrink-0">
-          <button type="submit" form="add-activity-form" className="px-5 py-2 text-sm font-medium bg-[#0b1f3d] hover:bg-[#16345e] dark:bg-blue-600 dark:hover:bg-blue-700 text-white rounded transition shadow flex items-center">
-            <span className="mr-1">💾</span> Save
+        <div className="bg-[#F5F5F7]/80 dark:bg-[#1D1D1F]/80 backdrop-blur-md border-t border-[#D2D2D7]/70 dark:border-white/10 px-7 py-4 flex justify-end gap-3 shrink-0">
+          <button 
+            type="button" 
+            onClick={onClose} 
+            className="h-11 px-6 rounded-full text-[14px] font-medium text-[#1D1D1F] dark:text-white bg-white dark:bg-white/10 border border-[#D2D2D7] dark:border-white/15 hover:bg-[#F5F5F7] dark:hover:bg-white/15 transition-all shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
+          >
+            Cancel
           </button>
-          <button type="button" onClick={onClose} className="px-5 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 rounded transition flex items-center">
-            <X className="w-3 h-3 mr-1" /> Cancel
+          <button 
+            type="submit" 
+            form="add-activity-form" 
+            className="h-11 px-7 rounded-full text-[14px] font-semibold text-white bg-[#0071E3] hover:bg-[#0076DF] active:scale-[0.98] transition-all shadow-[0_2px_8px_rgba(0,113,227,0.25)]"
+          >
+            Save Activity
           </button>
         </div>
       </div>

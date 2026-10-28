@@ -18,6 +18,7 @@ function getDefaultModuleAccess() {
     crm: false,
     vendor: false,
     finance: false,
+    far: false,
   };
 }
 
@@ -46,6 +47,8 @@ export function buildModuleAccessState(authContext) {
   const crmEnabled = !employeeAccessBlocked && (isHrOrSuperAdmin ? true : Boolean(employeeModuleAccess.crm));
   const vendorEnabled = !employeeAccessBlocked && (isHrOrSuperAdmin ? true : Boolean(employeeModuleAccess.vendor));
   const financeEnabled = !employeeAccessBlocked && (isHrOrSuperAdmin ? true : Boolean(employeeModuleAccess.finance));
+  const farAccess = Boolean(employeeModuleAccess.far ?? authContext?.user?.user_metadata?.far_access);
+  const farEnabled = !employeeAccessBlocked && (isHrOrSuperAdmin ? true : farAccess);
 
   return {
     taskManager: {
@@ -75,6 +78,10 @@ export function buildModuleAccessState(authContext) {
     finance: {
       enabled: financeEnabled,
       href: financeEnabled ? '/other-modules/finance' : null,
+    },
+    far: {
+      enabled: farEnabled,
+      href: farEnabled ? '/other-modules/far' : null,
     },
   };
 }
@@ -123,16 +130,7 @@ export async function resolveAuthenticatedUserContext(supabase, user) {
         employment_lifecycle_status,
         current_stage,
         access_disabled_at,
-        module_access:hrm_module_access!module_access_employee_id_fkey (
-          task_manager,
-          hrm_admin,
-          auditing,
-          crm,
-          vendor,
-          vendor_role,
-          finance,
-          finance_role
-        )
+        module_access:hrm_module_access!module_access_employee_id_fkey (*)
       `)
       .eq('auth_user_id', user.id)
       .maybeSingle(),
@@ -170,16 +168,7 @@ export async function resolveAuthenticatedUserContext(supabase, user) {
           employment_lifecycle_status,
           current_stage,
           access_disabled_at,
-          module_access:hrm_module_access!module_access_employee_id_fkey (
-            task_manager,
-            hrm_admin,
-            auditing,
-            crm,
-            vendor,
-            vendor_role,
-            finance,
-            finance_role
-          )
+          module_access:hrm_module_access!module_access_employee_id_fkey (*)
         `)
         .eq('id', fallbackEmployeeUuid)
         .maybeSingle();
@@ -200,16 +189,7 @@ export async function resolveAuthenticatedUserContext(supabase, user) {
           employment_lifecycle_status,
           current_stage,
           access_disabled_at,
-          module_access:hrm_module_access!module_access_employee_id_fkey (
-            task_manager,
-            hrm_admin,
-            auditing,
-            crm,
-            vendor,
-            vendor_role,
-            finance,
-            finance_role
-          )
+          module_access:hrm_module_access!module_access_employee_id_fkey (*)
         `)
         .ilike('employee_id', fallbackEmployeeCode)
         .maybeSingle();

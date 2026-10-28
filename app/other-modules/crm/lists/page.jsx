@@ -307,37 +307,36 @@ export default function LeadListsPage() {
   // =========================================================================
   if (viewMode === 'grid') {
     return (
-      <div className="flex flex-col h-full min-h-screen bg-slate-50 dark:bg-slate-900 overflow-y-auto">
+      <div className="flex flex-col h-full min-h-screen bg-[#F5F5F7] dark:bg-[#1D1D1F] overflow-y-auto font-sans">
         {/* Top Header */}
-        <div className="px-6 py-5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex flex-col md:flex-row md:items-center justify-between gap-4 sticky top-0 z-10 shadow-xs">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <div className="p-2.5 rounded-xl text-white shadow-sm" style={{ backgroundColor: 'rgb(51, 88, 160)' }}>
-                <FolderKanban className="w-5 h-5" />
-              </div>
-              <div>
-                <h1 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">
-                  Lead Lists & Buckets
-                </h1>
-              </div>
+        <div className="px-8 py-5 border-b border-[#D2D2D7]/70 dark:border-white/10 bg-white/80 dark:bg-[#1D1D1F]/80 backdrop-blur-xl flex flex-col md:flex-row md:items-center justify-between gap-4 sticky top-0 z-10 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-[#0071E3]/10 dark:bg-[#0071E3]/20 flex items-center justify-center text-[#0071E3]">
+              <FolderKanban className="w-5 h-5" />
+            </div>
+            <div>
+              <h1 className="text-[22px] font-semibold tracking-[-0.015em] text-[#1D1D1F] dark:text-white">
+                Lead Lists & Buckets
+              </h1>
+              <p className="text-[12px] text-[#86868B]">Segment audience lists by sources, events, and dynamic tags</p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
             <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+              <Search className="w-4 h-4 text-[#86868B] absolute left-3.5 top-3" />
               <input
                 type="text"
                 placeholder="Search lists..."
                 value={gridSearchTerm}
                 onChange={(e) => setGridSearchTerm(e.target.value)}
-                className="pl-9 pr-4 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/20 w-48 md:w-64 transition-all"
+                className="pl-10 pr-4 h-[40px] text-[13px] rounded-[11px] border border-[#D2D2D7] dark:border-white/15 bg-white dark:bg-[#2C2C2E] text-[#1D1D1F] dark:text-white placeholder-[#86868B] focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 w-48 md:w-64 transition-all"
               />
             </div>
 
             <button
               onClick={fetchData}
-              className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+              className="h-10 px-3.5 rounded-full border border-[#D2D2D7]/80 dark:border-white/15 bg-white dark:bg-white/10 text-[#1D1D1F] dark:text-white hover:bg-[#F5F5F7] dark:hover:bg-white/15 transition-all shadow-[0_1px_2px_rgba(0,0,0,0.04)] cursor-pointer flex items-center justify-center"
               title="Refresh Lists"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -345,8 +344,7 @@ export default function LeadListsPage() {
 
             <button
               onClick={handleStartNewList}
-              style={{ backgroundColor: 'rgb(51, 88, 160)' }}
-              className="flex items-center gap-2 px-4.5 py-2 text-xs font-semibold rounded-xl text-white shadow-sm hover:opacity-90 transition-all cursor-pointer"
+              className="h-10 px-5 flex items-center gap-2 text-[13px] font-semibold rounded-full bg-[#0071E3] hover:bg-[#0076DF] active:scale-[0.98] text-white shadow-[0_2px_8px_rgba(0,113,227,0.25)] transition-all cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>Create New List</span>
@@ -355,62 +353,61 @@ export default function LeadListsPage() {
         </div>
 
         {/* Main Dashboard Content */}
-        <div className="p-6 flex-1 flex flex-col gap-6">
+        <div className="p-8 flex-1 flex flex-col gap-6">
           {/* KPI Stats Bar */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="p-4.5 rounded-2xl bg-white dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800/80 shadow-xs flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
-                <Layers className="w-6 h-6" />
+            <div className="p-5 rounded-[18px] bg-white dark:bg-[#1D1D1F] border border-[#D2D2D7]/80 dark:border-white/10 shadow-[0_2px_8px_rgba(0,0,0,0.04)] flex items-center gap-4">
+              <div className="w-11 h-11 rounded-full bg-[#0071E3]/10 dark:bg-[#0071E3]/20 flex items-center justify-center text-[#0071E3]">
+                <Layers className="w-5 h-5" />
               </div>
               <div>
-                <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Total Lists</span>
-                <h3 className="text-xl font-bold text-slate-900 dark:text-white mt-0.5">{lists.length}</h3>
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-[#86868B]">Total Lists</span>
+                <h3 className="text-[26px] font-semibold text-[#1D1D1F] dark:text-white leading-tight">{lists.length}</h3>
               </div>
             </div>
 
-            <div className="p-4.5 rounded-2xl bg-white dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800/80 shadow-xs flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-                <Globe className="w-6 h-6" />
+            <div className="p-5 rounded-[18px] bg-white dark:bg-[#1D1D1F] border border-[#D2D2D7]/80 dark:border-white/10 shadow-[0_2px_8px_rgba(0,0,0,0.04)] flex items-center gap-4">
+              <div className="w-11 h-11 rounded-full bg-emerald-50 dark:bg-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                <Globe className="w-5 h-5" />
               </div>
               <div>
-                <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Tracked Sources</span>
-                <h3 className="text-xl font-bold text-slate-900 dark:text-white mt-0.5">{availableSources.length}</h3>
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-[#86868B]">Tracked Sources</span>
+                <h3 className="text-[26px] font-semibold text-[#1D1D1F] dark:text-white leading-tight">{availableSources.length}</h3>
               </div>
             </div>
 
-            <div className="p-4.5 rounded-2xl bg-white dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800/80 shadow-xs flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-amber-50 dark:bg-amber-950/50 flex items-center justify-center text-amber-600 dark:text-amber-400">
-                <Users className="w-6 h-6" />
+            <div className="p-5 rounded-[18px] bg-white dark:bg-[#1D1D1F] border border-[#D2D2D7]/80 dark:border-white/10 shadow-[0_2px_8px_rgba(0,0,0,0.04)] flex items-center gap-4">
+              <div className="w-11 h-11 rounded-full bg-amber-50 dark:bg-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                <Users className="w-5 h-5" />
               </div>
               <div>
-                <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Master CRM Leads</span>
-                <h3 className="text-xl font-bold text-slate-900 dark:text-white mt-0.5">{totalLeadsCount}</h3>
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-[#86868B]">Master CRM Leads</span>
+                <h3 className="text-[26px] font-semibold text-[#1D1D1F] dark:text-white leading-tight">{totalLeadsCount}</h3>
               </div>
             </div>
           </div>
 
           {/* Cards Grid */}
           {loading ? (
-            <div className="py-20 flex flex-col items-center justify-center gap-3 text-slate-400">
-              <RefreshCw className="w-8 h-8 animate-spin" style={{ color: 'rgb(51, 88, 160)' }} />
-              <p className="text-xs font-medium">Loading lists...</p>
+            <div className="py-20 flex flex-col items-center justify-center gap-3 text-[#86868B]">
+              <RefreshCw className="w-8 h-8 animate-spin text-[#0071E3]" />
+              <p className="text-[13px] font-medium">Loading lists...</p>
             </div>
           ) : filteredGridLists.length === 0 ? (
-            <div className="py-16 flex flex-col items-center justify-center gap-4 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-center px-4">
-              <div className="w-16 h-16 rounded-2xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-500">
-                <FolderKanban className="w-8 h-8" />
+            <div className="py-16 flex flex-col items-center justify-center gap-4 bg-white dark:bg-[#1D1D1F] border border-[#D2D2D7]/80 dark:border-white/10 rounded-[18px] text-center px-4 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+              <div className="w-14 h-14 rounded-full bg-[#0071E3]/10 flex items-center justify-center text-[#0071E3]">
+                <FolderKanban className="w-7 h-7" />
               </div>
               <div className="max-w-md">
-                <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">No Lists Found</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  {gridSearchTerm ? 'No list matches your search query.' : 'Create your first Lead List (e.g. "5thSep Seminar") and assign Sources & Tags to bucket your leads.'}
+                <h3 className="text-[17px] font-semibold text-[#1D1D1F] dark:text-white">No Lists Found</h3>
+                <p className="text-[13px] text-[#86868B] mt-1">
+                  {gridSearchTerm ? 'No list matches your search query.' : 'Create your first Lead List (e.g. "Q4 Executive Seminar") and assign Sources & Tags to bucket your leads.'}
                 </p>
               </div>
               {!gridSearchTerm && (
                 <button
                   onClick={handleStartNewList}
-                  style={{ backgroundColor: 'rgb(51, 88, 160)' }}
-                  className="mt-2 inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl text-white shadow-sm hover:opacity-90 cursor-pointer"
+                  className="mt-2 inline-flex items-center gap-2 h-10 px-5 text-[13px] font-semibold rounded-full bg-[#0071E3] hover:bg-[#0076DF] text-white shadow-[0_2px_8px_rgba(0,113,227,0.25)] transition-all cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
                   <span>Create List Now</span>
@@ -427,7 +424,7 @@ export default function LeadListsPage() {
                   <div
                     key={list.list_id}
                     onClick={() => openStudioForList(list)}
-                    className="group relative bg-white dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800/80 hover:border-blue-500/50 dark:hover:border-blue-500/50 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between"
+                    className="group relative bg-white dark:bg-[#1D1D1F] border border-[#D2D2D7]/80 dark:border-white/10 hover:border-[#0071E3]/60 dark:hover:border-[#0071E3]/60 rounded-[18px] p-5 shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.08)] transition-all cursor-pointer flex flex-col justify-between"
                   >
                     <div>
                       {/* Top Row */}

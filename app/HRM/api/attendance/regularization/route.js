@@ -4,8 +4,10 @@ import { createClient } from '@/utils/supabase/server';
 import { hasLinkedEmployeeAccess, resolveAuthenticatedUserContext } from '@/utils/auth/context';
 import {
   ATTENDANCE_POLICY,
+  formatTimestampForDisplay,
   getCurrentDateInTimeZone,
   getDateRangeForMonth,
+  getPartsInTimeZone,
   isEmployeeScheduledOff,
   listDatesInRange,
 } from '@/utils/attendance';
@@ -94,7 +96,7 @@ function normalizeAttendanceStatus(status) {
   return normalized;
 }
 
-function resolveAttendanceStatus(attendanceRow) {
+function resolveAttendanceStatus(attendanceRow, isHalfDayLeave = false) {
   if (!attendanceRow) {
     return 'absent';
   }
@@ -110,19 +112,27 @@ function resolveAttendanceStatus(attendanceRow) {
   );
 
   if (!isOverwrittenPresent) {
-    if (checkInValue && !checkOutValue && status === 'present') {
-      status = 'halfday';
-    }
+    if (isHalfDayLeave) {
+      if (checkInValue && checkOutValue && workHoursMinutes >= 270) {
+        status = 'present';
+      } else {
+        status = 'halfday';
+      }
+    } else {
+      if (checkInValue && !checkOutValue && status === 'present') {
+        status = 'halfday';
+      }
 
-    if (checkInValue && checkOutValue && workHoursMinutes > 0 && workHoursMinutes < ATTENDANCE_POLICY.presentMinutes) {
-      status = 'halfday';
+      if (checkInValue && checkOutValue && workHoursMinutes > 0 && workHoursMinutes < ATTENDANCE_POLICY.presentMinutes) {
+        status = 'halfday';
+      }
     }
   }
   return status;
 }
 
-function getCurrentAttendanceStatusLabel(attendanceRow) {
-  const status = resolveAttendanceStatus(attendanceRow);
+function getCurrentAttendanceStatusLabel(attendanceRow, isHalfDayLeave = false) {
+  const status = resolveAttendanceStatus(attendanceRow, isHalfDayLeave);
   switch (status) {
     case 'halfday':
       return 'Half Day';
@@ -133,13 +143,19 @@ function getCurrentAttendanceStatusLabel(attendanceRow) {
   }
 }
 
-function getCurrentAttendanceStatusValue(attendanceRow) {
-  return resolveAttendanceStatus(attendanceRow);
+function getCurrentAttendanceStatusValue(attendanceRow, isHalfDayLeave = false) {
+  return resolveAttendanceStatus(attendanceRow, isHalfDayLeave);
 }
 
-function isEligibleAttendanceStatus(attendanceRow) {
-  const status = resolveAttendanceStatus(attendanceRow);
+function isEligibleAttendanceStatus(attendanceRow, isHalfDayLeave = false) {
+  const status = resolveAttendanceStatus(attendanceRow, isHalfDayLeave);
   return ['halfday', 'absent'].includes(status);
+}
+
+function extractTime24(timestamp) {
+  if (!timestamp) return '';
+  const { hour, minute } = getPartsInTimeZone(timestamp);
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 }
 
 function buildEligibleDay(date, attendanceRow, halfDayLeaveInfo = null) {
@@ -158,9 +174,33 @@ function buildEligibleDay(date, attendanceRow, halfDayLeaveInfo = null) {
     };
   }
 
-  const status = resolveAttendanceStatus(attendanceRow);
+  const status = resolveAttendanceStatus(attendanceRow, hasHalfDayLeave);
+  const workHoursMinutes = attendanceRow.work_hours_minutes ?? 0;
+  const requiredMinutes = hasHalfDayLeave ? 270 : ATTENDANCE_POLICY.presentMinutes;
+  const hasCompletedHours = workHoursMinutes >= requiredMinutes;
+  const checkInRaw = attendanceRow.check_in_at || attendanceRow.check_in || null;
+  const checkOutRaw = attendanceRow.check_out_at || attendanceRow.check_out || null;
+  const workHoursFormatted = workHoursMinutes > 0
+    ? `${Math.floor(workHoursMinutes / 60)}h ${String(workHoursMinutes % 60).padStart(2, '0')}m`
+    : '';
+
   if (status === 'halfday') {
-    return { date, kind: 'gap', label: 'Half Day', hasHalfDayLeave, leaveSession, leaveTypeName };
+    return {
+      date,
+      kind: 'gap',
+      label: 'Half Day',
+      hasHalfDayLeave,
+      leaveSession,
+      leaveTypeName,
+      workHoursMinutes,
+      workHoursFormatted,
+      hasCompletedHours,
+      checkInTime: checkInRaw ? formatTimestampForDisplay(checkInRaw) : '',
+      checkOutTime: checkOutRaw ? formatTimestampForDisplay(checkOutRaw) : '',
+      checkIn24: checkInRaw ? extractTime24(checkInRaw) : '',
+      checkOut24: checkOutRaw ? extractTime24(checkOutRaw) : '',
+      isMissingCheckOut: !checkOutRaw || hasCompletedHours,
+    };
   }
   if (status === 'absent') {
     return { date, kind: 'gap', label: 'Absent', hasHalfDayLeave, leaveSession, leaveTypeName };
@@ -395,7 +435,7 @@ export async function GET(request) {
       const mapped = mapRegularizationItem(rowWithRecipients, {
         currentStatusLabel: row.current_attendance_status
           ? getCurrentAttendanceStatusLabel({ status: row.current_attendance_status })
-          : getCurrentAttendanceStatusLabel(attendanceMap.get(row.date)),
+          : getCurrentAttendanceStatusLabel(attendanceMap.get(row.date), halfDayLeaveMap.has(row.date)),
       });
 
       if (String(row.status || row.request_status).toLowerCase() === 'pending') {
@@ -480,7 +520,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Weekly off or holiday dates cannot be regularized' }, { status: 400 });
     }
 
-    const [attendanceResult, existingPendingResult, hrApprovers, reportingManager] = await Promise.all([
+    const [attendanceResult, existingPendingResult, hrApprovers, reportingManager, approvedLeaveResult] = await Promise.all([
       adminClient
         .from('hrm_attendance')
         .select('*')
@@ -496,7 +536,18 @@ export async function POST(request) {
         .maybeSingle(),
       listHrAdminApprovers(),
       getReportingManagerSummary(employeeContext.employeeId),
+      adminClient
+        .from('hrm_leave_requests')
+        .select('id, session, applied_session')
+        .eq('employee_id', employeeContext.employeeId)
+        .eq('status', 'approved')
+        .lte('start_date', attendanceDate)
+        .gte('end_date', attendanceDate)
+        .maybeSingle(),
     ]);
+
+    const leaveRow = approvedLeaveResult.data;
+    const isHalfDayLeave = Boolean(leaveRow && (leaveRow.applied_session || leaveRow.session || 'full_day') !== 'full_day');
 
     if (existingPendingResult.data?.id) {
       return NextResponse.json({ error: 'A pending request already exists for this date' }, { status: 409 });
@@ -512,7 +563,7 @@ export async function POST(request) {
       return NextResponse.json({ error: attendanceResult.error.message || 'Failed to validate attendance' }, { status: 500 });
     }
 
-    if (attendanceRow && !isEligibleAttendanceStatus(attendanceRow)) {
+    if (attendanceRow && !isEligibleAttendanceStatus(attendanceRow, isHalfDayLeave)) {
       return NextResponse.json({ error: 'Only half day or absent dates can be regularized' }, { status: 400 });
     }
 
@@ -543,11 +594,11 @@ export async function POST(request) {
       employee_id: employeeContext.employeeId,
       attendance_id: attendanceRow.id,
       date: attendanceDate,
-      current_attendance_status: getCurrentAttendanceStatusValue(attendanceRow),
-      request_type: requestType || getCurrentAttendanceStatusLabel(attendanceRow) || 'Regularization',
+      current_attendance_status: getCurrentAttendanceStatusValue(attendanceRow, isHalfDayLeave),
+      request_type: requestType || getCurrentAttendanceStatusLabel(attendanceRow, isHalfDayLeave) || 'Regularization',
       requested_check_in: requestedCheckIn,
       requested_check_out: requestedCheckOut,
-      permission_type: requestType || getCurrentAttendanceStatusLabel(attendanceRow) || 'Regularization',
+      permission_type: requestType || getCurrentAttendanceStatusLabel(attendanceRow, isHalfDayLeave) || 'Regularization',
       time_range_start: requestedCheckIn,
       time_range_end: requestedCheckOut,
       reason,

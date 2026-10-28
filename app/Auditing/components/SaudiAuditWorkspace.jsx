@@ -94,32 +94,32 @@ const Style = () => (
 
 // ─── THEME COLORS ───────────────────────────────────────────────────────────
 const C = {
-  bg: "#f8fafc",
-  bg2: "#f1f5f9",
-  border: "#e2e8f0",
-  border2: "#cbd5e1",
-  text1: "#0f172a",
-  text2: "#334155",
-  text3: "#64748b",
-  primary: "#1e3a8a",       // Saudi Audit Deep Navy
-  primaryBg: "#eff6ff",
-  primaryBorder: "#bfdbfe",
-  accent: "#059669",        // Saudi Emerald Green
-  accentBg: "#ecfdf5",
-  accentBorder: "#a7f3d0",
-  red: "#dc2626",
-  redBg: "#fef2f2",
-  redBorder: "#fca5a5",
-  amber: "#d97706",
-  amberBg: "#fffbeb",
-  amberBorder: "#fde68a",
-  blue: "#2563eb",
-  blueBg: "#eff6ff",
-  blueBorder: "#bfdbfe",
+  bg: "#F5F5F7",
+  bg2: "#EBEBED",
+  border: "#D2D2D7",
+  border2: "#E5E5EA",
+  text1: "#1D1D1F",
+  text2: "#86868B",
+  text3: "#AEAEB2",
+  primary: "#0071E3",       // Apple Action Blue
+  primaryBg: "rgba(0,113,227,0.08)",
+  primaryBorder: "rgba(0,113,227,0.22)",
+  accent: "#34C759",        // Apple Emerald
+  accentBg: "#EBF9EF",
+  accentBorder: "#BCECC8",
+  red: "#FF3B30",
+  redBg: "#FEF2F2",
+  redBorder: "#FFCDD2",
+  amber: "#FF9500",
+  amberBg: "#FFF8EB",
+  amberBorder: "#FFE2B3",
+  blue: "#0071E3",
+  blueBg: "#E8F2FD",
+  blueBorder: "#B3D7FF",
 };
 
 // Fonts
-const MONO = "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
+const MONO = "'SF Mono', 'JetBrains Mono', ui-monospace, Menlo, monospace";
 
 // Default seed values for Saudi Audit
 const DEFAULT_PLANNING = {
@@ -1324,39 +1324,51 @@ export default function SaudiAuditWorkspace({
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <button 
                 onClick={onBackToTemplates} 
-                className="action-btn back-btn-hover"
-                style={{ color: C.text3, display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+                className="apple-click"
+                style={{
+                  background: "rgba(255, 255, 255, 0.8)",
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 980,
+                  padding: "6px 14px",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: C.text2,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  cursor: "pointer",
+                  transition: "all 0.15s ease"
+                }}
               >
-                <ArrowLeft size={18} />
+                <ArrowLeft size={14} /> Back
               </button>
-              <h1 style={{ fontSize: 24, fontWeight: 800, color: C.text1, margin: 0, fontFamily: "Sora, sans-serif" }}>
+              <h1 style={{ fontSize: 24, fontWeight: 700, color: C.text1, margin: 0, letterSpacing: "-0.02em" }}>
                 Saudi Audit Workspace
               </h1>
             </div>
-            <p style={{ color: C.text3, fontSize: 13.5, margin: "4px 0 0 38px" }}>
+            <p style={{ color: C.text2, fontSize: 13, margin: "6px 0 0 0" }}>
               Manage audit assignments, master risk-control matrices, data collection trackers, and organization personnel.
             </p>
           </div>
 
           <button
             onClick={() => setProjectModal({ open: true, mode: "create", data: null })}
+            className="apple-click"
             style={{
               background: C.primary,
               color: "#fff",
               border: "none",
-              padding: "10px 18px",
-              borderRadius: 10,
-              fontSize: 13.5,
-              fontWeight: 700,
+              padding: "9px 20px",
+              borderRadius: 980,
+              fontSize: 13,
+              fontWeight: 600,
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
               gap: 8,
-              boxShadow: `0 4px 14px ${C.primary}33`,
-              transition: "transform 0.2s"
+              boxShadow: `0 4px 14px ${C.primary}40`,
+              transition: "all 0.15s ease"
             }}
-            onMouseEnter={e => e.currentTarget.style.transform = "translateY(-1px)"}
-            onMouseLeave={e => e.currentTarget.style.transform = "none"}
           >
             <Plus size={16} /> New Saudi Audit
           </button>

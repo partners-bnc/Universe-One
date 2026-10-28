@@ -8,36 +8,37 @@ import {
 } from "@/utils/auditing-upload-client";
 
 const COLORS = {
-  bg: "#f8fafc",
-  surface: "#ffffff",
-  border: "#e2e8f0",
-  borderStrong: "#cbd5e1",
-  text: "#0f172a",
-  textSoft: "#475569",
-  textMuted: "#94a3b8",
-  teal: "#0d9488",
-  tealDark: "#0f766e",
-  tealBg: "#f0fdfa",
-  tealBorder: "#99f6e4",
-  blue: "#2563eb",
-  blueBg: "#eff6ff",
-  blueBorder: "#bfdbfe",
-  green: "#16a34a",
-  greenBg: "#f0fdf4",
-  greenBorder: "#bbf7d0",
-  amber: "#d97706",
-  amberBg: "#fffbeb",
-  amberBorder: "#fde68a",
-  red: "#dc2626",
-  redBg: "#fef2f2",
-  redBorder: "#fecaca",
-  grayBg: "#f8fafc",
-  violet: "#7c3aed",
-  violetBg: "#f5f3ff",
-  violetBorder: "#ddd6fe",
+  bg: "#F5F5F7",
+  surface: "#FFFFFF",
+  border: "#D2D2D7",
+  borderStrong: "#E5E5EA",
+  text: "#1D1D1F",
+  textSoft: "#86868B",
+  textMuted: "#AEAEB2",
+  // Primary brand / Action Blue (mapped from teal)
+  teal: "#0071E3",
+  tealDark: "#0077ED",
+  tealBg: "rgba(0,113,227,0.08)",
+  tealBorder: "rgba(0,113,227,0.22)",
+  blue: "#0071E3",
+  blueBg: "#E8F2FD",
+  blueBorder: "#B3D7FF",
+  green: "#34C759",
+  greenBg: "#EBF9EF",
+  greenBorder: "#BCECC8",
+  amber: "#FF9500",
+  amberBg: "#FFF8EB",
+  amberBorder: "#FFE2B3",
+  red: "#FF3B30",
+  redBg: "#FEF2F2",
+  redBorder: "#FFCDD2",
+  grayBg: "#F5F5F7",
+  violet: "#AF52DE",
+  violetBg: "#F8F2FC",
+  violetBorder: "#E5CBF6",
 };
 
-const MONO = "'IBM Plex Mono', 'Space Mono', monospace";
+const MONO = "'SF Mono', 'JetBrains Mono', ui-monospace, monospace";
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const GANTT_FIELDS = [
@@ -2344,26 +2345,36 @@ export default function CstAuditWorkspace({
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}>
       {nav !== "project" && (
-      <div style={{ background: "#fff", borderBottom: `1px solid ${COLORS.border}`, padding: "18px 28px" }}>
+      <div style={{
+        background: "rgba(255, 255, 255, 0.85)",
+        backdropFilter: "blur(20px)",
+        WebkitBackdropFilter: "blur(20px)",
+        borderBottom: `1px solid ${COLORS.border}`,
+        padding: "14px 28px",
+        boxShadow: "0 1px 8px rgba(0,0,0,0.03)"
+      }}>
         <div style={{ display: "grid", gridTemplateColumns: "minmax(240px,1fr) auto minmax(320px,1fr)", alignItems: "center", gap: 18 }}>
           <div>
-            <div style={{ fontSize: 30, fontWeight: 800, color: COLORS.teal, letterSpacing: "-0.8px" }}>AuditFlow</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8, flexWrap: "wrap" }}>
-              <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.text }}>{selectedTemplate?.name || "CST Audit"}</div>
-              <span style={{ width: 5, height: 5, borderRadius: "50%", background: COLORS.borderStrong }} />
-              <div style={{ fontSize: 12.5, color: COLORS.textSoft }}>CST audit category workspace</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(0,113,227,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>📊</div>
+              <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, letterSpacing: "-0.02em" }}>AuditFlow</div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4, flexWrap: "wrap" }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.teal }}>{selectedTemplate?.name || "CST Audit"}</div>
+              <span style={{ width: 4, height: 4, borderRadius: "50%", background: COLORS.borderStrong }} />
+              <div style={{ fontSize: 12, color: COLORS.textSoft }}>Gantt Execution & Control Testing</div>
             </div>
           </div>
-          <div style={{ display: "flex", justifyContent: "center", gap: 10 }}>
-            <button onClick={() => setNav("dashboard")} style={{ background: nav === "dashboard" ? COLORS.tealBg : "#fff", border: `1px solid ${nav === "dashboard" ? COLORS.tealBorder : COLORS.borderStrong}`, borderRadius: 999, padding: "8px 14px", fontSize: 12.5, fontWeight: 700, color: nav === "dashboard" ? COLORS.teal : COLORS.textSoft, cursor: "pointer" }}>Dashboard</button>
-            <button onClick={() => setNav("team")} style={{ background: nav === "team" ? COLORS.tealBg : "#fff", border: `1px solid ${nav === "team" ? COLORS.tealBorder : COLORS.borderStrong}`, borderRadius: 999, padding: "8px 14px", fontSize: 12.5, fontWeight: 700, color: nav === "team" ? COLORS.teal : COLORS.textSoft, cursor: "pointer" }}>Team Members</button>
+          <div style={{ display: "flex", justifyContent: "center", gap: 8 }}>
+            <button onClick={() => setNav("dashboard")} className="apple-click" style={{ background: nav === "dashboard" ? COLORS.tealBg : "rgba(255,255,255,0.7)", border: `1px solid ${nav === "dashboard" ? COLORS.tealBorder : COLORS.border}`, borderRadius: 980, padding: "7px 16px", fontSize: 12.5, fontWeight: 600, color: nav === "dashboard" ? COLORS.teal : COLORS.textSoft, cursor: "pointer", transition: "all 0.15s ease" }}>Dashboard</button>
+            <button onClick={() => setNav("team")} className="apple-click" style={{ background: nav === "team" ? COLORS.tealBg : "rgba(255,255,255,0.7)", border: `1px solid ${nav === "team" ? COLORS.tealBorder : COLORS.border}`, borderRadius: 980, padding: "7px 16px", fontSize: 12.5, fontWeight: 600, color: nav === "team" ? COLORS.teal : COLORS.textSoft, cursor: "pointer", transition: "all 0.15s ease" }}>Team Members</button>
           </div>
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#fff", border: `1px solid ${COLORS.border}`, borderRadius: 999, padding: "9px 14px", minWidth: 280 }}>
-              <span style={{ color: COLORS.textSoft, fontSize: 12.5, fontWeight: 600 }}>Find</span>
-              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search CST projects..." style={{ background: "none", border: "none", outline: "none", color: COLORS.text, fontSize: 13, fontFamily: "Sora,sans-serif", width: "100%" }} />
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.8)", border: `1px solid ${COLORS.border}`, borderRadius: 980, padding: "7px 14px", minWidth: 260 }}>
+              <span style={{ color: COLORS.textMuted, fontSize: 12, fontWeight: 600 }}>Find</span>
+              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search CST projects..." style={{ background: "none", border: "none", outline: "none", color: COLORS.text, fontSize: 13, width: "100%" }} />
             </div>
-            <button onClick={openCreateProjectModal} style={{ border: "none", borderRadius: 12, padding: "10px 16px", background: COLORS.teal, color: "#fff", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
+            <button onClick={openCreateProjectModal} className="apple-click" style={{ border: "none", borderRadius: 980, padding: "8px 18px", background: COLORS.teal, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", boxShadow: `0 4px 14px ${COLORS.teal}40`, transition: "all 0.15s ease" }}>
               + Add CST Project
             </button>
           </div>

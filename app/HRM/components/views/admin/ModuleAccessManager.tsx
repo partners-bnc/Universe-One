@@ -7,7 +7,7 @@ import { useHrmFeedback } from '../../ui/HrmFeedback';
 import HrmEmptyState from '../../ui/HrmEmptyState';
 import { TableRowsSkeleton } from '../../ui/Skeleton';
 
-type ModuleKey = 'task_manager' | 'hrm_admin' | 'auditing' | 'crm' | 'vendor' | 'finance';
+type ModuleKey = 'task_manager' | 'hrm_admin' | 'auditing' | 'crm' | 'vendor' | 'finance' | 'far';
 
 type ModuleConfig = {
   key: ModuleKey;
@@ -56,6 +56,10 @@ const MODULES: ModuleConfig[] = [
   {
     key: 'finance',
     label: 'Finance',
+  },
+  {
+    key: 'far',
+    label: 'FAR',
   },
 ];
 
@@ -126,6 +130,10 @@ function buildPatchBody(moduleKey: ModuleKey, nextValue: boolean) {
 
   if (moduleKey === 'finance') {
     return { financeAccess: nextValue };
+  }
+
+  if (moduleKey === 'far') {
+    return { farAccess: nextValue };
   }
 
   return {};

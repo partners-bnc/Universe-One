@@ -20,6 +20,7 @@ import { createClient } from '@/utils/supabase/client';
 import CalendarView from '@/app/Taskmanager/components/CalendarView';
 import MyDailyLog from './views/MyDailyLog';
 import TeamDailyLog from './views/TeamDailyLog';
+import TeamAttendance from './views/TeamAttendance';
 
 export default function App() {
   const searchParams = useSearchParams();
@@ -128,6 +129,8 @@ export default function App() {
   const tabViews: Record<string, React.ReactNode> = {
     home: <Dashboard employee={employee} setCurrentTab={setCurrentTab} onLogout={handleLogout} isLoggingOut={isLoggingOut} />,
     attendance: <Attendance onOpenRegularizeAttendance={() => setCurrentTab('regularize-attendance')} />,
+    'my-attendance': <Attendance onOpenRegularizeAttendance={() => setCurrentTab('regularize-attendance')} />,
+    'team-attendance': <TeamAttendance />,
     'regularize-attendance': <RegularizeAttendance />,
     'team-regularization': <TeamRegularization />,
     'policy-manual': <PolicyManual />,
@@ -151,8 +154,10 @@ export default function App() {
       ? 'Home'
       : currentTab === 'calendar'
       ? 'Calendar'
-      : currentTab === 'attendance'
-      ? 'Attendance'
+      : currentTab === 'attendance' || currentTab === 'my-attendance'
+      ? 'My Attendance'
+      : currentTab === 'team-attendance'
+      ? 'Team Attendance'
       : currentTab === 'regularize-attendance'
       ? 'Regularization'
       : currentTab === 'team-regularization'

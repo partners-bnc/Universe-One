@@ -111,3 +111,42 @@ body {
 .subtle-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(90, 96, 98, 0.24);
 }
+
+/* ---------- HR admin dashboard: glass KPIs + celebration cards ---------- */
+@keyframes hrm-liquid { 0%, 100% { transform: translate(0, 0) scale(1); } 33% { transform: translate(12%, -10%) scale(1.12); } 66% { transform: translate(-10%, 8%) scale(0.94); } }
+@keyframes hrm-shimmer { 0% { transform: translateX(-120%); } 100% { transform: translateX(120%); } }
+@keyframes hrm-fall { 0% { transform: translate3d(0, -20px, 0) rotate(0deg); opacity: 0; } 10% { opacity: 1; } 100% { transform: translate3d(var(--drift, 20px), 420px, 0) rotate(540deg); opacity: 0; } }
+@keyframes hrm-bob { 0%, 100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-12px) rotate(3deg); } }
+@keyframes hrm-twinkle { 0%, 100% { opacity: 0.15; transform: scale(0.6) rotate(0deg); } 50% { opacity: 1; transform: scale(1) rotate(45deg); } }
+@keyframes hrm-spin-slow { to { transform: rotate(360deg); } }
+@keyframes hrm-pop { 0% { transform: scale(0.6); opacity: 0; } 60% { transform: scale(1.08); opacity: 1; } 100% { transform: scale(1); } }
+.hrm-liquid { animation: hrm-liquid 14s ease-in-out infinite; }
+.hrm-shimmer { animation: hrm-shimmer 1.4s ease-in-out infinite; }
+.hrm-fall { animation: hrm-fall var(--dur, 6s) linear var(--delay, 0s) infinite; }
+.hrm-bob { animation: hrm-bob var(--dur, 5s) ease-in-out var(--delay, 0s) infinite; }
+.hrm-twinkle { animation: hrm-twinkle var(--dur, 2.4s) ease-in-out var(--delay, 0s) infinite; }
+.hrm-spin-slow { animation: hrm-spin-slow 14s linear infinite; }
+.hrm-pop { animation: hrm-pop 0.6s cubic-bezier(.22,1,.36,1) both; }
+/* birthday confetti burst: shoots out from the popper, drifts down, repeats every 3.8s */
+@keyframes hrm-burst {
+  0%, 4% { transform: translate(0, 0) rotate(0deg) scale(0.3); opacity: 0; }
+  8% { opacity: 1; }
+  38% { transform: translate(var(--x), var(--y)) rotate(300deg) scale(1); opacity: 1; }
+  80% { transform: translate(calc(var(--x) * 1.12), calc(var(--y) + 120px)) rotate(620deg) scale(0.9); opacity: 0; }
+  100% { transform: translate(calc(var(--x) * 1.12), calc(var(--y) + 120px)) rotate(620deg) scale(0.9); opacity: 0; }
+}
+@keyframes hrm-popper { 0%, 100% { transform: scale(1) rotate(0deg); } 3% { transform: scale(1.25) rotate(-12deg); } 9% { transform: scale(0.95) rotate(4deg); } 14% { transform: scale(1) rotate(0deg); } }
+.hrm-burst { opacity: 0; animation: hrm-burst 3.8s cubic-bezier(.12,.75,.3,1) var(--delay, 0s) infinite; }
+.hrm-popper { animation: hrm-popper 3.8s ease-out infinite; }
+@keyframes hrm-fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.hrm-fade { animation: hrm-fade 0.35s ease-out both; }
+/* light, thin scrollbar for dashboard lists */
+.hrm-soft-scroll { scrollbar-width: thin; scrollbar-color: rgba(49, 112, 197, 0.14) transparent; }
+.hrm-soft-scroll::-webkit-scrollbar { width: 5px; }
+.hrm-soft-scroll::-webkit-scrollbar-track { background: transparent; }
+.hrm-soft-scroll::-webkit-scrollbar-thumb { background: rgba(49, 112, 197, 0.14); border-radius: 999px; }
+.hrm-soft-scroll::-webkit-scrollbar-thumb:hover { background: rgba(49, 112, 197, 0.26); }
+@media (prefers-reduced-motion: reduce) {
+  .hrm-liquid, .hrm-shimmer, .hrm-fall, .hrm-bob, .hrm-twinkle, .hrm-spin-slow, .hrm-pop, .hrm-burst, .hrm-popper, .hrm-fade { animation: none; }
+  .hrm-fall { opacity: 0; }
+}

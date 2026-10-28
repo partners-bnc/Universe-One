@@ -182,6 +182,41 @@ async function supportsHrmEmployeeColumn(columnName) {
   return supported;
 }
 
+const hrmModuleAccessColumnSupportPromises = new Map();
+
+async function supportsHrmModuleAccessColumn(columnName) {
+  if (!hrmModuleAccessColumnSupportPromises.has(columnName)) {
+    const promise = (async () => {
+      const probeResult = await adminClient
+        .from('hrm_module_access')
+        .select(columnName)
+        .limit(1);
+
+      if (!probeResult.error) {
+        return true;
+      }
+
+      const message = String(probeResult.error?.message || '').toLowerCase();
+      return !(
+        message.includes('could not find') ||
+        message.includes('column') ||
+        message.includes('schema cache') ||
+        message.includes('does not exist')
+      );
+    })().catch(() => false);
+
+    hrmModuleAccessColumnSupportPromises.set(columnName, promise);
+  }
+
+  const supported = await hrmModuleAccessColumnSupportPromises.get(columnName);
+
+  if (!supported) {
+    hrmModuleAccessColumnSupportPromises.delete(columnName);
+  }
+
+  return supported;
+}
+
 async function supportsReportingSuperAdminColumn() {
   return supportsHrmEmployeeColumn('reporting_super_admin_id');
 }
@@ -1299,19 +1334,7 @@ export async function GET(request) {
           id,
           title
         ),
-        module_access:hrm_module_access!module_access_employee_id_fkey (
-          task_manager,
-          task_manager_role,
-          hrm_admin,
-          auditing,
-          auditing_role,
-          crm,
-          crm_role,
-          vendor,
-          vendor_role,
-          finance,
-          finance_role
-        )
+        module_access:hrm_module_access!module_access_employee_id_fkey (*)
       `)
       .order('created_at', { ascending: false });
 
@@ -1725,7 +1748,8 @@ export async function POST(request) {
         });
       }
 
-      await upsertModuleAccess(employeeRow.id, {
+      const isFarSupported = await supportsHrmModuleAccessColumn('far');
+      const initialModuleAccess = {
         task_manager: taskManagerEnabled,
         task_manager_role: null,
         auditing: false,
@@ -1739,7 +1763,11 @@ export async function POST(request) {
         hrm_admin: false,
         granted_by: authContext?.employee?.id || null,
         granted_at: new Date().toISOString(),
-      });
+      };
+      if (isFarSupported) {
+        initialModuleAccess.far = false;
+      }
+      await upsertModuleAccess(employeeRow.id, initialModuleAccess);
 
       try {
         await enqueueEmployeeCreatedEmail({
@@ -2009,6 +2037,7 @@ export async function PATCH(request) {
     const crmAccess = body?.crmAccess !== undefined ? parseBoolean(body.crmAccess) : undefined;
     const vendorAccess = body?.vendorAccess !== undefined ? parseBoolean(body.vendorAccess) : undefined;
     const financeAccess = body?.financeAccess !== undefined ? parseBoolean(body.financeAccess) : undefined;
+    const farAccess = body?.farAccess !== undefined ? parseBoolean(body.farAccess) : undefined;
 
     const payload = {};
     if (name !== undefined) payload.name = name;
@@ -2211,7 +2240,8 @@ export async function PATCH(request) {
       auditingAccess !== undefined ||
       crmAccess !== undefined ||
       vendorAccess !== undefined ||
-      financeAccess !== undefined;
+      financeAccess !== undefined ||
+      farAccess !== undefined;
 
     if (Object.keys(payload).length === 0 && !hasModuleAccessUpdate) {
       return NextResponse.json({ error: 'No fields provided for update' }, { status: 400 });
@@ -2241,7 +2271,8 @@ export async function PATCH(request) {
     }
 
     if (hasModuleAccessUpdate) {
-      await upsertModuleAccess(employee.id, {
+      const isFarSupported = await supportsHrmModuleAccessColumn('far');
+      const moduleAccessPayload = {
         task_manager: taskManagerAccess !== undefined ? taskManagerAccess : currentModuleAccess?.task_manager || false,
         task_manager_role: currentModuleAccess?.task_manager_role || null,
         auditing: auditingAccess !== undefined ? auditingAccess : currentModuleAccess?.auditing || false,
@@ -2255,7 +2286,19 @@ export async function PATCH(request) {
         hrm_admin: hrmAdminAccess !== undefined ? hrmAdminAccess : currentModuleAccess?.hrm_admin || false,
         granted_by: currentModuleAccess?.granted_by || authContext.employee?.id || null,
         granted_at: currentModuleAccess?.granted_at || new Date().toISOString(),
-      });
+      };
+
+      if (isFarSupported) {
+        moduleAccessPayload.far = farAccess !== undefined ? farAccess : currentModuleAccess?.far || false;
+      }
+
+      await upsertModuleAccess(employee.id, moduleAccessPayload);
+
+      if (farAccess !== undefined && employee.auth_user_id) {
+        await adminClient.auth.admin.updateUserById(employee.auth_user_id, {
+          user_metadata: { far_access: farAccess },
+        });
+      }
     }
 
     const shouldSyncAuthProfile =
@@ -2321,6 +2364,16 @@ export async function PATCH(request) {
     }
 
     const [enrichedEmployee] = await attachCreatorNames([refreshedEmployee]);
+
+    if (farAccess !== undefined && enrichedEmployee) {
+      if (Array.isArray(enrichedEmployee.module_access)) {
+        enrichedEmployee.module_access = enrichedEmployee.module_access.map((ma) => ({ ...ma, far: farAccess }));
+      } else if (enrichedEmployee.module_access && typeof enrichedEmployee.module_access === 'object') {
+        enrichedEmployee.module_access = { ...enrichedEmployee.module_access, far: farAccess };
+      } else {
+        enrichedEmployee.module_access = [{ far: farAccess }];
+      }
+    }
 
     return NextResponse.json(
       { message: 'Employee updated successfully', employee: enrichedEmployee },

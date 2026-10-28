@@ -287,13 +287,43 @@ export async function GET(request) {
     }
 
     const month = request.nextUrl.searchParams.get('month') || getCurrentDateInTimeZone().slice(0, 7);
+    const requestedEmployeeId = request.nextUrl.searchParams.get('employeeId');
+
+    let targetEmployeeId = employeeContext.employeeId;
+    let targetSchedule = employeeContext.employeeSchedule;
+
+    if (requestedEmployeeId && requestedEmployeeId !== employeeContext.employeeId) {
+      const { data: targetEmployee, error: targetError } = await adminClient
+        .from('hrm_employees')
+        .select('id, name, reporting_manager_id, working_days, second_saturday_off, date_of_joining')
+        .eq('id', requestedEmployeeId)
+        .maybeSingle();
+
+      if (targetError || !targetEmployee) {
+        return NextResponse.json({ error: 'Target employee not found' }, { status: 404 });
+      }
+
+      const isManager = targetEmployee.reporting_manager_id === employeeContext.employeeId;
+      const isAdmin = Boolean(employeeContext.authContext?.isHrAdmin);
+
+      if (!isManager && !isAdmin) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+
+      targetEmployeeId = targetEmployee.id;
+      targetSchedule = {
+        workingDays: targetEmployee.working_days || [],
+        secondSaturdayOff: Boolean(targetEmployee.second_saturday_off),
+        joinDate: targetEmployee.date_of_joining ? String(targetEmployee.date_of_joining).slice(0, 10) : null,
+      };
+    }
 
     const { start, end } = getDateRangeForMonth(month);
     const [attendanceResult, holidayResult] = await Promise.all([
       adminClient
         .from('hrm_attendance')
         .select('*')
-        .eq('employee_id', employeeContext.employeeId)
+        .eq('employee_id', targetEmployeeId)
         .gte('date', start)
         .lte('date', end)
         .order('date', { ascending: true }),
@@ -312,7 +342,7 @@ export async function GET(request) {
       if (isMissingAttendanceTableError(error)) {
         return NextResponse.json(
           {
-            ...buildMonthPayload(month, [], [], employeeContext.employeeSchedule, 'check_in'),
+            ...buildMonthPayload(month, [], [], targetSchedule, 'check_in'),
             setupPending: true,
           },
           { status: 200 }
@@ -326,9 +356,9 @@ export async function GET(request) {
       return NextResponse.json({ error: holidayError.message || 'Failed to load holidays' }, { status: 500 });
     }
 
-    const todayAction = await getTodayActionFromLatestSwipe(employeeContext.employeeId, getCurrentDateInTimeZone());
+    const todayAction = await getTodayActionFromLatestSwipe(targetEmployeeId, getCurrentDateInTimeZone());
     return NextResponse.json(
-      buildMonthPayload(month, attendanceRows || [], holidayRows || [], employeeContext.employeeSchedule, todayAction),
+      buildMonthPayload(month, attendanceRows || [], holidayRows || [], targetSchedule, todayAction),
       { status: 200 }
     );
   } catch (error) {

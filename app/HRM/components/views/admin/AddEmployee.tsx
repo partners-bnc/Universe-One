@@ -166,7 +166,7 @@ const defaultFormState: FormState = {
   email: '',
   password: '',
   phone: '',
-  taskManagerAccess: 'Yes',
+  taskManagerAccess: 'No',
   profilePicture: null,
   personalEmail: '',
   dateOfBirth: '',

@@ -34,6 +34,14 @@ export interface RegularizationDay {
   hasHalfDayLeave?: boolean;
   leaveSession?: string;
   leaveTypeName?: string;
+  workHoursMinutes?: number;
+  workHoursFormatted?: string;
+  checkInTime?: string;
+  checkOutTime?: string;
+  checkIn24?: string;
+  checkOut24?: string;
+  hasCompletedHours?: boolean;
+  isMissingCheckOut?: boolean;
 }
 
 export interface RegularizationStatusItem {

@@ -632,16 +632,20 @@ export default function CampaignsPage() {
   };
 
   return (
-    <div className="p-6 text-slate-800 dark:text-slate-150 transition-colors duration-300 h-full overflow-y-auto bg-slate-50 dark:bg-slate-900 font-sans">
+    <div className="p-8 text-[#1D1D1F] dark:text-white transition-colors duration-300 h-full overflow-y-auto bg-[#F5F5F7] dark:bg-[#1D1D1F] font-sans">
 
       {/* HEADER ROW */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 border-b border-slate-200 dark:border-slate-800 pb-5">
-        <div className="flex items-start gap-3">
-          <Megaphone size={38} className="text-[#6057DA] stroke-[1.8] shrink-0 mt-0.5" />
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-7 border-b border-[#D2D2D7]/70 dark:border-white/10 pb-5">
+        <div className="flex items-center gap-3.5">
+          <div className="w-11 h-11 rounded-full bg-[#0071E3]/10 dark:bg-[#0071E3]/20 flex items-center justify-center text-[#0071E3] shrink-0">
+            <Megaphone size={22} className="stroke-[2]" />
+          </div>
           <div>
-            <h1 className="text-3xl font-semibold tracking-tight dark:text-white bg-gradient-to-r from-blue-600 to-indigo-500 bg-clip-text text-transparent leading-none">Campaigns</h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mt-1.5">
-              Build target filters, preview templates, and launch email campaigns.
+            <h1 className="text-[28px] font-semibold tracking-[-0.015em] text-[#1D1D1F] dark:text-white leading-tight">
+              Campaigns
+            </h1>
+            <p className="text-[13px] text-[#86868B] font-normal mt-0.5">
+              Build target segments, preview personalized templates, and deploy mass marketing outreach.
             </p>
           </div>
         </div>
@@ -652,7 +656,7 @@ export default function CampaignsPage() {
               setStep(1);
               setActiveTab("wizard");
             }}
-            className="px-6 bg-[#6057DA] hover:bg-[#4E46C8] text-white text-[13px] font-semibold rounded-full shadow-sm inline-flex items-center gap-2 transition-all active:scale-[0.98] h-[40px]"
+            className="h-11 px-6 bg-[#0071E3] hover:bg-[#0076DF] active:scale-[0.98] text-white text-[14px] font-semibold rounded-full shadow-[0_2px_8px_rgba(0,113,227,0.25)] inline-flex items-center gap-2 transition-all cursor-pointer"
           >
             <Plus size={16} />
             <span>Create Campaign</span>
@@ -660,7 +664,7 @@ export default function CampaignsPage() {
         )}
 
         {activeTab !== "list" && (
-          <div className="flex gap-2 items-center">
+          <div className="flex gap-2.5 items-center">
             {activeTab === "detail" && selectedCampaignDetail && (
               <button
                 onClick={async () => {
@@ -677,18 +681,18 @@ export default function CampaignsPage() {
                     }
                   }
                 }}
-                className="px-4 bg-red-50 hover:bg-red-100 border border-red-200 text-[13px] font-semibold text-red-650 rounded-full inline-flex items-center gap-1.5 transition-colors h-[40px] cursor-pointer focus:outline-none"
+                className="h-10 px-5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-500/15 dark:hover:bg-rose-500/25 border border-rose-200/80 dark:border-rose-500/20 text-[13px] font-medium text-rose-600 dark:text-rose-400 rounded-full inline-flex items-center gap-2 transition-all cursor-pointer"
               >
-                <Trash2 size={15} />
-                <span>Delete Campaign</span>
+                <Trash2 size={14} />
+                <span>Delete</span>
               </button>
             )}
             {activeTab === "detail" && (
               <button
                 onClick={handleExportCSV}
-                className="px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-[13px] font-semibold rounded-full inline-flex items-center gap-1.5 transition-colors h-[40px] shadow-sm cursor-pointer"
+                className="h-10 px-5 bg-white dark:bg-white/10 hover:bg-[#F5F5F7] dark:hover:bg-white/15 border border-[#D2D2D7]/80 dark:border-white/15 text-[13px] font-medium text-[#1D1D1F] dark:text-white rounded-full inline-flex items-center gap-2 transition-all shadow-[0_1px_2px_rgba(0,0,0,0.04)] cursor-pointer"
               >
-                <Download size={15} />
+                <Download size={14} />
                 <span>Export Status</span>
               </button>
             )}
@@ -699,18 +703,18 @@ export default function CampaignsPage() {
                 setRecipients([]);
                 setActiveTab("list");
               }}
-              className="px-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 hover:border-slate-300 dark:hover:border-slate-700 text-[13px] font-semibold text-slate-800 dark:text-slate-200 rounded-full inline-flex items-center gap-1.5 transition-colors h-[40px] cursor-pointer focus:outline-none"
+              className="h-10 px-5 bg-white dark:bg-white/10 border border-[#D2D2D7]/80 dark:border-white/15 hover:bg-[#F5F5F7] dark:hover:bg-white/15 text-[13px] font-medium text-[#1D1D1F] dark:text-white rounded-full inline-flex items-center gap-2 transition-all shadow-[0_1px_2px_rgba(0,0,0,0.04)] cursor-pointer"
             >
-              <ArrowLeft size={15} />
+              <ArrowLeft size={14} />
               <span>Back to Campaigns</span>
             </button>
           </div>
         )}
       </div>
 
-      {/* ════ TAB VIEW SWITCHER ════ */}
+      {/* ════ TAB VIEW SWITCHER - Apple Segmented Tabs ════ */}
       {activeTab === "list" && (
-        <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 mb-6 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+        <div className="flex justify-between items-center border-b border-[#D2D2D7]/70 dark:border-white/10 mb-7 overflow-x-auto pb-1">
           <div className="flex gap-4">
             {[
               { id: 'table', label: 'Table View', icon: Table },
@@ -724,12 +728,13 @@ export default function CampaignsPage() {
                 <button
                   key={tab.id}
                   onClick={() => setCampaignViewMode(tab.id)}
-                  className={`py-3 px-1.5 text-sm font-semibold inline-flex items-center gap-2 transition-all border-b-2 whitespace-nowrap cursor-pointer ${active
-                    ? 'border-[#6057DA] text-[#6057DA] dark:border-[#7C74F0] dark:text-[#7C74F0]'
-                    : 'border-transparent text-slate-505 hover:text-slate-800 dark:hover:text-slate-200'
-                    }`}
+                  className={`py-3 px-2 text-[13px] font-semibold inline-flex items-center gap-2 transition-all border-b-2 whitespace-nowrap cursor-pointer -mb-[2px] ${
+                    active
+                      ? 'border-[#0071E3] text-[#0071E3]'
+                      : 'border-transparent text-[#6E6E73] hover:text-[#1D1D1F] dark:text-white/60 dark:hover:text-white'
+                  }`}
                 >
-                  <Icon size={16} />
+                  <Icon size={15} />
                   <span>{tab.label}</span>
                   {tab.id === 'bounces' && bounceArchiveCount !== null && <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs text-red-700 dark:bg-red-950/40 dark:text-red-300">{bounceArchiveCount}</span>}
                 </button>
@@ -2443,20 +2448,20 @@ export default function CampaignsPage() {
               {campaignViewMode === "kanban" && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {[
-                    { key: 'Draft', statuses: ['Draft', 'Paused'], label: 'Drafts & Paused', pillColor: 'bg-[#344054]' },
-                    { key: 'Running', statuses: ['Scheduled', 'Running'], label: 'Active', pillColor: 'bg-[#0070c0]' },
-                    { key: 'Completed', statuses: ['Completed'], label: 'Completed', pillColor: 'bg-[#039855]' }
+                    { key: 'Draft', statuses: ['Draft', 'Paused'], label: 'Drafts & Paused', pillColor: 'bg-[#86868B]' },
+                    { key: 'Running', statuses: ['Scheduled', 'Running'], label: 'Active', pillColor: 'bg-[#0071E3]' },
+                    { key: 'Completed', statuses: ['Completed'], label: 'Completed', pillColor: 'bg-[#34C759]' }
                   ].map((column) => {
                     const columnCampaigns = campaigns.filter(c => column.statuses.includes(c.status));
                     return (
-                      <div key={column.key} className="rounded-[24px] border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900/30 p-4 flex flex-col min-h-[500px]">
+                      <div key={column.key} className="rounded-[18px] border border-[#D2D2D7] dark:border-white/10 bg-[#F5F5F7]/80 dark:bg-white/[0.03] p-4 flex flex-col min-h-[500px]">
                         <div className="flex items-center justify-between gap-3 mb-4">
-                          <span className={`rounded-lg px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-white shadow-sm ${column.pillColor}`}>
+                          <span className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-white shadow-xs ${column.pillColor}`}>
                             {column.label}
                           </span>
-                          <span className="text-sm font-semibold text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 w-6 h-6 flex items-center justify-center rounded-full shadow-sm">
+                          <span className="text-xs font-semibold text-[#86868B] bg-white dark:bg-[#1D1D1F] border border-[#D2D2D7] dark:border-white/10 w-6 h-6 flex items-center justify-center rounded-full shadow-xs">
                             {columnCampaigns.length}
-                            Update in the follow-up page of the KPI while lead showing volume 1000          </span>
+                          </span>
                         </div>
 
                         <div className="space-y-3 flex-1 overflow-y-auto max-h-[600px] pb-4" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
@@ -2474,12 +2479,12 @@ export default function CampaignsPage() {
                                   setSelectedCampaignId(camp.campaign_id);
                                   setActiveTab("detail");
                                 }}
-                                className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 p-4 text-left transition-all duration-200 bg-white dark:bg-slate-900 shadow-sm hover:shadow-md hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer group/item"
+                                className="w-full rounded-[14px] border border-[#D2D2D7] dark:border-white/10 p-4 text-left transition-all duration-200 bg-white dark:bg-[#1D1D1F] shadow-[0_1px_3px_rgba(0,0,0,0.02)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.06)] hover:border-[#D2D2D7] dark:hover:border-white/20 cursor-pointer group/item"
                               >
                                 {/* Title and arrow */}
                                 <div className="flex items-start justify-between gap-3">
                                   <div className="min-w-0 flex-1">
-                                    <h4 className="text-sm font-semibold text-slate-800 dark:text-white leading-snug break-words">
+                                    <h4 className="text-sm font-semibold text-[#1D1D1F] dark:text-white leading-snug break-words">
                                       {camp.campaign_name}
                                     </h4>
                                   </div>
@@ -2496,27 +2501,27 @@ export default function CampaignsPage() {
                                           }
                                         }
                                       }}
-                                      className="p-1 bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-900/40 text-red-650 rounded-md transition-all active:scale-[0.95] cursor-pointer border border-red-200 dark:border-red-900/30 opacity-0 group-hover/item:opacity-100 transition-opacity"
+                                      className="p-1 bg-[#FF3B30]/10 hover:bg-[#FF3B30]/20 text-[#FF3B30] rounded-full transition-all active:scale-[0.95] cursor-pointer opacity-0 group-hover/item:opacity-100"
                                       title="Delete Campaign"
                                     >
                                       <Trash2 size={12} />
                                     </button>
-                                    <ChevronRight size={14} className="mt-0.5 text-slate-400" />
+                                    <ChevronRight size={14} className="mt-0.5 text-[#86868B]" />
                                   </div>
                                 </div>
 
                                 {/* Bottom row: pills */}
-                                <div className="mt-3.5 flex flex-wrap items-center gap-2.5 text-[11px] text-slate-500">
-                                  <div className="flex items-center gap-1 rounded-md px-1.5 py-0.5 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-100 dark:border-slate-700">
-                                    <Mail size={12} className="text-slate-450" />
+                                <div className="mt-3.5 flex flex-wrap items-center gap-2 text-[11px] text-[#86868B]">
+                                  <div className="flex items-center gap-1 rounded-full px-2 py-0.5 bg-[#F5F5F7] dark:bg-white/5 text-[#86868B] border border-[#D2D2D7]/60 dark:border-white/10">
+                                    <Mail size={12} className="text-[#86868B]" />
                                     <span>{camp.campaign_type || "Email"}</span>
                                   </div>
-                                  <div className="flex items-center gap-1 rounded-md px-1.5 py-0.5 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-100 dark:border-slate-700">
-                                    <Users size={12} className="text-slate-450" />
+                                  <div className="flex items-center gap-1 rounded-full px-2 py-0.5 bg-[#F5F5F7] dark:bg-white/5 text-[#86868B] border border-[#D2D2D7]/60 dark:border-white/10">
+                                    <Users size={12} className="text-[#86868B]" />
                                     <span>{total} leads</span>
                                   </div>
                                   {camp.status !== "Draft" && (
-                                    <div className="flex items-center gap-1 rounded-md px-1.5 py-0.5 bg-[#6057DA]/10 text-[#6057DA] dark:text-[#7C74F0] border border-[#6057DA]/15 font-medium">
+                                    <div className="flex items-center gap-1 rounded-full px-2 py-0.5 bg-[#0071E3]/10 text-[#0071E3] dark:text-[#2997FF] border border-[#0071E3]/20 font-medium">
                                       <span>{openRate}% open</span>
                                     </div>
                                   )}
@@ -2526,7 +2531,7 @@ export default function CampaignsPage() {
                           })}
 
                           {columnCampaigns.length === 0 && (
-                            <div className="rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 bg-white/60 dark:bg-transparent px-4 py-8 text-center text-sm text-slate-400">
+                            <div className="rounded-[14px] border border-dashed border-[#D2D2D7] dark:border-white/15 bg-white/40 dark:bg-transparent px-4 py-8 text-center text-xs text-[#86868B]">
                               No campaigns here.
                             </div>
                           )}

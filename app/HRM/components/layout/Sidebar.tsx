@@ -31,6 +31,9 @@ export default function Sidebar({
   isMobileOpen = false,
   onMobileClose,
 }: SidebarProps) {
+  const [isAttendanceExpanded, setIsAttendanceExpanded] = useState(() =>
+    currentTab === 'attendance' || currentTab === 'my-attendance' || currentTab === 'team-attendance'
+  );
   const [isWorkLogExpanded, setIsWorkLogExpanded] = useState(() =>
     currentTab === 'my-daily-log' || currentTab === 'team-daily-log'
   );
@@ -48,7 +51,6 @@ export default function Sidebar({
   const navItems = [
     { id: 'home', label: 'Home', icon: 'dashboard' },
     { id: 'calendar', label: 'Calendar', icon: 'date_range' },
-    { id: 'attendance', label: 'Attendance', icon: 'calendar_today' },
     { id: 'policy-manual', label: 'Policy Manual', icon: 'menu_book' },
     { id: 'tickets', label: 'Tickets & Requests', icon: 'support_agent' },
     { id: 'expenses', label: 'Expense Claims', icon: 'receipt_long' },
@@ -63,6 +65,8 @@ export default function Sidebar({
     window.location.href = '/other-modules';
   };
 
+  const isAttendanceActive =
+    currentTab === 'attendance' || currentTab === 'my-attendance' || currentTab === 'team-attendance';
   const isRegActive = currentTab === 'regularize-attendance' || currentTab === 'team-regularization';
   const isWorkLogActive = currentTab === 'my-daily-log' || currentTab === 'team-daily-log';
 
@@ -126,8 +130,8 @@ export default function Sidebar({
 
         {/* Nav */}
         <nav className="flex-1 space-y-0.5">
-          {/* Home, Calendar & Attendance */}
-          {navItems.slice(0, 3).map((item) => {
+          {/* Home & Calendar */}
+          {navItems.slice(0, 2).map((item) => {
             const isActive = currentTab === item.id;
             return (
               <button
@@ -145,6 +149,52 @@ export default function Sidebar({
               </button>
             );
           })}
+
+          {/* Attendance expandable */}
+          <div
+            onMouseEnter={() => setIsAttendanceExpanded(true)}
+            onMouseLeave={() => setIsAttendanceExpanded(currentTab === 'attendance' || currentTab === 'my-attendance' || currentTab === 'team-attendance')}
+          >
+            <button
+              type="button"
+              onClick={() => setIsAttendanceExpanded(!isAttendanceExpanded)}
+              className={`w-full ${isAttendanceActive ? activePill : inactivePill}`}
+            >
+              <span className="material-symbols-outlined text-[20px] shrink-0" style={isAttendanceActive ? { fontVariationSettings: "'FILL' 1" } : {}}>
+                calendar_today
+              </span>
+              <span className={`text-sm flex-1 text-left whitespace-nowrap ${isAttendanceActive ? 'font-bold' : 'font-medium'}`}>
+                Attendance
+              </span>
+              <span className={`material-symbols-outlined text-[18px] shrink-0 mr-1 transition-transform duration-300 ${isAttendanceExpanded ? 'rotate-180' : ''}`}>
+                expand_more
+              </span>
+            </button>
+
+            <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isAttendanceExpanded ? 'max-h-28 opacity-100' : 'max-h-0 opacity-0'}`}>
+              <button
+                type="button"
+                onClick={() => { setCurrentTab('attendance'); onMobileClose?.(); }}
+                className={`w-full ${currentTab === 'attendance' || currentTab === 'my-attendance' ? subActivePill : subInactivePill}`}
+              >
+                <span className="material-symbols-outlined text-[18px] shrink-0">person</span>
+                <span className={`text-sm flex-1 text-left whitespace-nowrap ${currentTab === 'attendance' || currentTab === 'my-attendance' ? 'font-bold' : 'font-medium'}`}>
+                  My Attendance
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setCurrentTab('team-attendance'); onMobileClose?.(); }}
+                className={`w-full ${currentTab === 'team-attendance' ? subActivePill : subInactivePill}`}
+              >
+                <span className="material-symbols-outlined text-[18px] shrink-0">groups</span>
+                <span className={`text-sm flex-1 text-left whitespace-nowrap ${currentTab === 'team-attendance' ? 'font-bold' : 'font-medium'}`}>
+                  Team Attendance
+                </span>
+              </button>
+            </div>
+          </div>
 
           {/* Daily Work Log expandable */}
           <div
@@ -239,7 +289,7 @@ export default function Sidebar({
           </div>
 
           {/* Rest of nav */}
-          {navItems.slice(3).map((item) => {
+          {navItems.slice(2).map((item) => {
             const isActive = currentTab === item.id;
             return (
               <button

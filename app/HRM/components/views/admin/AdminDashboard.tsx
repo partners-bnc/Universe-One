@@ -1,20 +1,16 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import Image from 'next/image';
-import { Download } from 'lucide-react';
 import { useHrmFeedback } from '../../ui/HrmFeedback';
-import HrmEmptyState from '../../ui/HrmEmptyState';
-import { LoadingPanel } from '../../ui/Skeleton';
+import GlassKpi from './dashboard/GlassKpi';
+import TodayAttendance from './dashboard/TodayAttendance';
+import ProbationPanel, { buildProbationRows } from './dashboard/ProbationPanel';
+import CelebrationCard from './dashboard/CelebrationCard';
+import LeaveToday from './dashboard/LeaveToday';
+import { Avatar, Panel } from './dashboard/shared';
 
-function getInitials(name = '') {
-  return String(name)
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join('') || 'E';
-}
+// HR admin home: glass KPIs, today's check-ins, probation progress, leave today and celebrations.
+// UI only — it reads the existing APIs: /HRM/api/admin/dashboard, /HRM/api/employees and /HRM/api/admin/attendance (daily).
 
 function formatDate(value) {
   if (!value) {
@@ -45,19 +41,6 @@ function formatAnniversary(value) {
     day: 'numeric',
     month: 'short',
   });
-}
-
-function formatLeaveWindow(startDate, endDate) {
-  if (!startDate && !endDate) {
-    return 'Today';
-  }
-
-  const start = formatDate(startDate);
-  const end = formatDate(endDate);
-  if (start === end) {
-    return start;
-  }
-  return `${start} to ${end}`;
 }
 
 function formatBirthdayNames(employees = []) {
@@ -218,30 +201,40 @@ function getAnniversaryCopy(employees = []) {
   };
 }
 
-function MetricCard({ title, value, subtitle, icon, tone }) {
-  return (
-    <div className={`rounded-[1.5rem] border border-white/70 p-4 shadow-[0_16px_32px_rgba(15,23,42,0.08),inset_0_1px_0_rgba(255,255,255,0.92)] ${tone}`}>
-      <div className="flex items-center gap-3">
-        <span className="material-symbols-outlined block text-[25px] leading-none text-on-surface">
-          {icon}
-        </span>
-        <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-on-surface-variant/70">{title}</p>
-      </div>
-      <div className="mt-6 text-center">
-        <p className="text-3xl font-headline font-extrabold text-on-surface">{value}</p>
-        <p className="mt-3 text-sm text-on-surface-variant">{subtitle}</p>
-      </div>
-    </div>
-  );
-}
-
 export default function AdminDashboard({ admin, setCurrentTab, setSelectedEmployeeId }) {
   const { showFeedback } = useHrmFeedback();
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isDownloadingBirthdayCard, setIsDownloadingBirthdayCard] = useState(false);
-  const [currentDateTime, setCurrentDateTime] = useState(() => new Date());
+  // the clock starts after mount, so the server and browser render the same first frame
+  const [currentDateTime, setCurrentDateTime] = useState(null);
+  // extra data for the attendance and probation panels (existing APIs, read-only)
+  const [people, setPeople] = useState({ employees: [], loading: true, error: '' });
+  const [attendance, setAttendance] = useState({ rows: [], loading: true, error: '' });
+
+  useEffect(() => {
+    let active = true;
+    const load = async (url, pick) => {
+      const response = await fetch(url, { method: 'GET' });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || 'Failed to load');
+      return pick(result);
+    };
+    load('/HRM/api/employees', (r) => r.employees || [])
+      .then((employees) => { if (active) setPeople({ employees, loading: false, error: '' }); })
+      .catch((e) => { if (active) setPeople({ employees: [], loading: false, error: e.message || 'Failed to load employees' }); });
+    load('/HRM/api/admin/attendance?mode=daily', (r) => r.rows || [])
+      .then((rows) => { if (active) setAttendance({ rows, loading: false, error: '' }); })
+      .catch((e) => { if (active) setAttendance({ rows: [], loading: false, error: e.message || 'Failed to load attendance' }); });
+    return () => { active = false; };
+  }, []);
+
+  const photos = useMemo(() => new Map(people.employees.map((e) => [e.id, e.profile_picture_url || ''])), [people.employees]);
+  const probationRows = useMemo(() => buildProbationRows(people.employees), [people.employees]);
+  const workingToday = attendance.rows.filter((row) => !['on_leave', 'holiday', 'weekend'].includes(String(row.status || '').toLowerCase()));
+  const checkedInToday = workingToday.filter((row) => (row.checkIn && !['--', '-'].includes(row.checkIn)) || Number(row.swipeCount) > 0).length;
+
 
   useEffect(() => {
     let active = true;
@@ -279,15 +272,18 @@ export default function AdminDashboard({ admin, setCurrentTab, setSelectedEmploy
   }, []);
 
   useEffect(() => {
-    const timer = window.setInterval(() => {
-      setCurrentDateTime(new Date());
-    }, 1000);
+    const tick = () => setCurrentDateTime(new Date());
+    const first = window.setTimeout(tick, 0);
+    const timer = window.setInterval(tick, 1000);
 
-    return () => window.clearInterval(timer);
+    return () => {
+      window.clearTimeout(first);
+      window.clearInterval(timer);
+    };
   }, []);
 
   const greetingName = String(admin?.name || dashboard?.admin?.name || 'HR Admin').replace(/\bHr\b/g, 'HR');
-  const liveDateTimeLabel = currentDateTime.toLocaleString('en-IN', {
+  const liveDateTimeLabel = currentDateTime?.toLocaleString('en-IN', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -322,10 +318,6 @@ export default function AdminDashboard({ admin, setCurrentTab, setSelectedEmploy
   const birthdayCopy = getBirthdayCopy(featuredBirthdayGroup);
   const birthdayLabel = featuredBirthday?.daysUntilBirthday === 0 ? 'Today Birthday' : 'Upcoming Birthday';
   const visibleBirthdayEmployees = featuredBirthdayGroup.slice(0, 4);
-  const avatarLayoutClassName =
-    visibleBirthdayEmployees.length <= 2
-      ? 'flex w-full items-center justify-center gap-2'
-      : 'grid w-full grid-cols-2 gap-x-2 gap-y-3';
   const featuredAnniversaryGroup = useMemo(() => {
     const upcomingAnniversaries = dashboard?.upcomingAnniversaries || [];
     if (!upcomingAnniversaries.length) {
@@ -339,10 +331,6 @@ export default function AdminDashboard({ admin, setCurrentTab, setSelectedEmploy
   const anniversaryCopy = getAnniversaryCopy(featuredAnniversaryGroup);
   const anniversaryLabel = featuredAnniversary?.daysUntilAnniversary === 0 ? 'Today Anniversary' : 'Upcoming Anniversary';
   const visibleAnniversaryEmployees = featuredAnniversaryGroup.slice(0, 4);
-  const anniversaryAvatarLayoutClassName =
-    visibleAnniversaryEmployees.length <= 2
-      ? 'flex w-full items-center justify-center gap-2'
-      : 'grid w-full grid-cols-2 gap-x-2 gap-y-3';
 
   const handleBirthdayCardDownload = async () => {
     if (isDownloadingBirthdayCard || !featuredBirthday) {
@@ -396,422 +384,118 @@ export default function AdminDashboard({ admin, setCurrentTab, setSelectedEmploy
     }
   };
   const lifecycleReminders = dashboard?.lifecycleReminders || [];
+  const upcomingBirthdays = dashboard?.upcomingBirthdays || [];
+  const upcomingAnniversaries = dashboard?.upcomingAnniversaries || [];
+  const featuredBirthdayIds = new Set(featuredBirthdayGroup.map((employee) => employee.id));
+  const featuredAnniversaryIds = new Set(featuredAnniversaryGroup.map((employee) => employee.id));
+  const nextBirthdays = upcomingBirthdays.filter((employee) => !featuredBirthdayIds.has(employee.id)).slice(0, 4);
+  const nextAnniversaries = upcomingAnniversaries.filter((employee) => !featuredAnniversaryIds.has(employee.id)).slice(0, 4);
+  const openEmployee = (employeeId) => {
+    setSelectedEmployeeId?.(employeeId);
+    setCurrentTab?.('admin-employee-profile');
+  };
+  const countdown = (days, todayWord) => (days === 0 ? todayWord : days === 1 ? 'Tomorrow' : `In ${days} days`);
+  const kpiLoading = loading || !dashboard;
 
   return (
-    <div className="mx-auto max-w-7xl p-7">
-      <section className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <div className="flex items-center gap-3">
-            <span className="text-3xl leading-none lg:text-4xl" aria-hidden="true">👋</span>
-            <h2 className="font-headline text-3xl font-extrabold tracking-tight text-on-surface lg:text-[2.5rem]">
-              Welcome, {greetingName}
-            </h2>
+    <div className="relative min-h-full">
+      {/* soft page backdrop so the glass has something to sit on */}
+      <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
+        <div className="absolute -left-24 -top-24 h-80 w-80 rounded-full bg-[#dbe8ff] opacity-70 blur-3xl" />
+        <div className="absolute right-0 top-40 h-72 w-72 rounded-full bg-[#ffe4ef] opacity-60 blur-3xl" />
+        <div className="absolute bottom-0 left-1/3 h-72 w-72 rounded-full bg-[#fff1d6] opacity-60 blur-3xl" />
+      </div>
+
+      <div className="mx-auto max-w-[1400px] p-5 md:p-7">
+        <section className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="font-headline text-[28px] font-extrabold tracking-tight text-slate-900 lg:text-[32px]">Welcome, {greetingName} 👋</h2>
+            <p className="mt-1 text-sm font-medium tabular-nums text-slate-500">{liveDateTimeLabel || ' '}</p>
           </div>
-          <p className="mt-2 pl-12 text-sm font-medium text-on-surface-variant lg:pl-14">
-            {liveDateTimeLabel}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setCurrentTab?.('admin-add-employee')}
-          className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-bold text-on-primary shadow-lg shadow-primary/20"
-        >
-          Add New Employee
-        </button>
-      </section>
+          <button
+            type="button"
+            onClick={() => setCurrentTab?.('admin-add-employee')}
+            className="inline-flex items-center gap-2 self-start rounded-2xl bg-gradient-to-b from-[#4d8be6] to-[#2559b0] px-5 py-3 text-sm font-bold text-white shadow-[0_14px_28px_-12px_rgba(37,89,176,0.7)] transition hover:-translate-y-0.5 sm:self-auto"
+          >
+            <span className="material-symbols-outlined text-[19px]">person_add</span>
+            Add Employee
+          </button>
+        </section>
 
-      {loading && (
-        <LoadingPanel
-          title="Loading HR dashboard"
-          message="We are pulling the latest HR metrics, recent employees, and birthday highlights."
-        />
-      )}
+        {error ? (
+          <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-medium text-red-700">{error}</div>
+        ) : null}
 
-      {error && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-medium text-red-700">
-          {error}
-        </div>
-      )}
+        <section className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-5">
+          <GlassKpi label="Active employees" value={metrics.activeEmployeeCount} icon="groups" tone="blue" loading={kpiLoading} delay={0} />
+          <GlassKpi label="Checked in today" value={checkedInToday} of={workingToday.length || undefined} icon="how_to_reg" tone="emerald" loading={attendance.loading} delay={60} />
+          <GlassKpi label="On leave today" value={metrics.onLeaveEmployeeCount} icon="beach_access" tone="amber" loading={kpiLoading} delay={120} />
+          <GlassKpi label="Pending HR tasks" value={metrics.pendingTaskCount} icon="pending_actions" tone="purple" loading={kpiLoading} delay={180} />
+          <GlassKpi label="On probation" value={probationRows.length} icon="hourglass_top" tone="blue" loading={people.loading} delay={240} />
+        </section>
 
-      {!loading && !error && dashboard && (
-        <div className="space-y-7">
-          <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <MetricCard title="Total Employees" value={metrics.employeeCount} subtitle={`${metrics.activeEmployeeCount} active right now`} icon="groups" tone="bg-gradient-to-br from-violet-50 via-white to-violet-100/70" />
-            <MetricCard title="Employees On Leave" value={metrics.onLeaveEmployeeCount} subtitle="Pulled from live employee status" icon="event_busy" tone="bg-gradient-to-br from-amber-50 via-white to-orange-100/60" />
-            <MetricCard title="Pending Tasks For HR Admin" value={metrics.pendingTaskCount} subtitle="Leave, regularization, expense review, and tickets" icon="assignment_late" tone="bg-gradient-to-br from-purple-50 via-white to-violet-100/70" />
-            <MetricCard title="Today Half Day" value={metrics.todayHalfDayAttendanceCount} subtitle="Employees below the required work hours today" icon="timelapse" tone="bg-gradient-to-br from-emerald-50 via-white to-teal-100/70" />
-          </section>
+        {/* left: attendance + probation; right: birthday and anniversary cards stacked close together */}
+        <section className="mt-6 grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+          <div className="min-w-0 space-y-6">
+            <TodayAttendance rows={attendance.rows} photos={photos} loading={attendance.loading} error={attendance.error} onOpenEmployee={openEmployee} />
+            <ProbationPanel rows={probationRows} loading={people.loading} error={people.error} onOpenEmployee={openEmployee} />
+          </div>
+          <div className="space-y-4">
+            <CelebrationCard
+              kind="birthday"
+              label={birthdayLabel}
+              icon="cake"
+              featured={kpiLoading ? [] : visibleBirthdayEmployees}
+              heading={birthdayCopy.heading}
+              body={birthdayCopy.body}
+              chips={featuredBirthday ? [<>{countdown(featuredBirthday.daysUntilBirthday, 'Today 🎉')} · {formatBirthday(featuredBirthday.date_of_birth)}</>] : []}
+              next={nextBirthdays}
+              nextMeta={(employee) => formatBirthday(employee.date_of_birth)}
+              moreCount={Math.max(0, featuredBirthdayGroup.length - visibleBirthdayEmployees.length)}
+              empty={{ icon: 'cake', title: kpiLoading ? 'Loading birthdays…' : 'No birthdays available yet', message: kpiLoading ? '' : 'Add employee birth dates in the HR records to show upcoming birthdays here.' }}
+            />
+            <CelebrationCard
+              kind="anniversary"
+              label={anniversaryLabel}
+              icon="workspace_premium"
+              featured={kpiLoading ? [] : visibleAnniversaryEmployees}
+              heading={anniversaryCopy.heading}
+              body={anniversaryCopy.body}
+              badge={featuredAnniversary ? <span className="whitespace-nowrap rounded-full bg-[#faf3e3] px-2.5 py-1 text-[11px] font-extrabold text-[#9a6b14] ring-1 ring-[#efe0bf]">{featuredAnniversary.completedYears} yr{featuredAnniversary.completedYears === 1 ? '' : 's'}</span> : null}
+              chips={featuredAnniversary ? [<>{countdown(featuredAnniversary.daysUntilAnniversary, 'Today 🎉')} · {formatAnniversary(featuredAnniversary.date_of_joining)}</>, <>{getAnniversaryYearLabel(featuredAnniversary.completedYears)}</>] : []}
+              next={nextAnniversaries}
+              nextMeta={(employee) => `${employee.completedYears} yr${employee.completedYears === 1 ? '' : 's'} · ${formatAnniversary(employee.date_of_joining)}`}
+              moreCount={Math.max(0, featuredAnniversaryGroup.length - visibleAnniversaryEmployees.length)}
+              empty={{ icon: 'workspace_premium', title: kpiLoading ? 'Loading anniversaries…' : 'No anniversaries available yet', message: kpiLoading ? '' : 'Add employee joining dates in the HR records to show work anniversaries here.' }}
+            />
+          </div>
+        </section>
 
-          <section className="grid grid-cols-1 items-start gap-7 xl:grid-cols-[minmax(0,1.7fr)_300px]">
-            <div className="space-y-4 self-start">
-              <div className="rounded-[1.75rem] border border-outline-variant/10 bg-surface-container-lowest p-6 shadow-sm">
-                <div className="mb-4 flex items-center justify-between gap-4">
-                  <div>
-                    <h3 className="font-headline text-xl font-bold text-on-surface">Recent Employees</h3>
-                    <p className="mt-1 text-sm text-on-surface-variant">Latest employee records created in the HRM system.</p>
-                  </div>
+        <section className={`mt-6 grid grid-cols-1 items-start gap-6 ${lifecycleReminders.length ? 'xl:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)]' : ''}`}>
+          <LeaveToday employees={dashboard?.employeesOnLeaveToday || []} onOpenEmployee={openEmployee} />
+          {lifecycleReminders.length ? (
+            <Panel title="Action Needed" icon="notification_important" badge={<span className="rounded-full bg-[#eef4ff] px-3 py-1 text-xs font-bold text-[#2558a2]">{lifecycleReminders.length}</span>}>
+              <div className="space-y-2">
+                {lifecycleReminders.map((item) => (
                   <button
+                    key={item.id}
                     type="button"
-                    onClick={() => setCurrentTab?.('admin-employee-list')}
-                    className="rounded-full border border-outline-variant/20 bg-surface px-4 py-2 text-xs font-bold text-on-surface-variant"
+                    onClick={() => openEmployee(item.id)}
+                    className="flex w-full items-center gap-3 rounded-2xl border border-slate-100 bg-white/70 px-3 py-2.5 text-left transition hover:border-[#d3e2f8] hover:bg-white"
                   >
-                    View Directory
+                    <Avatar name={item.name} src={item.profile_picture_url} size={36} />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[13.5px] font-bold text-slate-900">{item.name || 'Employee'}</p>
+                      <p className="truncate text-xs text-slate-500">{item.stage === 'probation' ? 'Confirm after probation' : 'Review notice period'} · {item.employee_id || '—'}</p>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-[#eef4ff] px-2.5 py-1 text-[11px] font-bold text-[#2558a2]">{formatDate(item.dueDate)}</span>
                   </button>
-                </div>
-                <div className="overflow-hidden rounded-[1.25rem] border border-outline-variant/10">
-                  {(dashboard.recentEmployees || []).length === 0 ? (
-                    <div className="p-4">
-                      <HrmEmptyState
-                        compact
-                        icon="badge"
-                        title="No employee records yet"
-                        message="Newly added employees will start appearing here as soon as the HR directory is populated."
-                      />
-                    </div>
-                  ) : (
-                    <div className="divide-y divide-outline-variant/10">
-                      <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,0.9fr)_120px_110px] gap-4 border-b border-outline-variant/10 px-4 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-on-surface-variant/70">
-                        <p>Employee</p>
-                        <p>Designation</p>
-                        <p>ID</p>
-                        <p>Created</p>
-                      </div>
-                      {(dashboard.recentEmployees || []).map((employee) => (
-                        <div
-                          key={employee.id}
-                          className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,0.9fr)_120px_110px] gap-4 px-4 py-3 transition-colors hover:bg-surface-container-low/20"
-                        >
-                          <div className="flex min-w-0 items-center gap-3">
-                            {employee.profile_picture_url ? (
-                              <Image
-                                src={employee.profile_picture_url}
-                                alt={employee.name || 'Employee'}
-                                width={38}
-                                height={38}
-                                className="h-[38px] w-[38px] rounded-full object-cover border border-outline-variant/10"
-                                unoptimized
-                              />
-                            ) : (
-                              <div className="flex h-[38px] w-[38px] items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
-                                {getInitials(employee.name)}
-                              </div>
-                            )}
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-bold text-on-surface">{employee.name || 'Employee'}</p>
-                              <p className="truncate text-xs text-on-surface-variant">{employee.email || 'No email added'}</p>
-                            </div>
-                          </div>
-
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-on-surface">
-                              {employee.designation?.title || 'Designation not set'}
-                            </p>
-                            <p className="truncate text-xs text-on-surface-variant">
-                              {employee.department?.name || 'Department not set'}
-                            </p>
-                          </div>
-
-                          <div className="text-xs font-semibold text-on-surface-variant">
-                            {employee.employee_id || 'No ID'}
-                          </div>
-
-                          <div className="text-xs font-semibold text-on-surface">
-                            {formatDate(employee.created_at?.slice?.(0, 10) || employee.created_at)}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                ))}
               </div>
-
-              <div className="rounded-[1.35rem] border border-outline-variant/10 bg-surface-container-low p-4 shadow-sm">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <h3 className="font-headline text-base font-bold text-on-surface">Employees On Leave Today</h3>
-                    <p className="mt-1 text-xs text-on-surface-variant">
-                      Today&apos;s approved leave employees with quick identity view.
-                    </p>
-                  </div>
-                  <span className="inline-flex w-fit rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-amber-700">
-                    {metrics.onLeaveEmployeeCount} on leave
-                  </span>
-                </div>
-                <div className="mt-3 space-y-2">
-                  {(dashboard.employeesOnLeaveToday || []).length === 0 ? (
-                    <HrmEmptyState
-                      compact
-                      icon="event_available"
-                      title="No leave record for today"
-                      message="Employees who are approved for leave today will appear here."
-                    />
-                  ) : (
-                    (dashboard.employeesOnLeaveToday || []).map((employee) => (
-                      <button
-                        key={employee.id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedEmployeeId?.(employee.employeeId);
-                          setCurrentTab?.('admin-employee-profile');
-                        }}
-                        className="flex w-full items-center justify-between gap-3 rounded-xl border border-outline-variant/10 bg-surface-container-lowest px-3 py-2.5 text-left transition hover:bg-white"
-                      >
-                        <div className="flex min-w-0 items-center gap-3">
-                          {employee.profilePictureUrl ? (
-                            <Image
-                              src={employee.profilePictureUrl}
-                              alt={employee.name || 'Employee on leave'}
-                              width={36}
-                              height={36}
-                              className="h-9 w-9 rounded-full border border-outline-variant/10 object-cover"
-                              unoptimized
-                            />
-                          ) : (
-                            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-100 text-xs font-bold text-amber-700">
-                              {getInitials(employee.name)}
-                            </div>
-                          )}
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-on-surface">{employee.name || 'Employee'}</p>
-                            <p className="truncate text-xs text-on-surface-variant">
-                              {employee.employeeCode || 'No employee ID'} {employee.designation ? `· ${employee.designation}` : ''}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="shrink-0 text-right">
-                          <p className="text-xs font-semibold text-on-surface">{formatLeaveWindow(employee.startDate, employee.endDate)}</p>
-                          <p className="mt-0.5 text-[11px] text-on-surface-variant">
-                            {String(employee.session || 'full_day').replace(/_/g, ' ')}
-                          </p>
-                        </div>
-                      </button>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              {lifecycleReminders.length ? (
-                <div className="rounded-[1.35rem] border border-outline-variant/10 bg-surface-container-low p-4 shadow-sm">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <h3 className="font-headline text-base font-bold text-on-surface">Lifecycle reminders</h3>
-                      <p className="mt-1 text-xs text-on-surface-variant">
-                        Pending HR action after probation or notice completion.
-                      </p>
-                    </div>
-                    <span className="inline-flex w-fit rounded-full border border-primary/15 bg-primary/5 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-primary">
-                      {lifecycleReminders.length} pending
-                    </span>
-                  </div>
-                  <div className="mt-3 space-y-2">
-                    {lifecycleReminders.map((item) => (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedEmployeeId?.(item.id);
-                          setCurrentTab?.('admin-employee-profile');
-                        }}
-                        className="flex w-full items-center justify-between gap-3 rounded-xl border border-outline-variant/10 bg-surface-container-lowest px-3 py-2.5 text-left transition hover:bg-white"
-                      >
-                        <div className="flex min-w-0 items-center gap-3">
-                          {item.profile_picture_url ? (
-                            <Image
-                              src={item.profile_picture_url}
-                              alt={item.name || 'Employee'}
-                              width={36}
-                              height={36}
-                              className="h-9 w-9 rounded-full border border-outline-variant/10 object-cover"
-                              unoptimized
-                            />
-                          ) : (
-                            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-                              {getInitials(item.name)}
-                            </div>
-                          )}
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-on-surface">{item.name || 'Employee'}</p>
-                            <p className="truncate text-xs text-on-surface-variant">
-                              {item.stage === 'probation' ? 'Remove probation' : 'Review notice'} · {item.employee_id || 'No employee ID'}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="shrink-0 text-right">
-                          <p className="text-xs font-semibold text-on-surface">{formatDate(item.dueDate)}</p>
-                          <p className="mt-0.5 text-[11px] text-on-surface-variant">{item.title}</p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-            </div>
-
-            <div className="space-y-5 self-start xl:max-w-[300px]">
-              <div className="relative">
-                {(dashboard.upcomingBirthdays || []).length > 0 ? (
-                  <button
-                    type="button"
-                    onClick={handleBirthdayCardDownload}
-                    disabled={isDownloadingBirthdayCard}
-                    className="absolute right-3 top-3 z-20 inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/70 bg-white/85 text-[#9A3412] shadow-md backdrop-blur-sm transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
-                    title="Download birthday card"
-                    aria-label="Download birthday card"
-                  >
-                    <Download className="h-4 w-4" />
-                  </button>
-                ) : null}
-
-                <div className="relative overflow-hidden rounded-[2rem] border border-[#E9D8FF] bg-[#F6ECFF] p-5 shadow-[0_22px_70px_rgba(137,92,246,0.16)]">
-                  <div className="pointer-events-none absolute -right-12 -top-14 h-40 w-40 rounded-full bg-[#D8B4FE]/60 blur-3xl" />
-                  <div className="pointer-events-none absolute left-1/2 top-0 h-24 w-24 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#F0ABFC]/45 blur-2xl" />
-                  <div className="pointer-events-none absolute -left-8 bottom-12 h-28 w-28 rounded-full bg-[#BFDBFE]/35 blur-3xl" />
-                  <div className="pointer-events-none absolute right-6 top-16 h-2.5 w-2.5 rounded-full bg-[#A855F7]/65" />
-                  <div className="pointer-events-none absolute right-12 top-24 h-1.5 w-1.5 rounded-full bg-[#EC4899]/70" />
-                  <div className="pointer-events-none absolute left-8 top-20 h-2 w-2 rounded-full bg-[#8B5CF6]/60" />
-
-                  <div className="relative flex h-full flex-col">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <p className="text-[11px] font-bold uppercase tracking-[0.26em] text-[#B45309]">{birthdayLabel}</p>
-                      </div>
-                      <span className="material-symbols-outlined text-[28px] text-[#EA580C]">celebration</span>
-                    </div>
-
-                    {(dashboard.upcomingBirthdays || []).length === 0 ? (
-                      <div className="mt-6">
-                        <HrmEmptyState
-                          compact
-                          icon="cake"
-                          title="No birthdays available yet"
-                          message="Add employee birth dates in the HR records to start showing upcoming birthday reminders here."
-                          className="border-white/70 bg-white/45"
-                        />
-                      </div>
-                    ) : (
-                      <div className="mt-6 flex flex-col items-center px-1 pb-1 text-center">
-                        <div className={avatarLayoutClassName}>
-                          {visibleBirthdayEmployees.map((employee) => (
-                            <div key={employee.id} className="flex flex-col items-center text-center">
-                              {employee?.profile_picture_url ? (
-                                <Image
-                                  src={employee.profile_picture_url}
-                                  alt={employee.name || 'Birthday employee'}
-                                  width={88}
-                                  height={88}
-                                  className="h-[88px] w-[88px] rounded-full border-4 border-white/90 object-cover shadow-[0_18px_36px_rgba(49,112,197,0.22)]"
-                                  unoptimized
-                                />
-                              ) : (
-                                <div
-                                  className="flex h-[88px] w-[88px] items-center justify-center rounded-full border-4 border-white/90 bg-white text-2xl font-extrabold text-[#3170c5] shadow-[0_18px_36px_rgba(49,112,197,0.22)]"
-                                >
-                                  {getInitials(employee?.name)}
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                        {featuredBirthdayGroup.length > 4 ? (
-                          <p className="mt-4 text-xs font-bold uppercase tracking-[0.2em] text-[#C2410C]">
-                            +{featuredBirthdayGroup.length - 4} more on the same date
-                          </p>
-                        ) : null}
-                        <p className="mt-5 text-xl font-extrabold leading-tight text-[#4A2412]">
-                          {birthdayCopy.heading}
-                        </p>
-                        <p className="mt-3 max-w-[15rem] text-sm leading-6 text-[#7C5A49]">
-                          {birthdayCopy.body}
-                        </p>
-                        <div className="mt-5 inline-flex items-center gap-2 rounded-full bg-white/85 px-4 py-2 text-sm font-bold text-[#9A3412] shadow-sm">
-                          <span className="material-symbols-outlined text-[18px] text-[#EA580C]">cake</span>
-                          {formatBirthday(featuredBirthday?.date_of_birth)}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="relative overflow-hidden rounded-[2rem] border border-[#afd0f4] bg-[#edf4fc] p-5 shadow-[0_22px_70px_rgba(49,112,197,0.16)]">
-                <div className="pointer-events-none absolute -right-12 -top-14 h-40 w-40 rounded-full bg-[#afd0f4]/60 blur-3xl" />
-                <div className="pointer-events-none absolute left-1/2 top-0 h-24 w-24 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#d7e7f9]/45 blur-2xl" />
-                <div className="pointer-events-none absolute -left-8 bottom-12 h-28 w-28 rounded-full bg-[#BFDBFE]/35 blur-3xl" />
-                <div className="pointer-events-none absolute right-6 top-16 h-2.5 w-2.5 rounded-full bg-[#4f8be4]/65" />
-                <div className="pointer-events-none absolute right-12 top-24 h-1.5 w-1.5 rounded-full bg-[#8fb2f5]/70" />
-                <div className="pointer-events-none absolute left-8 top-20 h-2 w-2 rounded-full bg-[#3170c5]/60" />
-
-                <div className="relative flex h-full flex-col">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-[11px] font-bold uppercase tracking-[0.26em] text-[#B45309]">{anniversaryLabel}</p>
-                    </div>
-                    <span className="material-symbols-outlined text-[28px] text-[#EA580C]">workspace_premium</span>
-                  </div>
-
-                  {(dashboard.upcomingAnniversaries || []).length === 0 ? (
-                    <div className="mt-6">
-                      <HrmEmptyState
-                        compact
-                        icon="workspace_premium"
-                        title="No anniversaries available yet"
-                        message="Add employee joining dates in the HR records to start showing upcoming work anniversaries here."
-                        className="border-white/70 bg-white/45"
-                      />
-                    </div>
-                  ) : (
-                    <div className="mt-6 flex flex-col items-center px-1 pb-1 text-center">
-                      <div className={anniversaryAvatarLayoutClassName}>
-                        {visibleAnniversaryEmployees.map((employee) => (
-                          <div key={employee.id} className="flex flex-col items-center text-center">
-                            {employee?.profile_picture_url ? (
-                              <Image
-                                src={employee.profile_picture_url}
-                                alt={employee.name || 'Anniversary employee'}
-                                width={88}
-                                height={88}
-                                className="h-[88px] w-[88px] rounded-full border-4 border-white/90 object-cover shadow-[0_18px_36px_rgba(49,112,197,0.22)]"
-                                unoptimized
-                              />
-                            ) : (
-                              <div
-                                className="flex h-[88px] w-[88px] items-center justify-center rounded-full border-4 border-white/90 bg-white text-2xl font-extrabold text-[#3170c5] shadow-[0_18px_36px_rgba(49,112,197,0.22)]"
-                              >
-                                {getInitials(employee?.name)}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                      {featuredAnniversaryGroup.length > 4 ? (
-                        <p className="mt-4 text-xs font-bold uppercase tracking-[0.2em] text-[#C2410C]">
-                          +{featuredAnniversaryGroup.length - 4} more on the same date
-                        </p>
-                      ) : null}
-                      <p className="mt-5 text-xl font-extrabold leading-tight text-[#4A2412]">
-                        {anniversaryCopy.heading}
-                      </p>
-                      <p className="mt-3 max-w-[15rem] text-sm leading-6 text-[#7C5A49]">
-                        {anniversaryCopy.body}
-                      </p>
-                      <div className="mt-5 flex flex-col items-center gap-2">
-                        <div className="inline-flex items-center gap-2 rounded-full bg-white/85 px-4 py-2 text-sm font-bold text-[#9A3412] shadow-sm">
-                          <span className="material-symbols-outlined text-[18px] text-[#EA580C]">calendar_month</span>
-                          {formatAnniversary(featuredAnniversary?.date_of_joining)}
-                        </div>
-                        <div className="inline-flex items-center gap-2 rounded-full bg-white/80 px-4 py-2 text-xs font-bold uppercase tracking-[0.14em] text-[#7C3AED] shadow-sm">
-                          <span className="material-symbols-outlined text-[16px] text-[#A855F7]">military_tech</span>
-                          {getAnniversaryYearLabel(featuredAnniversary?.completedYears)}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </section>
-        </div>
-      )}
+            </Panel>
+          ) : null}
+        </section>
+      </div>
     </div>
   );
 }

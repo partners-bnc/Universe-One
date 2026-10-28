@@ -33,25 +33,25 @@ const PAGES = [
 const MAX_PER_CATEGORY = 5;
 
 const statusColors = {
-  New: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-  Contacted: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300',
-  Qualified: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
-  Won: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
-  Lost: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+  New: 'bg-[#0071E3]/10 text-[#0071E3] dark:bg-[#0071E3]/20 dark:text-[#2997FF] border border-[#0071E3]/20',
+  Contacted: 'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300 border border-amber-200/60 dark:border-amber-500/20',
+  Qualified: 'bg-purple-50 text-purple-700 dark:bg-purple-500/15 dark:text-purple-300 border border-purple-200/60 dark:border-purple-500/20',
+  Won: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-500/20',
+  Lost: 'bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300 border border-rose-200/60 dark:border-rose-500/20',
 };
 
 const priorityColors = {
-  High: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
-  Medium: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
-  Low: 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300',
+  High: 'bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300 border border-rose-200/60 dark:border-rose-500/20',
+  Medium: 'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300 border border-amber-200/60 dark:border-amber-500/20',
+  Low: 'bg-[#F5F5F7] text-[#6E6E73] dark:bg-white/10 dark:text-white/70 border border-[#D2D2D7]/60 dark:border-white/10',
 };
 
 const taskStatusColors = {
-  Pending: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-  'In Progress': 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
-  Completed: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
-  Overdue: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
-  Cancelled: 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400',
+  Pending: 'bg-[#0071E3]/10 text-[#0071E3] dark:bg-[#0071E3]/20 dark:text-[#2997FF] border border-[#0071E3]/20',
+  'In Progress': 'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300 border border-amber-200/60 dark:border-amber-500/20',
+  Completed: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-500/20',
+  Overdue: 'bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300 border border-rose-200/60 dark:border-rose-500/20',
+  Cancelled: 'bg-[#F5F5F7] text-[#6E6E73] dark:bg-white/10 dark:text-white/70 border border-[#D2D2D7]/60 dark:border-white/10',
 };
 
 export default function CommandPalette() {
@@ -227,21 +227,21 @@ export default function CommandPalette() {
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-start justify-center pt-[15vh] animate-in fade-in duration-150"
+      className="fixed inset-0 z-[100] flex items-start justify-center pt-[14vh] p-4 animate-in fade-in duration-150"
       onClick={close}
     >
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-md" />
 
       {/* Modal */}
       <div
-        className="relative w-full max-w-[640px] mx-4 rounded-2xl border border-slate-200/20 dark:border-slate-700/50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl shadow-slate-900/20 dark:shadow-black/40 overflow-hidden"
+        className="relative w-full max-w-[620px] rounded-[22px] border border-[#D2D2D7]/80 dark:border-white/10 bg-white/90 dark:bg-[#1D1D1F]/90 backdrop-blur-2xl shadow-[0_24px_70px_rgba(0,0,0,0.22)] overflow-hidden"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={handleKeyDown}
       >
         {/* Search Input */}
-        <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-200/70 dark:border-slate-700/50">
-          <Search className="w-5 h-5 text-slate-400 dark:text-slate-500 shrink-0" />
+        <div className="flex items-center gap-3 px-6 py-4 border-b border-[#D2D2D7]/70 dark:border-white/10">
+          <Search className="w-5 h-5 text-[#0071E3] shrink-0" />
           <input
             ref={inputRef}
             type="text"
@@ -251,44 +251,44 @@ export default function CommandPalette() {
               setSelectedIndex(0);
             }}
             placeholder="Search pages, leads, tasks..."
-            className="flex-1 bg-transparent text-base text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none"
+            className="flex-1 bg-transparent text-[16px] text-[#1D1D1F] dark:text-white placeholder-[#86868B] outline-none"
           />
-          <kbd className="hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] font-semibold text-slate-500 dark:text-slate-400 select-none">
+          <kbd className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-[6px] bg-[#F5F5F7] dark:bg-white/10 border border-[#D2D2D7]/60 dark:border-white/10 text-[11px] font-medium text-[#6E6E73] dark:text-white/70 select-none">
             ESC
           </kbd>
         </div>
 
         {/* Results */}
-        <div ref={listRef} className="max-h-[360px] overflow-y-auto py-2 scroll-smooth">
+        <div ref={listRef} className="max-h-[360px] overflow-y-auto py-2.5 px-2 scroll-smooth space-y-1">
           {results.length === 0 && query.length > 0 && (
-            <div className="flex flex-col items-center justify-center py-12 px-4">
-              <Search className="w-10 h-10 text-slate-300 dark:text-slate-600 mb-3" />
-              <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+            <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+              <Search className="w-8 h-8 text-[#86868B] mb-2.5 opacity-60" />
+              <p className="text-[14px] font-medium text-[#1D1D1F] dark:text-white">
                 No results found
               </p>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+              <p className="text-[12px] text-[#86868B] mt-0.5">
                 Try searching with different keywords
               </p>
             </div>
           )}
 
           {results.length === 0 && query.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-12 px-4">
-              <Command className="w-10 h-10 text-slate-300 dark:text-slate-600 mb-3" />
-              <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                Type to search...
+            <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+              <Command className="w-8 h-8 text-[#86868B] mb-2.5 opacity-60" />
+              <p className="text-[14px] font-medium text-[#1D1D1F] dark:text-white">
+                Spotlight Search
               </p>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
-                Search across pages, leads, and tasks
+              <p className="text-[12px] text-[#86868B] mt-0.5">
+                Quick jump to pages, active leads, and team tasks
               </p>
             </div>
           )}
 
           {results.map((section) => (
-            <div key={section.title} className="mb-1">
+            <div key={section.title} className="mb-2">
               {/* Section Header */}
-              <div className="px-5 py-2">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+              <div className="px-4 py-1.5">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-[#86868B]">
                   {section.title}
                 </span>
               </div>
@@ -305,19 +305,19 @@ export default function CommandPalette() {
                     data-selected={isSelected}
                     onClick={() => handleSelect(item)}
                     onMouseEnter={() => setSelectedIndex(currentIdx)}
-                    className={`w-full flex items-center gap-3 px-5 py-2.5 text-left transition-colors duration-100 cursor-pointer group ${
+                    className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-[12px] text-left transition-all duration-100 cursor-pointer group ${
                       isSelected
-                        ? 'bg-blue-50 dark:bg-blue-950/40'
-                        : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                        ? 'bg-[#0071E3] text-white shadow-[0_2px_8px_rgba(0,113,227,0.25)]'
+                        : 'hover:bg-[#F5F5F7] dark:hover:bg-white/5 text-[#1D1D1F] dark:text-white'
                     }`}
                   >
                     {/* Icon */}
                     {item.type === 'page' && (
                       <div
-                        className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                        className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-colors ${
                           isSelected
-                            ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400'
-                            : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+                            ? 'bg-white/20 text-white'
+                            : 'bg-[#F5F5F7] text-[#1D1D1F] dark:bg-white/10 dark:text-white'
                         }`}
                       >
                         <item.icon className="w-4 h-4" />
@@ -325,10 +325,10 @@ export default function CommandPalette() {
                     )}
                     {item.type === 'lead' && (
                       <div
-                        className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                        className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-colors ${
                           isSelected
-                            ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-400'
-                            : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+                            ? 'bg-white/20 text-white'
+                            : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-300'
                         }`}
                       >
                         <Users className="w-4 h-4" />
@@ -336,10 +336,10 @@ export default function CommandPalette() {
                     )}
                     {item.type === 'task' && (
                       <div
-                        className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                        className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-colors ${
                           isSelected
-                            ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/50 dark:text-amber-400'
-                            : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+                            ? 'bg-white/20 text-white'
+                            : 'bg-amber-50 text-amber-600 dark:bg-amber-500/20 dark:text-amber-300'
                         }`}
                       >
                         <CheckSquare className="w-4 h-4" />
@@ -350,10 +350,8 @@ export default function CommandPalette() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span
-                          className={`text-sm font-medium truncate ${
-                            isSelected
-                              ? 'text-blue-700 dark:text-blue-300'
-                              : 'text-slate-700 dark:text-slate-200'
+                          className={`text-[14px] font-medium truncate ${
+                            isSelected ? 'text-white' : 'text-[#1D1D1F] dark:text-white'
                           }`}
                         >
                           {item.label}
@@ -362,8 +360,10 @@ export default function CommandPalette() {
                         {/* Status badge for leads/tasks */}
                         {item.type === 'lead' && item.status && (
                           <span
-                            className={`inline-flex px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${
-                              statusColors[item.status] || 'bg-slate-100 text-slate-500'
+                            className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide ${
+                              isSelected
+                                ? 'bg-white/25 text-white'
+                                : statusColors[item.status] || 'bg-[#F5F5F7] text-[#6E6E73]'
                             }`}
                           >
                             {item.status}
@@ -371,8 +371,10 @@ export default function CommandPalette() {
                         )}
                         {item.type === 'task' && item.status && (
                           <span
-                            className={`inline-flex px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${
-                              taskStatusColors[item.status] || 'bg-slate-100 text-slate-500'
+                            className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide ${
+                              isSelected
+                                ? 'bg-white/25 text-white'
+                                : taskStatusColors[item.status] || 'bg-[#F5F5F7] text-[#6E6E73]'
                             }`}
                           >
                             {item.status}
@@ -380,8 +382,10 @@ export default function CommandPalette() {
                         )}
                         {item.type === 'task' && item.priority && (
                           <span
-                            className={`inline-flex px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${
-                              priorityColors[item.priority] || 'bg-slate-100 text-slate-500'
+                            className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide ${
+                              isSelected
+                                ? 'bg-white/25 text-white'
+                                : priorityColors[item.priority] || 'bg-[#F5F5F7] text-[#6E6E73]'
                             }`}
                           >
                             {item.priority}
@@ -391,10 +395,18 @@ export default function CommandPalette() {
 
                       {/* Subtitle for leads */}
                       {item.type === 'lead' && (
-                        <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                        <p
+                          className={`text-[12px] truncate mt-0.5 ${
+                            isSelected ? 'text-white/80' : 'text-[#86868B]'
+                          }`}
+                        >
                           {item.subtitle}
                           {item.value && (
-                            <span className="ml-2 text-emerald-600 dark:text-emerald-400 font-semibold">
+                            <span
+                              className={`ml-2 font-semibold ${
+                                isSelected ? 'text-white' : 'text-emerald-600 dark:text-emerald-400'
+                              }`}
+                            >
                               {item.value}
                             </span>
                           )}
@@ -406,8 +418,8 @@ export default function CommandPalette() {
                     <ArrowRight
                       className={`w-4 h-4 shrink-0 transition-all duration-150 ${
                         isSelected
-                          ? 'opacity-100 text-blue-500 dark:text-blue-400 translate-x-0'
-                          : 'opacity-0 -translate-x-1 text-slate-400'
+                          ? 'opacity-100 text-white translate-x-0'
+                          : 'opacity-0 -translate-x-1 text-[#86868B]'
                       }`}
                     />
                   </button>
@@ -418,28 +430,28 @@ export default function CommandPalette() {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-5 py-2.5 border-t border-slate-200/70 dark:border-slate-700/50 bg-slate-50/80 dark:bg-slate-900/80">
-          <div className="flex items-center gap-3 text-[11px] text-slate-400 dark:text-slate-500">
+        <div className="flex items-center justify-between px-6 py-3 border-t border-[#D2D2D7]/70 dark:border-white/10 bg-[#F5F5F7]/80 dark:bg-[#1D1D1F]/80 backdrop-blur-md">
+          <div className="flex items-center gap-3 text-[11px] text-[#86868B]">
             <span className="flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 rounded bg-slate-200/80 dark:bg-slate-700 font-semibold text-slate-500 dark:text-slate-400">
+              <kbd className="px-1.5 py-0.5 rounded-[5px] bg-white dark:bg-white/10 border border-[#D2D2D7]/60 dark:border-white/10 font-semibold text-[#1D1D1F] dark:text-white">
                 ↑↓
               </kbd>
               navigate
             </span>
             <span className="flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 rounded bg-slate-200/80 dark:bg-slate-700 font-semibold text-slate-500 dark:text-slate-400">
+              <kbd className="px-1.5 py-0.5 rounded-[5px] bg-white dark:bg-white/10 border border-[#D2D2D7]/60 dark:border-white/10 font-semibold text-[#1D1D1F] dark:text-white">
                 ↵
               </kbd>
               select
             </span>
             <span className="flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 rounded bg-slate-200/80 dark:bg-slate-700 font-semibold text-slate-500 dark:text-slate-400">
+              <kbd className="px-1.5 py-0.5 rounded-[5px] bg-white dark:bg-white/10 border border-[#D2D2D7]/60 dark:border-white/10 font-semibold text-[#1D1D1F] dark:text-white">
                 esc
               </kbd>
               close
             </span>
           </div>
-          <div className="flex items-center gap-1 text-[11px] text-slate-400 dark:text-slate-500 font-medium">
+          <div className="flex items-center gap-1 text-[11px] text-[#86868B] font-medium">
             <Command className="w-3 h-3" />
             <span>K</span>
           </div>

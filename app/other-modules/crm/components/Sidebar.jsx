@@ -30,23 +30,26 @@ const SidebarItem = ({ icon: Icon, label, href, isCollapsed, badge }) => {
   return (
     <Link
       href={href || '#'}
-      className={`flex items-center py-2.5 cursor-pointer transition-colors duration-200 rounded-lg mx-2 ${isActive
-        ? 'bg-blue-50 dark:bg-slate-800 border-l-4 border-blue-500 text-blue-700 dark:text-white'
-        : 'border-l-4 border-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
-        } ${isCollapsed ? 'justify-center px-0' : 'px-3'}`}
+      className={`group flex items-center h-[38px] cursor-pointer transition-all duration-150 rounded-full mx-2.5 ${
+        isActive
+          ? 'bg-[#0071E3] text-white shadow-xs font-medium'
+          : 'text-[#1D1D1F] dark:text-[#E8E8ED] hover:bg-[#0000000A] dark:hover:bg-white/5'
+      } ${isCollapsed ? 'justify-center px-0' : 'px-3.5'}`}
       title={isCollapsed ? label : undefined}
     >
       <div className={`${badge ? 'relative' : ''} flex-shrink-0`}>
-        <Icon className={`w-5 h-5 ${isCollapsed ? '' : 'mr-3'}`} />
+        <Icon className={`w-4.5 h-4.5 ${isCollapsed ? '' : 'mr-3'} ${isActive ? 'text-white' : 'text-[#6E6E73] group-hover:text-[#1D1D1F] dark:group-hover:text-white transition-colors'}`} />
         {isCollapsed && badge > 0 && (
-          <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full" />
+          <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-[#FF3B30] rounded-full" />
         )}
       </div>
       {!isCollapsed && (
         <>
-          <span className="text-sm font-medium truncate flex-1">{label}</span>
+          <span className="text-[13px] truncate flex-1 tracking-tight">{label}</span>
           {badge > 0 && (
-            <span className="bg-red-500 text-white text-[10px] font-bold min-w-[20px] h-5 flex items-center justify-center px-1.5 rounded-full ml-auto">
+            <span className={`text-[10px] font-bold min-w-[18px] h-4.5 flex items-center justify-center px-1.5 rounded-full ml-auto ${
+              isActive ? 'bg-white text-[#0071E3]' : 'bg-[#FF3B30] text-white'
+            }`}>
               {badge}
             </span>
           )}
@@ -57,52 +60,51 @@ const SidebarItem = ({ icon: Icon, label, href, isCollapsed, badge }) => {
 };
 
 const SectionLabel = ({ label, isCollapsed }) => {
-  if (isCollapsed) return <div className="w-8 mx-auto my-2 border-t border-slate-200 dark:border-slate-700" />;
+  if (isCollapsed) return <div className="w-6 mx-auto my-2 border-t border-[#D2D2D7] dark:border-white/10" />;
   return (
-    <div className="px-4 pt-4 pb-1">
-      <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">{label}</span>
+    <div className="px-5 pt-3.5 pb-1">
+      <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#86868B]">{label}</span>
     </div>
   );
 };
 
 const Divider = () => (
-  <div className="my-2 border-t border-slate-100 dark:border-slate-800 mx-4" />
+  <div className="my-2 border-t border-[#D2D2D7]/60 dark:border-white/10 mx-4" />
 );
 
 const Sidebar = () => {
   const { isDarkMode, toggleDarkMode, permissions, isSidebarCollapsed, toggleSidebar, followups, tasks, currentUser } = useCrm();
 
-  const pendingFollowups = followups.filter(f => f.status !== 'Completed').length;
-  const pendingTasks = tasks.filter(t => t.status !== 'Completed' && t.status !== 'Cancelled').length;
-
   const canViewDashboard = ['admin', 'manager'].includes(currentUser.role);
-  const canImportData = currentUser.role === 'admin';
 
   return (
-    <div
-      className={`flex flex-col h-screen bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 flex-shrink-0 shadow-md dark:shadow-xl overflow-y-auto scrollbar-hide border-r border-slate-200 dark:border-slate-800 transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'w-20' : 'w-52'
-        }`}
+    <aside
+      className={`flex flex-col h-screen bg-white/80 dark:bg-[#1D1D1F]/80 backdrop-blur-xl text-[#1D1D1F] dark:text-[#F5F5F7] flex-shrink-0 border-r border-[#D2D2D7] dark:border-white/10 transition-all duration-200 ease-in-out select-none ${
+        isSidebarCollapsed ? 'w-20' : 'w-56'
+      }`}
     >
-      {/* Header / Title */}
-      <div className={`flex items-center pt-6 pb-4 border-b border-slate-100 dark:border-slate-800 ${isSidebarCollapsed ? 'justify-center px-2' : 'justify-between px-4'}`}>
+      {/* Header / Brand */}
+      <div className={`flex items-center h-16 border-b border-[#D2D2D7]/60 dark:border-white/10 ${isSidebarCollapsed ? 'justify-center px-2' : 'justify-between px-5'}`}>
         {!isSidebarCollapsed && (
-          <span className="text-lg font-extrabold text-slate-800 dark:text-white tracking-tight leading-none">
-            BnC CRM
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-base font-semibold tracking-[-0.28px] text-[#1D1D1F] dark:text-white">
+              BnC CRM
+            </span>
+          </div>
         )}
         <button
           onClick={toggleSidebar}
-          className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-white shrink-0"
+          className="p-1.5 rounded-full hover:bg-[#0000000A] dark:hover:bg-white/10 transition-colors text-[#86868B] hover:text-[#1D1D1F] dark:hover:text-white shrink-0 cursor-pointer"
           title={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           <ChevronLeft
-            className={`w-5 h-5 transition-transform duration-300 ${isSidebarCollapsed ? 'rotate-180' : ''}`}
+            className={`w-4.5 h-4.5 transition-transform duration-200 ${isSidebarCollapsed ? 'rotate-180' : ''}`}
           />
         </button>
       </div>
 
       {/* Navigation */}
-      <div className="flex-1 flex flex-col pb-4 space-y-0.5 mt-2">
+      <div className="flex-1 flex flex-col py-3 space-y-1 overflow-y-auto scrollbar-hide">
         {canViewDashboard && (
           <SidebarItem icon={LayoutDashboard} label="Dashboard" href="/other-modules/crm/dashboard" isCollapsed={isSidebarCollapsed} />
         )}
@@ -124,25 +126,26 @@ const Sidebar = () => {
         <SidebarItem icon={LayoutGrid} label="All Modules" href="/other-modules" isCollapsed={isSidebarCollapsed} />
       </div>
 
-      {/* Dark Mode Toggle */}
+      {/* Theme Toggle */}
       <div
-        className={`p-3 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-950 ${isSidebarCollapsed ? 'flex justify-center' : 'flex items-center justify-between px-5'
-          }`}
+        className={`p-3 border-t border-[#D2D2D7]/60 dark:border-white/10 bg-transparent ${
+          isSidebarCollapsed ? 'flex justify-center' : 'flex items-center justify-between px-5'
+        }`}
       >
         {!isSidebarCollapsed && (
-          <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
-            Dark Mode
+          <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#86868B]">
+            Appearance
           </span>
         )}
         <button
           onClick={toggleDarkMode}
-          className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors shadow-sm"
-          title="Toggle Dark Mode"
+          className="p-2 rounded-full hover:bg-[#0000000A] dark:hover:bg-white/10 transition-colors text-[#6E6E73] dark:text-[#A1A1A6] cursor-pointer"
+          title="Toggle Appearance"
         >
           {isDarkMode ? (
-            <Sun className="w-4 h-4 text-yellow-400" />
+            <Sun className="w-4 h-4 text-amber-400" />
           ) : (
-            <Moon className="w-4 h-4 text-slate-500" />
+            <Moon className="w-4 h-4 text-[#6E6E73]" />
           )}
         </button>
       </div>
@@ -151,19 +154,11 @@ const Sidebar = () => {
         __html: `
           .scrollbar-hide::-webkit-scrollbar { display: none; }
           .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-          .bg-blue-50 {
-            background-color: rgba(37, 89, 165, 0.08) !important;
-          }
-          .border-blue-500 {
-            border-color: rgb(37, 89, 165) !important;
-          }
-          .text-blue-700 {
-            color: rgb(37, 89, 165) !important;
-          }
         `
       }} />
-    </div>
+    </aside>
   );
 };
 
 export default Sidebar;
+

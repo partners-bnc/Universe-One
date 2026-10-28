@@ -58,47 +58,113 @@ import {
 // ─── STYLES & FONTS ──────────────────────────────────────────────────────────
 const FontStyles = () => (
   <style>{`
-    @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
     *{margin:0;padding:0;box-sizing:border-box;}
-    body,#root{height:100%;font-family:'Sora',sans-serif;}
-    ::-webkit-scrollbar{width:5px;height:5px;}
-    ::-webkit-scrollbar-track{background:#f1f5f9;}
-    ::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px;}
+    html, body, #root {
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      background: #F5F5F7;
+      color: #1D1D1F;
+    }
+    html {
+      scroll-behavior: smooth;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.16);
+      border-radius: 980px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(0, 0, 0, 0.28);
+    }
+    .apple-glass {
+      background: rgba(255, 255, 255, 0.78);
+      backdrop-filter: blur(24px) saturate(180%);
+      -webkit-backdrop-filter: blur(24px) saturate(180%);
+      border: 1px solid rgba(210, 210, 215, 0.65);
+    }
+    .apple-glass-card {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(20px) saturate(170%);
+      -webkit-backdrop-filter: blur(20px) saturate(170%);
+      border: 1px solid #D2D2D7;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+    }
+    .apple-click {
+      transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.16s ease, background-color 0.16s ease;
+    }
+    .apple-click:active {
+      transform: scale(0.975);
+    }
     @keyframes toastSlideIn {
       from { opacity: 0; transform: translateY(16px) scale(0.96); }
       to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes appleShimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
     }
   `}</style>
 );
 
 const C = {
-  bg: "#f8fafc", bg2: "#f1f5f9", surface: "#ffffff", surface2: "#f8fafc",
-  border: "#e2e8f0", border2: "#cbd5e1",
-  teal: "#0d9488", teal2: "#0f766e", tealBg: "#f0fdfa", tealBorder: "#99f6e4",
-  amber: "#d97706", amberBg: "#fffbeb", amberBorder: "#fde68a",
-  red: "#dc2626", redBg: "#fef2f2", redBorder: "#fecaca",
-  blue: "#2563eb", blueBg: "#eff6ff", blueBorder: "#bfdbfe",
-  green: "#16a34a", greenBg: "#f0fdf4", greenBorder: "#bbf7d0",
-  purple: "#7c3aed", purpleBg: "#f5f3ff", purpleBorder: "#ddd6fe",
-  text1: "#0f172a", text2: "#475569", text3: "#94a3b8",
+  bg: "#F5F5F7",
+  bg2: "#EBEBED",
+  surface: "#FFFFFF",
+  surface2: "rgba(255,255,255,0.72)",
+  border: "#D2D2D7",
+  border2: "#E5E5EA",
+  // Primary brand / Action Blue mapped from previous teal
+  teal: "#0071E3",
+  teal2: "#0077ED",
+  tealBg: "rgba(0,113,227,0.08)",
+  tealBorder: "rgba(0,113,227,0.22)",
+  // Semantic System
+  amber: "#FF9500",
+  amberBg: "#FFF8EB",
+  amberBorder: "#FFE2B3",
+  red: "#FF3B30",
+  redBg: "#FEF2F2",
+  redBorder: "#FFCDD2",
+  blue: "#0071E3",
+  blueBg: "#E8F2FD",
+  blueBorder: "#B3D7FF",
+  green: "#34C759",
+  greenBg: "#EBF9EF",
+  greenBorder: "#BCECC8",
+  purple: "#AF52DE",
+  purpleBg: "#F8F2FC",
+  purpleBorder: "#E5CBF6",
+  // Typography ink tokens
+  text1: "#1D1D1F",
+  text2: "#86868B",
+  text3: "#AEAEB2",
 };
 
 export const STATUS_CONFIG = {
-  "Pending": { bg: "#fef3c7", color: "#d97706", border: "#fde68a", label: "Pending" },
-  "Under Review": { bg: "#ede9fe", color: "#6d28d9", border: "#ddd6fe", label: "Under Review" },
-  "Partially Received": { bg: "#fffbeb", color: "#b45309", border: "#fef3c7", label: "Partially Received" },
-  "Received Wrong": { bg: "#fef2f2", color: "#dc2626", border: "#fecaca", label: "Received Wrong" },
-  "Received": { bg: "#f0fdf4", color: "#16a34a", border: "#bbf7d0", label: "Received" }
+  "Pending": { bg: "#FFF8EB", color: "#FF9500", border: "#FFE2B3", label: "Pending" },
+  "Under Review": { bg: "#F8F2FC", color: "#AF52DE", border: "#E5CBF6", label: "Under Review" },
+  "Partially Received": { bg: "#FFF3E0", color: "#F57C00", border: "#FFE0B2", label: "Partially Received" },
+  "Received Wrong": { bg: "#FEF2F2", color: "#FF3B30", border: "#FFCDD2", label: "Received Wrong" },
+  "Received": { bg: "#EBF9EF", color: "#34C759", border: "#BCECC8", label: "Received" }
 };
 
 export const EMAIL_STATUS_CONFIG = {
-  "Not Sent": { bg: "#f1f5f9", color: "#64748b", border: "#cbd5e1", label: "Not Sent" },
-  "Email Sent": { bg: "#e0f2fe", color: "#0369a1", border: "#bae6fd", label: "Email Sent" },
-  "Resent": { bg: "#f0fdfa", color: "#0d9488", border: "#99f6e4", label: "Resent" },
-  "Failed": { bg: "#fef2f2", color: "#dc2626", border: "#fecaca", label: "Failed" }
+  "Not Sent": { bg: "#F5F5F7", color: "#86868B", border: "#D2D2D7", label: "Not Sent" },
+  "Email Sent": { bg: "#E8F2FD", color: "#0071E3", border: "#B3D7FF", label: "Email Sent" },
+  "Resent": { bg: "rgba(0,113,227,0.08)", color: "#0071E3", border: "rgba(0,113,227,0.22)", label: "Resent" },
+  "Failed": { bg: "#FEF2F2", color: "#FF3B30", border: "#FFCDD2", label: "Failed" }
 };
 
-const MONO = "'JetBrains Mono', monospace";
+const MONO = "'JetBrains Mono', -apple-system, monospace";
 
 export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
   // Sidebar Toggle State (open by default)
@@ -3482,81 +3548,105 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
   };
 
   return (
-    <div style={{ minHeight: "100vh", backgroundColor: C.bg, fontFamily: "'Sora', sans-serif", color: C.text1, display: "flex", flexDirection: "column" }}>
+    <div style={{ minHeight: "100vh", backgroundColor: C.bg, fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', sans-serif", color: C.text1, display: "flex", flexDirection: "column" }}>
       <FontStyles />
 
-      {/* ── TOP HEADER NAVBAR ── */}
-      <div style={{ height: 64, backgroundColor: C.surface, borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px", zIndex: 10 }}>
+      {/* ── TOP HEADER NAVBAR (Apple Liquid Glass) ── */}
+      <div style={{
+        height: 64,
+        backgroundColor: "rgba(255, 255, 255, 0.85)",
+        backdropFilter: "blur(20px)",
+        WebkitBackdropFilter: "blur(20px)",
+        borderBottom: `1px solid ${C.border}`,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: "0 24px",
+        zIndex: 20,
+        boxShadow: "0 1px 8px rgba(0,0,0,0.03)"
+      }}>
 
         {/* SIDEBAR TOGGLE BUTTON BEFORE LOGO */}
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             title={isSidebarOpen ? "Collapse Sidebar Menu" : "Expand Sidebar Menu"}
+            className="apple-click"
             style={{
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              width: 38,
-              height: 38,
-              borderRadius: 8,
+              width: 36,
+              height: 36,
+              borderRadius: 10,
               border: `1px solid ${C.border}`,
-              backgroundColor: isSidebarOpen ? C.tealBg : C.surface,
+              backgroundColor: isSidebarOpen ? C.tealBg : "rgba(255,255,255,0.8)",
               color: isSidebarOpen ? C.teal : C.text2,
               cursor: "pointer",
               transition: "all 0.15s ease",
               boxShadow: "0 1px 2px rgba(0,0,0,0.04)"
             }}
             onMouseEnter={e => { e.currentTarget.style.backgroundColor = C.tealBg; e.currentTarget.style.color = C.teal; }}
-            onMouseLeave={e => { e.currentTarget.style.backgroundColor = isSidebarOpen ? C.tealBg : C.surface; e.currentTarget.style.color = isSidebarOpen ? C.teal : C.text2; }}
+            onMouseLeave={e => { e.currentTarget.style.backgroundColor = isSidebarOpen ? C.tealBg : "rgba(255,255,255,0.8)"; e.currentTarget.style.color = isSidebarOpen ? C.teal : C.text2; }}
           >
-            <Menu size={20} />
+            <Menu size={18} />
           </button>
 
-          <Shield size={24} color={C.teal} />
-          <div style={{ fontSize: 20, fontWeight: 800, color: C.teal, letterSpacing: "-0.5px" }}>AuditFlow</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 10, background: "rgba(0,113,227,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Shield size={18} color={C.teal} />
+            </div>
+            <div>
+              <div style={{ fontSize: 17, fontWeight: 700, color: C.text1, letterSpacing: "-0.015em" }}>AuditFlow</div>
+              <div style={{ fontSize: 11, color: C.text2, letterSpacing: "-0.01em" }}>Dynamic Audit Platform • Universe One</div>
+            </div>
+          </div>
         </div>
 
         {/* HEADER TOP RIGHT ACTION BUTTON */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           {onBackToTemplates && (
             <button
               onClick={onBackToTemplates}
               title="Switch between Dynamic SaaS & Classic Templates"
+              className="apple-click"
               style={{
-                padding: "7px 14px",
-                borderRadius: 8,
+                padding: "7px 16px",
+                borderRadius: 980,
                 border: `1px solid ${C.border}`,
-                backgroundColor: C.surface,
-                color: C.text2,
+                backgroundColor: "rgba(255,255,255,0.7)",
+                color: C.text1,
                 fontSize: 12,
                 fontWeight: 600,
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
                 gap: 6,
-                transition: "all 0.15s ease"
+                transition: "all 0.15s ease",
+                boxShadow: "0 1px 2px rgba(0,0,0,0.03)"
               }}
-              onMouseEnter={e => { e.currentTarget.style.backgroundColor = C.bg2; e.currentTarget.style.color = C.text1; }}
-              onMouseLeave={e => { e.currentTarget.style.backgroundColor = C.surface; e.currentTarget.style.color = C.text2; }}
+              onMouseEnter={e => { e.currentTarget.style.backgroundColor = "#fff"; e.currentTarget.style.borderColor = C.teal; }}
+              onMouseLeave={e => { e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.7)"; e.currentTarget.style.borderColor = C.border; }}
             >
-              ⇄ Switch Platform / Hub
+              ⇄ Switch Platform
             </button>
           )}
 
           {!selectedTemplate && !selectedProject && (
             <button
               onClick={() => setShowCreateTemplateModal(true)}
-              style={{ padding: "9px 18px", backgroundColor: C.teal, color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 8, boxShadow: "0 2px 6px rgba(13,148,136,0.2)" }}
+              className="apple-click"
+              style={{ padding: "8px 18px", backgroundColor: C.teal, color: "#fff", border: "none", borderRadius: 980, fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 8, boxShadow: `0 4px 14px ${C.teal}40`, transition: "all 0.15s ease" }}
             >
-              <Plus size={16} /> (+) Create Audit Template
+              <Plus size={16} /> Create Audit Template
             </button>
           )}
 
           {selectedTemplate && !selectedProject && (
             <button
               onClick={handleOpenAddCompanyModal}
-              style={{ padding: "9px 18px", backgroundColor: C.teal, color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 8, boxShadow: "0 2px 6px rgba(13,148,136,0.2)" }}
+              className="apple-click"
+              style={{ padding: "8px 18px", backgroundColor: C.teal, color: "#fff", border: "none", borderRadius: 980, fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 8, boxShadow: `0 4px 14px ${C.teal}40`, transition: "all 0.15s ease" }}
             >
               <Plus size={16} /> Add Company
             </button>
@@ -3572,14 +3662,16 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
           <div
             style={{
               width: 260,
-              backgroundColor: C.surface,
+              backgroundColor: "rgba(255, 255, 255, 0.8)",
+              backdropFilter: "blur(20px)",
+              WebkitBackdropFilter: "blur(20px)",
               borderRight: `1px solid ${C.border}`,
               display: "flex",
               flexDirection: "column",
               justifyContent: "space-between",
               padding: "16px 14px",
               flexShrink: 0,
-              boxShadow: "1px 0 3px rgba(0,0,0,0.02)",
+              boxShadow: "1px 0 6px rgba(0,0,0,0.02)",
               transition: "all 0.2s ease"
             }}
           >
@@ -3595,16 +3687,17 @@ export default function DynamicSaaSWorkspace({ onBackToTemplates }) {
                     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                       <button
                         onClick={() => { setSelectedTemplate(null); setSelectedProject(null); }}
+                        className="apple-click"
                         style={{
-                          padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.tealBorder}`, cursor: "pointer", fontSize: 13, fontWeight: 700,
+                          padding: "9px 14px", borderRadius: 10, border: `1px solid ${C.tealBorder}`, cursor: "pointer", fontSize: 13, fontWeight: 600,
                           backgroundColor: C.tealBg, color: C.teal, textAlign: "left", display: "flex", alignItems: "center", justifyContent: "space-between",
-                          boxShadow: "0 2px 4px rgba(13,148,136,0.12)"
+                          boxShadow: "0 2px 6px rgba(0,113,227,0.08)"
                         }}
                       >
                         <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
                           <LayoutGrid size={16} /> Templates Library
                         </span>
-                        <span style={{ backgroundColor: C.teal, color: "#fff", fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 10 }}>
+                        <span style={{ backgroundColor: C.teal, color: "#fff", fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 980 }}>
                           {templates.length}
                         </span>
                       </button>

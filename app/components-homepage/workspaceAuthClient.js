@@ -8,6 +8,7 @@ function buildDefaultModules() {
     crm: { enabled: false, href: null },
     vendor: { enabled: false, href: null },
     finance: { enabled: false, href: null },
+    far: { enabled: false, href: null },
   };
 }
 
@@ -68,6 +69,10 @@ export function normalizeWorkspaceState(result = {}) {
       finance: {
         enabled: Boolean(modules.finance?.enabled),
         href: modules.finance?.href || null,
+      },
+      far: {
+        enabled: Boolean(modules.far?.enabled),
+        href: modules.far?.href || null,
       },
     },
   };

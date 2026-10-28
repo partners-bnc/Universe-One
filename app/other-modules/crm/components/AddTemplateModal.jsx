@@ -42,31 +42,55 @@ export default function AddTemplateModal({ isOpen, onClose, onAdd }) {
   const availableVars = "{{Lead_Name}}, {{Company_Name}}, {{Product_Name}}, {{Agent_Name}}, {{Estimated_Value}}, {{Currency}}";
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-      <div className="bg-white dark:bg-slate-800 w-full max-w-xl rounded-md shadow-2xl flex flex-col overflow-hidden max-h-[90vh]">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-md transition-opacity">
+      <div className="bg-white dark:bg-[#1D1D1F] w-full max-w-xl rounded-[24px] border border-[#D2D2D7]/80 dark:border-white/10 shadow-[0_24px_64px_rgba(0,0,0,0.18)] flex flex-col overflow-hidden max-h-[88vh] animate-in fade-in zoom-in-95 duration-200">
 
         {/* Header */}
-        <div className="bg-[#0b1f3d] px-6 py-4 flex items-center justify-between text-white shrink-0">
-          <h2 className="text-lg font-semibold flex items-center">
-            <span className="mr-2 text-xl leading-none">+</span> Add Email Template
-          </h2>
-          <button onClick={onClose} className="text-slate-300 hover:text-white transition">
-            <X className="w-5 h-5" />
+        <div className="bg-white/90 dark:bg-[#1D1D1F]/90 backdrop-blur-xl px-7 py-4 flex items-center justify-between text-[#1D1D1F] dark:text-white border-b border-[#D2D2D7]/70 dark:border-white/10 shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-full bg-[#0071E3]/10 dark:bg-[#0071E3]/20 flex items-center justify-center text-[#0071E3]">
+              <Mail className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-[17px] font-semibold tracking-[-0.015em] text-[#1D1D1F] dark:text-white">
+                Create Email Template
+              </h2>
+              <p className="text-[12px] text-[#86868B]">Draft reusable personalized templates with placeholders</p>
+            </div>
+          </div>
+          <button 
+            onClick={onClose} 
+            className="w-8 h-8 rounded-full bg-[#F5F5F7] dark:bg-white/10 flex items-center justify-center text-[#6E6E73] hover:text-[#1D1D1F] dark:text-white/70 dark:hover:text-white hover:bg-[#E8E8ED] dark:hover:bg-white/15 transition-all"
+          >
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Form */}
-        <div className="p-6 overflow-y-auto flex-1">
+        <div className="p-7 overflow-y-auto flex-1 space-y-5">
           <form id="add-template-form" onSubmit={handleSubmit} className="space-y-5">
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs text-slate-700 dark:text-slate-300 mb-1 font-semibold">Template Name *</label>
-                <input type="text" name="name" value={formData.name} onChange={handleChange} required className="w-full border border-slate-300 dark:border-slate-600 rounded p-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 dark:text-white text-sm" />
+                <label className="block text-[13px] font-medium text-[#1D1D1F] dark:text-white/90 mb-1.5">Template Name *</label>
+                <input 
+                  type="text" 
+                  name="name" 
+                  value={formData.name} 
+                  onChange={handleChange} 
+                  placeholder="e.g. Initial Outreach" 
+                  required 
+                  className="w-full h-[42px] px-3.5 bg-white dark:bg-[#2C2C2E] border border-[#D2D2D7] dark:border-white/15 rounded-[11px] text-[14px] text-[#1D1D1F] dark:text-white placeholder-[#86868B] focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 transition-all" 
+                />
               </div>
               <div>
-                <label className="block text-xs text-slate-700 dark:text-slate-300 mb-1 font-semibold">Category *</label>
-                <select name="category" value={formData.category} onChange={handleChange} className="w-full border border-slate-300 dark:border-slate-600 rounded p-2.5 bg-white dark:bg-slate-700 dark:text-white text-sm focus:outline-none">
+                <label className="block text-[13px] font-medium text-[#1D1D1F] dark:text-white/90 mb-1.5">Category *</label>
+                <select 
+                  name="category" 
+                  value={formData.category} 
+                  onChange={handleChange} 
+                  className="w-full h-[42px] px-3.5 bg-white dark:bg-[#2C2C2E] border border-[#D2D2D7] dark:border-white/15 rounded-[11px] text-[14px] text-[#1D1D1F] dark:text-white focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 transition-all"
+                >
                   <option value="">Select Category</option>
                   <option value="Outreach">Outreach</option>
                   <option value="Follow-up">Follow-up</option>
@@ -78,26 +102,52 @@ export default function AddTemplateModal({ isOpen, onClose, onAdd }) {
             </div>
 
             <div>
-              <label className="block text-xs text-slate-700 dark:text-slate-300 mb-1 font-semibold">Subject Line *</label>
-              <input type="text" name="subject" value={formData.subject} onChange={handleChange} required className="w-full border border-slate-300 dark:border-slate-600 rounded p-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 dark:text-white text-sm" />
+              <label className="block text-[13px] font-medium text-[#1D1D1F] dark:text-white/90 mb-1.5">Subject Line *</label>
+              <input 
+                type="text" 
+                name="subject" 
+                value={formData.subject} 
+                onChange={handleChange} 
+                placeholder="e.g. Exploring Partnership with {{Company_Name}}" 
+                required 
+                className="w-full h-[42px] px-3.5 bg-white dark:bg-[#2C2C2E] border border-[#D2D2D7] dark:border-white/15 rounded-[11px] text-[14px] text-[#1D1D1F] dark:text-white placeholder-[#86868B] focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 transition-all" 
+              />
             </div>
 
             <div>
-              <label className="block text-xs text-slate-700 dark:text-slate-300 mb-1 font-semibold">Body Content *</label>
-              <textarea name="body" value={formData.body} onChange={handleChange} rows={6} className="w-full border border-slate-300 dark:border-slate-600 rounded p-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 dark:text-white text-sm resize-none" />
-              <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1.5 flex items-start">
-                <span className="mr-1">ℹ</span> Available variables: {availableVars}
+              <label className="block text-[13px] font-medium text-[#1D1D1F] dark:text-white/90 mb-1.5">Body Content *</label>
+              <textarea 
+                name="body" 
+                value={formData.body} 
+                onChange={handleChange} 
+                rows={6} 
+                placeholder="Write your email template content here..."
+                className="w-full p-3.5 bg-white dark:bg-[#2C2C2E] border border-[#D2D2D7] dark:border-white/15 rounded-[11px] text-[14px] text-[#1D1D1F] dark:text-white placeholder-[#86868B] resize-none focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 transition-all" 
+              />
+              <p className="text-[12px] text-[#86868B] mt-2 flex items-center gap-1">
+                <span>ℹ</span> Placeholders: <span className="text-[#0071E3]">{availableVars}</span>
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs text-slate-700 dark:text-slate-300 mb-1 font-semibold">Variables</label>
-                <input type="text" name="variables" value={formData.variables} onChange={handleChange} className="w-full border border-slate-300 dark:border-slate-600 rounded p-2.5 bg-white dark:bg-slate-700 dark:text-white text-sm focus:outline-none" />
+                <label className="block text-[13px] font-medium text-[#1D1D1F] dark:text-white/90 mb-1.5">Active Variables</label>
+                <input 
+                  type="text" 
+                  name="variables" 
+                  value={formData.variables} 
+                  onChange={handleChange} 
+                  className="w-full h-[42px] px-3.5 bg-white dark:bg-[#2C2C2E] border border-[#D2D2D7] dark:border-white/15 rounded-[11px] text-[14px] text-[#1D1D1F] dark:text-white focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 transition-all" 
+                />
               </div>
               <div>
-                <label className="block text-xs text-slate-700 dark:text-slate-300 mb-1 font-semibold">Status</label>
-                <select name="status" value={formData.status} onChange={handleChange} className="w-full border border-slate-300 dark:border-slate-600 rounded p-2.5 bg-white dark:bg-slate-700 dark:text-white text-sm focus:outline-none">
+                <label className="block text-[13px] font-medium text-[#1D1D1F] dark:text-white/90 mb-1.5">Status</label>
+                <select 
+                  name="status" 
+                  value={formData.status} 
+                  onChange={handleChange} 
+                  className="w-full h-[42px] px-3.5 bg-white dark:bg-[#2C2C2E] border border-[#D2D2D7] dark:border-white/15 rounded-[11px] text-[14px] text-[#1D1D1F] dark:text-white focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 transition-all"
+                >
                   <option value="Draft">Draft</option>
                   <option value="Active">Active</option>
                   <option value="Archived">Archived</option>
@@ -108,13 +158,21 @@ export default function AddTemplateModal({ isOpen, onClose, onAdd }) {
           </form>
         </div>
 
-        {/* Footer */}
-        <div className="bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 p-4 flex justify-start space-x-3 shrink-0">
-          <button type="submit" form="add-template-form" className="px-5 py-2 text-sm font-medium bg-[#0b1f3d] hover:bg-[#16345e] dark:bg-blue-600 dark:hover:bg-blue-700 text-white rounded transition shadow flex items-center">
-            <span className="mr-1">💾</span> Save
+        {/* Footer actions - Apple Clean Pills */}
+        <div className="bg-[#F5F5F7]/80 dark:bg-[#1D1D1F]/80 backdrop-blur-md border-t border-[#D2D2D7]/70 dark:border-white/10 px-7 py-4 flex justify-end gap-3 shrink-0">
+          <button 
+            type="button" 
+            onClick={onClose} 
+            className="h-11 px-6 rounded-full text-[14px] font-medium text-[#1D1D1F] dark:text-white bg-white dark:bg-white/10 border border-[#D2D2D7] dark:border-white/15 hover:bg-[#F5F5F7] dark:hover:bg-white/15 transition-all shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
+          >
+            Cancel
           </button>
-          <button type="button" onClick={onClose} className="px-5 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 rounded transition flex items-center">
-            <X className="w-3 h-3 mr-1" /> Cancel
+          <button 
+            type="submit" 
+            form="add-template-form" 
+            className="h-11 px-7 rounded-full text-[14px] font-semibold text-white bg-[#0071E3] hover:bg-[#0076DF] active:scale-[0.98] transition-all shadow-[0_2px_8px_rgba(0,113,227,0.25)]"
+          >
+            Save Template
           </button>
         </div>
       </div>

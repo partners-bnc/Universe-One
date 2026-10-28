@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Navbar } from '@/app/components-homepage/Navbar';
 import { useWorkspaceRouting } from '@/app/components-homepage/useWorkspaceRouting';
 import { Plus, Building2, Calendar, FileText, ArrowRight, Trash2 } from 'lucide-react';
+import { ModuleAccessGate } from '@/app/components-homepage/ModuleAccessGate';
 
 const DEFAULT_MOCK_ASSETS = [
   {
@@ -266,7 +267,7 @@ export default function FarLandingPage() {
   };
 
   return (
-    <>
+    <ModuleAccessGate moduleKey="far" moduleLabel="FAR">
       <Navbar
         workspaceHref={workspaceHref}
         workspaceLabel={workspaceLabel}
@@ -421,6 +422,6 @@ export default function FarLandingPage() {
           </div>
         </div>
       )}
-    </>
+    </ModuleAccessGate>
   );
 }

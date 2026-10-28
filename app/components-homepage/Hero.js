@@ -1,9 +1,9 @@
 'use client';
 
-import Image from 'next/image';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { Badge } from './ui/Badge';
 import { Button } from './ui/Button';
+import DashboardPreview from './DashboardPreview';
 
 export function Hero({ taskManagerHref = '/login' }) {
   const { scrollY } = useScroll();
@@ -63,17 +63,8 @@ export function Hero({ taskManagerHref = '/login' }) {
             style={{ rotateX, scale, opacity, y }}
             className="relative rounded-[28px] overflow-hidden border border-white/40 bg-white/20 p-2 md:p-3 shadow-[0_30px_100px_rgba(20,5,60,0.5)] backdrop-blur-sm will-change-transform"
           >
-            <div className="rounded-3xl overflow-hidden bg-[#f8f8fb]">
-              <Image
-                src="/assets/img.png"
-                alt="Dashboard Preview"
-                width={1600}
-                height={900}
-                sizes="(max-width: 1280px) 100vw, 1200px"
-                priority
-                className="w-full h-auto block"
-              />
-            </div>
+            {/* the Task Manager dashboard, coded (was the /assets/img.png screenshot) */}
+            <DashboardPreview />
 
             <div className="absolute inset-0 rounded-[28px] ring-1 ring-inset ring-white/50 pointer-events-none" />
           </motion.div>

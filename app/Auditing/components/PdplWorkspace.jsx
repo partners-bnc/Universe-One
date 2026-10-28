@@ -8,30 +8,31 @@ import {
 } from "@/utils/auditing-upload-client";
 
 const COLORS = {
-  bg: "#f8fafc",
-  surface: "#ffffff",
-  border: "#e2e8f0",
-  borderStrong: "#cbd5e1",
-  text: "#0f172a",
-  textSoft: "#475569",
-  textMuted: "#94a3b8",
-  teal: "#0d9488",
-  tealDark: "#0f766e",
-  tealBg: "#f0fdfa",
-  tealBorder: "#99f6e4",
-  blue: "#2563eb",
-  blueBg: "#eff6ff",
-  blueBorder: "#bfdbfe",
-  amber: "#d97706",
-  amberBg: "#fffbeb",
-  amberBorder: "#fde68a",
-  green: "#16a34a",
-  greenBg: "#f0fdf4",
-  greenBorder: "#bbf7d0",
-  red: "#dc2626",
-  redBg: "#fef2f2",
-  redBorder: "#fecaca",
-  grayBg: "#f8fafc",
+  bg: "#F5F5F7",
+  surface: "#FFFFFF",
+  border: "#D2D2D7",
+  borderStrong: "#E5E5EA",
+  text: "#1D1D1F",
+  textSoft: "#86868B",
+  textMuted: "#AEAEB2",
+  // Primary brand / Action Blue (mapped from teal)
+  teal: "#0071E3",
+  tealDark: "#0077ED",
+  tealBg: "rgba(0,113,227,0.08)",
+  tealBorder: "rgba(0,113,227,0.22)",
+  blue: "#0071E3",
+  blueBg: "#E8F2FD",
+  blueBorder: "#B3D7FF",
+  amber: "#FF9500",
+  amberBg: "#FFF8EB",
+  amberBorder: "#FFE2B3",
+  green: "#34C759",
+  greenBg: "#EBF9EF",
+  greenBorder: "#BCECC8",
+  red: "#FF3B30",
+  redBg: "#FEF2F2",
+  redBorder: "#FFCDD2",
+  grayBg: "#F5F5F7",
 };
 
 const SECTION_META = {
@@ -39,15 +40,15 @@ const SECTION_META = {
   controls: { label: "Controls", accent: COLORS.teal, bg: COLORS.tealBg, border: COLORS.tealBorder },
   policies: { label: "Policies", accent: COLORS.amber, bg: COLORS.amberBg, border: COLORS.amberBorder },
   documents: { label: "Documents", accent: COLORS.green, bg: COLORS.greenBg, border: COLORS.greenBorder },
-  dashboard: { label: "Dashboard", accent: "#7c3aed", bg: "#f5f3ff", border: "#ddd6fe" },
+  dashboard: { label: "Dashboard", accent: "#AF52DE", bg: "#F8F2FC", border: "#E5CBF6" },
 };
 
 const CONTROL_STATUS_OPTIONS = ["Completed", "In Progress", "Not Started"];
 const POLICY_STATUS_OPTIONS = ["Approved", "Pending", "Draft", "Rejected"];
 const DOCUMENT_STATUS_OPTIONS = ["Received", "Not Received"];
 const EXECUTION_STATUS_OPTIONS = ["Complete", "Incomplete", "In Progress", "Not Started"];
-const MONO = "'IBM Plex Mono', 'Space Mono', monospace";
-const AVATAR_COLORS = ["#0f766e", "#d97706", "#dc2626", "#7c3aed"];
+const MONO = "'SF Mono', 'JetBrains Mono', ui-monospace, monospace";
+const AVATAR_COLORS = ["#0071E3", "#FF9500", "#FF3B30", "#AF52DE"];
 
 const PDPL_IMPORT_SECTION_FIELDS = {
   gantt: [
@@ -3468,17 +3469,27 @@ export default function PdplWorkspace({
   };
 
   const topHeader = (
-    <div style={{ background: "#fff", borderBottom: `1px solid ${COLORS.border}`, padding: "18px 28px" }}>
+    <div style={{
+      background: "rgba(255, 255, 255, 0.85)",
+      backdropFilter: "blur(20px)",
+      WebkitBackdropFilter: "blur(20px)",
+      borderBottom: `1px solid ${COLORS.border}`,
+      padding: "14px 28px",
+      boxShadow: "0 1px 8px rgba(0,0,0,0.03)"
+    }}>
       <div style={{ display: "grid", gridTemplateColumns: "minmax(240px,1fr) auto minmax(360px,1fr)", alignItems: "center", gap: 18 }}>
         <div>
-          <div style={{ fontSize: 30, fontWeight: 800, color: COLORS.teal, letterSpacing: "-0.8px" }}>AuditFlow</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8, flexWrap: "wrap" }}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.text }}>{selectedTemplate?.name || "PDPL Audit"}</div>
-            <span style={{ width: 5, height: 5, borderRadius: "50%", background: COLORS.borderStrong }} />
-            <div style={{ fontSize: 12.5, color: COLORS.textSoft }}>PDPL audit category workspace</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(0,113,227,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>🏭</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, letterSpacing: "-0.02em" }}>AuditFlow</div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4, flexWrap: "wrap" }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.teal }}>{selectedTemplate?.name || "PDPL Audit"}</div>
+            <span style={{ width: 4, height: 4, borderRadius: "50%", background: COLORS.borderStrong }} />
+            <div style={{ fontSize: 12, color: COLORS.textSoft }}>Operational & Process Controls</div>
           </div>
         </div>
-        <div style={{ display: "flex", justifyContent: "center", gap: 10 }}>
+        <div style={{ display: "flex", justifyContent: "center", gap: 8 }}>
           {[
             ["dashboard", "Audit Categories"],
             ["project", "Dashboard"],
@@ -3493,15 +3504,17 @@ export default function PdplWorkspace({
                   if (value === "project") setNav(currentProject ? "project" : "dashboard");
                   if (value === "team") setNav("team");
                 }}
+                className="apple-click"
                 style={{
-                  border: `1px solid ${isActive ? COLORS.tealBorder : COLORS.borderStrong}`,
-                  background: isActive ? COLORS.tealBg : "#fff",
+                  border: `1px solid ${isActive ? COLORS.tealBorder : COLORS.border}`,
+                  background: isActive ? COLORS.tealBg : "rgba(255,255,255,0.7)",
                   color: isActive ? COLORS.teal : COLORS.textSoft,
-                  borderRadius: 999,
-                  padding: "9px 16px",
+                  borderRadius: 980,
+                  padding: "7px 16px",
                   fontSize: 12.5,
-                  fontWeight: 700,
+                  fontWeight: 600,
                   cursor: "pointer",
+                  transition: "all 0.15s ease"
                 }}
               >
                 {label}
@@ -3509,9 +3522,9 @@ export default function PdplWorkspace({
             );
           })}
         </div>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#fff", border: `1px solid ${COLORS.borderStrong}`, borderRadius: 999, padding: "9px 14px", minWidth: 320 }}>
-            <span style={{ color: COLORS.textMuted, fontSize: 12.5 }}>Search</span>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.8)", border: `1px solid ${COLORS.border}`, borderRadius: 980, padding: "7px 14px", minWidth: 280 }}>
+            <span style={{ color: COLORS.textMuted, fontSize: 12 }}>Search</span>
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
@@ -3521,16 +3534,19 @@ export default function PdplWorkspace({
           </div>
           <button
             onClick={openCreateProjectModal}
+            className="apple-click"
             style={{
               border: "none",
-              borderRadius: 14,
-              padding: "12px 18px",
+              borderRadius: 980,
+              padding: "8px 18px",
               background: COLORS.teal,
               color: "#fff",
               fontSize: 13,
-              fontWeight: 700,
+              fontWeight: 600,
               cursor: "pointer",
               whiteSpace: "nowrap",
+              boxShadow: `0 4px 14px ${COLORS.teal}40`,
+              transition: "all 0.15s ease"
             }}
           >
             + Add PDPL Project

@@ -26,11 +26,11 @@ import {
 import { format, addDays, startOfWeek, addWeeks, subWeeks, isSameDay, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths } from 'date-fns';
 
 const PRESET_COLORS = [
-  { name: 'Blue', bg: 'bg-blue-50 dark:bg-blue-950/30', border: 'border-blue-500 text-blue-700 dark:text-blue-400', hex: '#3b82f6' },
-  { name: 'Green', bg: 'bg-emerald-50 dark:bg-emerald-950/30', border: 'border-emerald-500 text-emerald-700 dark:text-emerald-400', hex: '#10b981' },
-  { name: 'Purple', bg: 'bg-purple-50 dark:bg-purple-950/30', border: 'border-purple-500 text-purple-700 dark:text-purple-400', hex: '#8b5cf6' },
-  { name: 'Orange', bg: 'bg-orange-50 dark:bg-orange-950/30', border: 'border-orange-500 text-orange-700 dark:text-orange-400', hex: '#f97316' },
-  { name: 'Red', bg: 'bg-rose-50 dark:bg-rose-950/30', border: 'border-rose-500 text-rose-700 dark:text-rose-400', hex: '#f43f5e' }
+  { name: 'Blue', bg: 'bg-[#0071E3]/10 dark:bg-[#0071E3]/20', border: 'border-[#0071E3] text-[#0071E3] dark:text-[#2997FF]', hex: '#0071E3' },
+  { name: 'Green', bg: 'bg-[#34C759]/10 dark:bg-[#34C759]/20', border: 'border-[#34C759] text-[#34C759]', hex: '#34C759' },
+  { name: 'Purple', bg: 'bg-[#AF52DE]/10 dark:bg-[#AF52DE]/20', border: 'border-[#AF52DE] text-[#AF52DE]', hex: '#AF52DE' },
+  { name: 'Orange', bg: 'bg-[#FF9500]/10 dark:bg-[#FF9500]/20', border: 'border-[#FF9500] text-[#FF9500]', hex: '#FF9500' },
+  { name: 'Red', bg: 'bg-[#FF3B30]/10 dark:bg-[#FF3B30]/20', border: 'border-[#FF3B30] text-[#FF3B30]', hex: '#FF3B30' }
 ];
 
 export default function CalendarPage() {
@@ -419,14 +419,14 @@ export default function CalendarPage() {
   };
 
   return (
-    <div className="flex h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-200 overflow-hidden font-sans">
+    <div className="flex h-screen bg-[#F5F5F7] dark:bg-[#1D1D1F] transition-colors duration-200 overflow-hidden font-sans">
       
       {/* Main Calendar View Left Panel */}
       <div className="flex-1 flex flex-col p-6 overflow-hidden">
         
         {/* Top Header / View Controller */}
         <div className="flex items-center justify-between mb-6 shrink-0">
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Calendar</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-[#1D1D1F] dark:text-white">Calendar</h1>
           
           {/* Day / Week / Month Switch Mode */}
           <div className="crm-view-toggle">
@@ -451,32 +451,32 @@ export default function CalendarPage() {
           </div>
 
           {/* Switch Month Navigator */}
-          <div className="flex items-center gap-3 bg-white dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
-            <button onClick={handlePrev} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-750 rounded-lg text-slate-500 dark:text-slate-400">
-              <ChevronLeft size={18} />
+          <div className="flex items-center gap-2 bg-white dark:bg-[#1D1D1F] px-3 py-1.5 rounded-full border border-[#D2D2D7] dark:border-white/10 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+            <button onClick={handlePrev} className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded-full text-[#86868B] transition-colors">
+              <ChevronLeft size={16} />
             </button>
-            <span className="text-sm font-semibold text-slate-700 dark:text-slate-350 select-none min-w-[90px] text-center">
+            <span className="text-xs font-semibold text-[#1D1D1F] dark:text-white select-none min-w-[100px] text-center tracking-tight">
               {format(currentDate, view === 'month' ? 'MMMM yyyy' : 'MMMM d, yyyy')}
             </span>
-            <button onClick={handleNext} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-750 rounded-lg text-slate-500 dark:text-slate-400">
-              <ChevronRight size={18} />
+            <button onClick={handleNext} className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded-full text-[#86868B] transition-colors">
+              <ChevronRight size={16} />
             </button>
           </div>
         </div>
 
         {/* Calendar Body */}
-        <div className="flex-1 bg-white dark:bg-slate-850 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col">
+        <div className="flex-1 bg-white dark:bg-[#1D1D1F] rounded-[18px] border border-[#D2D2D7] dark:border-white/10 shadow-[0_2px_8px_rgba(0,0,0,0.04)] overflow-hidden flex flex-col">
           
           {/* Calendar Header Row */}
           {view === 'week' && (
-            <div className="grid grid-cols-[60px_1fr_1fr_1fr_1fr_1fr_1fr_1fr] border-b border-slate-150 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/10">
-              <div className="border-r border-slate-150 dark:border-slate-800" />
+            <div className="grid grid-cols-[60px_1fr_1fr_1fr_1fr_1fr_1fr_1fr] border-b border-[#D2D2D7] dark:border-white/10 bg-[#F5F5F7]/50 dark:bg-white/[0.02]">
+              <div className="border-r border-[#D2D2D7] dark:border-white/10" />
               {weekDays.map((day, idx) => {
                 const isToday = isSameDay(day, new Date());
                 return (
                   <div 
                     key={idx} 
-                    className={`crm-day-header ${isToday ? 'crm-day-header-today bg-blue-50/30 dark:bg-blue-900/5' : ''}`}
+                    className={`crm-day-header ${isToday ? 'crm-day-header-today bg-[#0071E3]/5' : ''}`}
                   >
                     <div className="crm-day-header-name">{format(day, 'EEE')}</div>
                     <div className="crm-day-header-number">{format(day, 'd')}</div>
@@ -487,8 +487,8 @@ export default function CalendarPage() {
           )}
 
           {view === 'day' && (
-            <div className="grid grid-cols-[60px_1fr] border-b border-slate-150 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/10">
-              <div className="border-r border-slate-150 dark:border-slate-800" />
+            <div className="grid grid-cols-[60px_1fr] border-b border-[#D2D2D7] dark:border-white/10 bg-[#F5F5F7]/50 dark:bg-white/[0.02]">
+              <div className="border-r border-[#D2D2D7] dark:border-white/10" />
               <div className="crm-day-header crm-day-header-today">
                 <div className="crm-day-header-name">{format(currentDate, 'EEEE')}</div>
                 <div className="crm-day-header-number">{format(currentDate, 'd')}</div>
@@ -521,7 +521,6 @@ export default function CalendarPage() {
                       className={`crm-day-column ${isToday ? 'crm-day-today' : ''}`}
                       style={{ height: `${timeSlots.length * 60}px` }}
                       onDoubleClick={(e) => {
-                        // Estimate clicked time slot
                         const rect = e.currentTarget.getBoundingClientRect();
                         const clickY = e.clientY - rect.top;
                         const clickedHour = 7 + Math.floor(clickY / 60);
@@ -558,9 +557,9 @@ export default function CalendarPage() {
           {/* Month View Grid */}
           {view === 'month' && (
             <div className="flex-1 overflow-y-auto">
-              <div className="grid grid-cols-7 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/10">
+              <div className="grid grid-cols-7 border-b border-[#D2D2D7] dark:border-white/10 bg-[#F5F5F7]/50 dark:bg-white/[0.02]">
                 {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => (
-                  <div key={d} className="text-center py-2 text-xs font-semibold text-slate-450 dark:text-slate-500 uppercase tracking-wider border-r border-slate-150 dark:border-slate-800 last:border-0">
+                  <div key={d} className="text-center py-2.5 text-[11px] font-semibold text-[#86868B] uppercase tracking-wider border-r border-[#D2D2D7] dark:border-white/10 last:border-0">
                     {d}
                   </div>
                 ))}
@@ -570,7 +569,6 @@ export default function CalendarPage() {
                   const monthStart = startOfMonth(currentDate);
                   const monthEnd = endOfMonth(monthStart);
                   
-                  // Adjust monthStart to start of week (Monday)
                   const startDay = startOfWeek(monthStart, { weekStartsOn: 1 });
                   const endDay = addDays(startOfWeek(monthEnd, { weekStartsOn: 1 }), 6);
                   
@@ -605,7 +603,7 @@ export default function CalendarPage() {
                             );
                           })}
                           {dayEvents.length > 3 && (
-                            <div className="text-[9px] text-slate-500 font-bold px-1.5">
+                            <div className="text-[9px] text-[#86868B] font-semibold px-1.5">
                               + {dayEvents.length - 3} more
                             </div>
                           )}
@@ -622,48 +620,47 @@ export default function CalendarPage() {
       </div>
 
       {/* Right Column Panel */}
-      <div className="w-[380px] border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 p-6 flex flex-col gap-6 overflow-y-auto shrink-0 select-none">
+      <div className="w-[380px] border-l border-[#D2D2D7] dark:border-white/10 bg-white/70 dark:bg-[#1D1D1F]/70 backdrop-blur-xl p-6 flex flex-col gap-5 overflow-y-auto shrink-0 select-none">
         
         {/* Today's Activities Card */}
-        <div className="bg-slate-50 dark:bg-slate-850 rounded-2xl p-5 border border-slate-200/60 dark:border-slate-800 flex flex-col gap-4">
+        <div className="bg-white dark:bg-[#1D1D1F] rounded-[18px] p-5 border border-[#D2D2D7] dark:border-white/10 shadow-[0_2px_8px_rgba(0,0,0,0.04)] flex flex-col gap-4">
           <div className="flex items-center justify-between">
-            <h3 className="font-bold text-slate-800 dark:text-slate-250 text-[15px]">Today's Activities</h3>
-            <span className="text-[11px] font-bold text-slate-450 uppercase tracking-wide">
+            <h3 className="font-semibold text-[#1D1D1F] dark:text-white text-[15px] tracking-tight">Today's Activities</h3>
+            <span className="text-[11px] font-semibold text-[#86868B] uppercase tracking-wide">
               {format(new Date(), 'MMM d, yyyy')}
             </span>
           </div>
 
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2.5">
             {getEventsForDay(new Date()).length === 0 ? (
-              <div className="text-center py-6 text-sm text-slate-450 dark:text-slate-500 font-medium">
+              <div className="text-center py-6 text-sm text-[#86868B] font-medium">
                 No events scheduled for today
               </div>
             ) : (
               getEventsForDay(new Date()).map(evt => {
-                const styles = getEventColorStyles(evt.color);
                 return (
                   <div 
                     key={evt.event_id}
-                    className="flex items-center justify-between bg-white dark:bg-slate-800 rounded-xl p-3 border border-slate-100 dark:border-slate-750 shadow-sm cursor-pointer hover:border-slate-250 dark:hover:border-slate-700 transition-all"
+                    className="flex items-center justify-between bg-[#F5F5F7] dark:bg-white/5 rounded-[12px] p-3 border border-transparent hover:border-[#D2D2D7] dark:hover:border-white/10 transition-all cursor-pointer"
                     onClick={() => handleOpenEditEvent(evt)}
                   >
                     <div className="flex items-center gap-3">
-                      <span className={`w-2.5 h-2.5 rounded-full`} style={{ backgroundColor: evt.color }} />
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: evt.color }} />
                       <div>
-                        <div className="text-sm font-semibold text-slate-700 dark:text-slate-300 leading-tight">
+                        <div className="text-xs font-semibold text-[#1D1D1F] dark:text-white leading-tight">
                           {evt.title}
                         </div>
-                        <div className="text-xs text-slate-450 font-medium mt-1">
+                        <div className="text-[11px] text-[#86868B] font-medium mt-0.5">
                           {format(new Date(evt.start_time), 'h:mm a')} - {format(new Date(evt.end_time), 'h:mm a')}
                         </div>
                       </div>
                     </div>
                     {/* Event Type Platform Logos presets */}
-                    <div className="flex items-center gap-1 text-slate-400">
-                      {evt.title.toLowerCase().includes('tiktok') && <span className="bg-slate-100 dark:bg-slate-700 p-1.5 rounded-lg text-black dark:text-white font-black text-[10px]">🎵</span>}
-                      {evt.title.toLowerCase().includes('instagram') && <Instagram size={16} className="text-pink-500" />}
-                      {evt.title.toLowerCase().includes('zoom') && <Video size={16} className="text-blue-500" />}
-                      {evt.title.toLowerCase().includes('youtube') && <Youtube size={16} className="text-red-500" />}
+                    <div className="flex items-center gap-1 text-[#86868B]">
+                      {evt.title.toLowerCase().includes('tiktok') && <span className="bg-black/5 dark:bg-white/10 p-1 rounded-md text-black dark:text-white font-black text-[10px]">🎵</span>}
+                      {evt.title.toLowerCase().includes('instagram') && <Instagram size={15} className="text-[#AF52DE]" />}
+                      {evt.title.toLowerCase().includes('zoom') && <Video size={15} className="text-[#0071E3]" />}
+                      {evt.title.toLowerCase().includes('youtube') && <Youtube size={15} className="text-[#FF3B30]" />}
                     </div>
                   </div>
                 );
@@ -673,57 +670,57 @@ export default function CalendarPage() {
         </div>
 
         {/* Mini Upcoming To-Do & Campaign status matches reference */}
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3.5">
           
           {/* Instagram Post approval banner */}
-          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-800 p-4 rounded-xl flex items-start gap-3">
-            <span className="bg-pink-100 dark:bg-pink-900/30 p-2 rounded-lg text-pink-500">
-              <Instagram size={18} />
+          <div className="bg-white dark:bg-[#1D1D1F] border border-[#D2D2D7] dark:border-white/10 p-4 rounded-[14px] shadow-[0_1px_3px_rgba(0,0,0,0.02)] flex items-start gap-3">
+            <span className="bg-[#AF52DE]/10 p-2 rounded-xl text-[#AF52DE] shrink-0">
+              <Instagram size={16} />
             </span>
             <div className="flex-1">
               <div className="flex justify-between items-center">
-                <span className="text-[11px] font-bold text-slate-450 uppercase tracking-wider">Instagram for Fenty</span>
-                <span className="text-[10px] text-slate-400">now</span>
+                <span className="text-[10px] font-semibold text-[#86868B] uppercase tracking-wider">Instagram for Fenty</span>
+                <span className="text-[10px] text-[#86868B]">now</span>
               </div>
-              <p className="text-sm font-semibold text-slate-700 dark:text-slate-350 mt-1 leading-snug">
+              <p className="text-xs font-semibold text-[#1D1D1F] dark:text-white mt-1 leading-snug">
                 Caption needs final approval from client
               </p>
             </div>
           </div>
 
           {/* Brainstorm details card matching screenshot */}
-          <div className="bg-white dark:bg-slate-800 border border-slate-250/70 dark:border-slate-800/80 rounded-2xl p-5 shadow-sm flex flex-col gap-4">
+          <div className="bg-white dark:bg-[#1D1D1F] border border-[#D2D2D7] dark:border-white/10 rounded-[18px] p-5 shadow-[0_2px_8px_rgba(0,0,0,0.04)] flex flex-col gap-4">
             <div className="flex items-start gap-3">
-              <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 p-2 rounded-xl text-xs font-bold leading-none">
+              <span className="bg-[#0071E3]/10 text-[#0071E3] dark:text-[#2997FF] px-2.5 py-1 rounded-full text-xs font-semibold leading-none">
                 BAGGU
               </span>
               <div>
-                <h4 className="text-base font-bold text-slate-800 dark:text-slate-200 leading-snug">
-                  Brainstorm —Baggu Campaign...
+                <h4 className="text-sm font-semibold text-[#1D1D1F] dark:text-white leading-snug tracking-tight">
+                  Brainstorm — Baggu Campaign...
                 </h4>
               </div>
             </div>
 
-            <div className="flex flex-col gap-2.5 text-slate-500 dark:text-slate-400 text-sm">
+            <div className="flex flex-col gap-2 text-xs text-[#86868B]">
               <div className="flex items-center gap-2">
-                <CalendarIcon size={16} className="text-slate-400" />
-                <span className="font-semibold text-slate-700 dark:text-slate-350">Wednesday, May 24</span>
+                <CalendarIcon size={14} className="text-[#86868B]" />
+                <span className="font-medium text-[#1D1D1F] dark:text-white">Wednesday, May 24</span>
               </div>
               <div className="flex items-center gap-2">
-                <Clock size={16} className="text-slate-400" />
-                <span className="font-medium">1:00 AM - 4:00 AM</span>
+                <Clock size={14} className="text-[#86868B]" />
+                <span>1:00 AM - 4:00 AM</span>
               </div>
               <div className="flex items-center gap-2">
-                <FileText size={16} className="text-slate-400" />
-                <a href="#" className="font-semibold text-blue-500 hover:underline flex items-center gap-1">
+                <FileText size={14} className="text-[#86868B]" />
+                <a href="#" className="font-semibold text-[#0071E3] hover:underline flex items-center gap-1">
                   brief-baggu.pdf
-                  <FileDown size={14} />
+                  <FileDown size={13} />
                 </a>
               </div>
             </div>
 
-            <div className="border-t border-slate-100 dark:border-slate-750 pt-3 mt-1">
-              <div className="flex items-center justify-between text-xs text-slate-450 mb-2 font-bold uppercase tracking-wider">
+            <div className="border-t border-[#D2D2D7]/60 dark:border-white/10 pt-3 mt-1">
+              <div className="flex items-center justify-between text-[11px] text-[#86868B] mb-2 font-semibold uppercase tracking-wider">
                 <span>3 participants</span>
                 <span className="rotate-180 cursor-pointer">▲</span>
               </div>
@@ -733,17 +730,17 @@ export default function CalendarPage() {
                   { name: 'Jenny Wilson', email: 'jw@gmail.com', status: 'yes' },
                   { name: 'Kristin Watson', email: 'kw@gmail.com', status: 'pending' }
                 ].map((user, idx) => (
-                  <div key={idx} className="flex items-center justify-between py-1">
+                  <div key={idx} className="flex items-center justify-between py-0.5">
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[10px] font-black text-slate-600 dark:text-slate-300">
+                      <div className="w-6 h-6 rounded-full bg-[#E8E8ED] dark:bg-white/10 flex items-center justify-center text-[10px] font-bold text-[#1D1D1F] dark:text-white">
                         {user.name.split(' ').map(n => n[0]).join('')}
                       </div>
-                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">{user.name}</span>
+                      <span className="text-xs font-medium text-[#1D1D1F] dark:text-white">{user.name}</span>
                     </div>
                     {user.status === 'yes' ? (
-                      <span className="text-emerald-500 bg-emerald-50 dark:bg-emerald-950/20 p-1 rounded-full"><CheckCircle size={14} /></span>
+                      <span className="text-[#34C759] bg-[#34C759]/10 p-1 rounded-full"><CheckCircle size={13} /></span>
                     ) : (
-                      <span className="text-slate-400 bg-slate-50 dark:bg-slate-800 p-1 rounded-full"><AlertCircle size={14} /></span>
+                      <span className="text-[#86868B] bg-black/5 dark:bg-white/5 p-1 rounded-full"><AlertCircle size={13} /></span>
                     )}
                   </div>
                 ))}
@@ -752,31 +749,31 @@ export default function CalendarPage() {
           </div>
 
           {/* Quick task status banners */}
-          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-800 p-4 rounded-xl flex items-start gap-3">
-            <span className="bg-red-100 dark:bg-red-900/30 p-2 rounded-lg text-red-500">
-              <Youtube size={18} />
+          <div className="bg-white dark:bg-[#1D1D1F] border border-[#D2D2D7] dark:border-white/10 p-4 rounded-[14px] shadow-[0_1px_3px_rgba(0,0,0,0.02)] flex items-start gap-3">
+            <span className="bg-[#FF3B30]/10 p-2 rounded-xl text-[#FF3B30] shrink-0">
+              <Youtube size={16} />
             </span>
             <div className="flex-1">
               <div className="flex justify-between items-center">
-                <span className="text-[11px] font-bold text-slate-450 uppercase tracking-wider">YOUTUBE FOR GYMSHARK</span>
-                <span className="text-[10px] text-slate-400">in 1 hour</span>
+                <span className="text-[10px] font-semibold text-[#86868B] uppercase tracking-wider">YOUTUBE FOR GYMSHARK</span>
+                <span className="text-[10px] text-[#86868B]">in 1 hour</span>
               </div>
-              <p className="text-sm font-semibold text-slate-700 dark:text-slate-350 mt-1 leading-snug">
+              <p className="text-xs font-semibold text-[#1D1D1F] dark:text-white mt-1 leading-snug">
                 Upload thumbnail before 5PM
               </p>
             </div>
           </div>
 
-          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-800 p-4 rounded-xl flex items-start gap-3">
-            <span className="bg-slate-100 dark:bg-slate-700 p-2 rounded-lg text-black dark:text-white font-bold text-xs">
+          <div className="bg-white dark:bg-[#1D1D1F] border border-[#D2D2D7] dark:border-white/10 p-4 rounded-[14px] shadow-[0_1px_3px_rgba(0,0,0,0.02)] flex items-start gap-3">
+            <span className="bg-black/5 dark:bg-white/10 p-2 rounded-xl text-black dark:text-white font-bold text-xs shrink-0">
               🎵
             </span>
             <div className="flex-1">
               <div className="flex justify-between items-center">
-                <span className="text-[11px] font-bold text-slate-450 uppercase tracking-wider">PITCH FOR BAGGU</span>
-                <span className="text-[10px] text-slate-400">1 hour ago</span>
+                <span className="text-[10px] font-semibold text-[#86868B] uppercase tracking-wider">PITCH FOR BAGGU</span>
+                <span className="text-[10px] text-[#86868B]">1 hour ago</span>
               </div>
-              <p className="text-sm font-semibold text-slate-700 dark:text-slate-350 mt-1 leading-snug">
+              <p className="text-xs font-semibold text-[#1D1D1F] dark:text-white mt-1 leading-snug">
                 Draft review pending — record alt version.
               </p>
             </div>
@@ -784,12 +781,11 @@ export default function CalendarPage() {
 
         </div>
 
-        {/* Primary Plus Button at the bottom of panel to open event booker */}
         <button 
           onClick={() => handleOpenAddEvent(new Date())}
-          className="w-full bg-[#6057DA] hover:bg-[#5046c8] text-white font-bold py-3.5 px-4 rounded-xl shadow-lg hover:shadow-indigo-500/20 active:translate-y-[1px] transition-all flex items-center justify-center gap-2"
+          className="w-full h-[44px] bg-[#0071E3] hover:bg-[#0076DF] active:scale-[0.99] text-white font-medium rounded-full shadow-sm transition-all flex items-center justify-center gap-2 text-sm"
         >
-          <Plus size={18} />
+          <Plus size={16} />
           Book Calendar Event
         </button>
 
@@ -797,19 +793,19 @@ export default function CalendarPage() {
 
       {/* Booking Calendar Event Modal */}
       {isEventModalOpen && (
-        <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-850 rounded-2xl border border-slate-250 dark:border-slate-850 shadow-2xl max-w-lg w-full overflow-hidden flex flex-col">
+        <div className="fixed inset-0 bg-black/30 dark:bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-[#1D1D1F] rounded-[24px] border border-[#D2D2D7]/80 dark:border-white/10 shadow-2xl max-w-lg w-full overflow-hidden flex flex-col">
             
             {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-slate-150 dark:border-slate-800 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-slate-850 dark:text-white">
+            <div className="px-6 py-4 border-b border-[#D2D2D7]/70 dark:border-white/10 flex items-center justify-between">
+              <h3 className="text-base font-semibold text-[#1D1D1F] dark:text-white tracking-tight">
                 {selectedEvent ? 'Edit Calendar Event' : 'Book Calendar Event'}
               </h3>
               <button 
                 onClick={() => setIsEventModalOpen(false)}
-                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400"
+                className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 text-[#86868B] transition-colors"
               >
-                <X size={18} />
+                <X size={16} />
               </button>
             </div>
 
@@ -818,7 +814,7 @@ export default function CalendarPage() {
               
               {/* Event Title */}
               <div>
-                <label className="block text-xs font-bold text-slate-450 dark:text-slate-500 uppercase tracking-wider mb-1">
+                <label className="block text-[11px] font-semibold text-[#86868B] uppercase tracking-wider mb-1.5">
                   Event Title *
                 </label>
                 <input 
@@ -827,20 +823,20 @@ export default function CalendarPage() {
                   onChange={(e) => setEventTitle(e.target.value)}
                   placeholder="e.g. ZARA Campaign Shoot" 
                   required
-                  className="w-full border border-slate-200 dark:border-slate-750 bg-slate-50 dark:bg-slate-800/50 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 text-slate-800 dark:text-white"
+                  className="w-full border border-[#D2D2D7] dark:border-white/10 bg-[#F5F5F7]/60 dark:bg-white/5 rounded-[11px] px-3.5 py-2.5 text-sm text-[#1D1D1F] dark:text-white placeholder-[#86868B]/60 focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3] transition-all"
                 />
               </div>
 
               {/* Event Type & Color Preset */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-450 dark:text-slate-500 uppercase tracking-wider mb-1">
+                  <label className="block text-[11px] font-semibold text-[#86868B] uppercase tracking-wider mb-1.5">
                     Event Type
                   </label>
                   <select 
                     value={eventType}
                     onChange={(e) => setEventType(e.target.value)}
-                    className="w-full border border-slate-200 dark:border-slate-750 bg-slate-50 dark:bg-slate-800/50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-500 text-slate-800 dark:text-white"
+                    className="w-full border border-[#D2D2D7] dark:border-white/10 bg-[#F5F5F7]/60 dark:bg-white/5 rounded-[11px] px-3 py-2.5 text-sm text-[#1D1D1F] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3] transition-all"
                   >
                     <option value="meeting">Meeting</option>
                     <option value="call">Call</option>
@@ -851,7 +847,7 @@ export default function CalendarPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-450 dark:text-slate-500 uppercase tracking-wider mb-1">
+                  <label className="block text-[11px] font-semibold text-[#86868B] uppercase tracking-wider mb-1.5">
                     Color Coding
                   </label>
                   <div className="flex gap-2 items-center py-2">
@@ -860,7 +856,7 @@ export default function CalendarPage() {
                         key={c.hex}
                         type="button"
                         onClick={() => setEventColor(c.hex)}
-                        className={`w-6 h-6 rounded-full border transition-all ${eventColor === c.hex ? 'scale-115 ring-2 ring-indigo-500/40 border-white' : 'border-transparent'}`}
+                        className={`w-6 h-6 rounded-full border transition-all ${eventColor === c.hex ? 'scale-110 ring-2 ring-[#0071E3] border-white' : 'border-transparent'}`}
                         style={{ backgroundColor: c.hex }}
                         title={c.name}
                       />
@@ -870,9 +866,9 @@ export default function CalendarPage() {
               </div>
 
               {/* Date & Time selectors */}
-              <div className="grid grid-cols-3 gap-4">
-                <div className="col-span-1">
-                  <label className="block text-xs font-bold text-slate-450 dark:text-slate-500 uppercase tracking-wider mb-1">
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#86868B] uppercase tracking-wider mb-1.5">
                     Date
                   </label>
                   <input 
@@ -880,11 +876,11 @@ export default function CalendarPage() {
                     value={eventDate}
                     onChange={(e) => setEventDate(e.target.value)}
                     required
-                    className="w-full border border-slate-200 dark:border-slate-750 bg-slate-50 dark:bg-slate-800/50 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 text-slate-850 dark:text-white"
+                    className="w-full border border-[#D2D2D7] dark:border-white/10 bg-[#F5F5F7]/60 dark:bg-white/5 rounded-[11px] px-3 py-2 text-xs text-[#1D1D1F] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3] transition-all"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-450 dark:text-slate-500 uppercase tracking-wider mb-1">
+                  <label className="block text-[11px] font-semibold text-[#86868B] uppercase tracking-wider mb-1.5">
                     Start Time
                   </label>
                   <input 
@@ -892,11 +888,11 @@ export default function CalendarPage() {
                     value={eventStartTime}
                     onChange={(e) => setEventStartTime(e.target.value)}
                     required
-                    className="w-full border border-slate-200 dark:border-slate-750 bg-slate-50 dark:bg-slate-800/50 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 text-slate-850 dark:text-white"
+                    className="w-full border border-[#D2D2D7] dark:border-white/10 bg-[#F5F5F7]/60 dark:bg-white/5 rounded-[11px] px-3 py-2 text-xs text-[#1D1D1F] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3] transition-all"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-450 dark:text-slate-500 uppercase tracking-wider mb-1">
+                  <label className="block text-[11px] font-semibold text-[#86868B] uppercase tracking-wider mb-1.5">
                     End Time
                   </label>
                   <input 
@@ -904,23 +900,23 @@ export default function CalendarPage() {
                     value={eventEndTime}
                     onChange={(e) => setEventEndTime(e.target.value)}
                     required
-                    className="w-full border border-slate-200 dark:border-slate-750 bg-slate-50 dark:bg-slate-800/50 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 text-slate-850 dark:text-white"
+                    className="w-full border border-[#D2D2D7] dark:border-white/10 bg-[#F5F5F7]/60 dark:bg-white/5 rounded-[11px] px-3 py-2 text-xs text-[#1D1D1F] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3] transition-all"
                   />
                 </div>
               </div>
 
               {/* Lead Link Selector & Quick Add Lead */}
               <div className="relative">
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-xs font-bold text-slate-450 dark:text-slate-500 uppercase tracking-wider">
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-[11px] font-semibold text-[#86868B] uppercase tracking-wider">
                     Link CRM Lead (Optional)
                   </label>
                   <button
                     type="button"
                     onClick={() => setIsLeadModalOpen(true)}
-                    className="text-[11px] text-indigo-600 dark:text-indigo-400 font-bold hover:underline flex items-center gap-0.5"
+                    className="text-xs text-[#0071E3] font-medium hover:underline flex items-center gap-1"
                   >
-                    <Plus size={10} /> Add Lead
+                    <Plus size={12} /> Add Lead
                   </button>
                 </div>
                 <div className="relative">
@@ -934,15 +930,15 @@ export default function CalendarPage() {
                       if (!e.target.value) setSelectedLeadId('');
                     }}
                     onFocus={() => setShowLeadSuggestions(true)}
-                    className="w-full border border-slate-200 dark:border-slate-750 bg-slate-50 dark:bg-slate-800/50 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 text-slate-800 dark:text-white"
+                    className="w-full border border-[#D2D2D7] dark:border-white/10 bg-[#F5F5F7]/60 dark:bg-white/5 rounded-[11px] pl-9 pr-3.5 py-2.5 text-sm text-[#1D1D1F] dark:text-white placeholder-[#86868B]/60 focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3] transition-all"
                   />
-                  <Search size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
+                  <Search size={15} className="absolute left-3 top-3 text-[#86868B]" />
                 </div>
                 
                 {showLeadSuggestions && leadSearchQuery && (
-                  <div className="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-750 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto">
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-[#1D1D1F] border border-[#D2D2D7] dark:border-white/10 rounded-[14px] shadow-xl z-50 max-h-48 overflow-y-auto">
                     {filteredLeads.length === 0 ? (
-                      <div className="p-3 text-xs text-slate-450 text-center">No leads found</div>
+                      <div className="p-3 text-xs text-[#86868B] text-center">No leads found</div>
                     ) : (
                       filteredLeads.map(l => (
                         <div
@@ -952,10 +948,10 @@ export default function CalendarPage() {
                             setLeadSearchQuery(l.full_name);
                             setShowLeadSuggestions(false);
                           }}
-                          className="px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-750 cursor-pointer text-slate-750 dark:text-slate-250 flex flex-col"
+                          className="px-4 py-2.5 text-sm hover:bg-[#F5F5F7] dark:hover:bg-white/5 cursor-pointer text-[#1D1D1F] dark:text-white flex flex-col"
                         >
-                          <span className="font-semibold">{l.full_name}</span>
-                          <span className="text-xs text-slate-400 mt-0.5">{l.email || l.phone}</span>
+                          <span className="font-medium">{l.full_name}</span>
+                          <span className="text-xs text-[#86868B] mt-0.5">{l.email || l.phone}</span>
                         </div>
                       ))
                     )}
@@ -965,7 +961,7 @@ export default function CalendarPage() {
 
               {/* Location & Link */}
               <div>
-                <label className="block text-xs font-bold text-slate-450 dark:text-slate-500 uppercase tracking-wider mb-1">
+                <label className="block text-[11px] font-semibold text-[#86868B] uppercase tracking-wider mb-1.5">
                   Location / Meeting Link
                 </label>
                 <input 
@@ -973,13 +969,13 @@ export default function CalendarPage() {
                   value={eventLocation}
                   onChange={(e) => setEventLocation(e.target.value)}
                   placeholder="e.g. Zoom link or conference room"
-                  className="w-full border border-slate-200 dark:border-slate-750 bg-slate-50 dark:bg-slate-800/50 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 text-slate-800 dark:text-white"
+                  className="w-full border border-[#D2D2D7] dark:border-white/10 bg-[#F5F5F7]/60 dark:bg-white/5 rounded-[11px] px-3.5 py-2.5 text-sm text-[#1D1D1F] dark:text-white placeholder-[#86868B]/60 focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3] transition-all"
                 />
               </div>
 
               {/* Description */}
               <div>
-                <label className="block text-xs font-bold text-slate-450 dark:text-slate-500 uppercase tracking-wider mb-1">
+                <label className="block text-[11px] font-semibold text-[#86868B] uppercase tracking-wider mb-1.5">
                   Description / Agenda
                 </label>
                 <textarea 
@@ -987,34 +983,34 @@ export default function CalendarPage() {
                   onChange={(e) => setEventDescription(e.target.value)}
                   placeholder="Enter details about this meeting/task..."
                   rows={3}
-                  className="w-full border border-slate-200 dark:border-slate-750 bg-slate-50 dark:bg-slate-800/50 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 text-slate-800 dark:text-white resize-none"
+                  className="w-full border border-[#D2D2D7] dark:border-white/10 bg-[#F5F5F7]/60 dark:bg-white/5 rounded-[11px] px-3.5 py-2.5 text-sm text-[#1D1D1F] dark:text-white placeholder-[#86868B]/60 focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3] transition-all resize-none"
                 />
               </div>
 
               {/* Buttons */}
-              <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-4 mt-2">
+              <div className="flex items-center justify-between border-t border-[#D2D2D7]/70 dark:border-white/10 pt-4 mt-2">
                 <div>
                   {selectedEvent && (
                     <button
                       type="button"
                       onClick={handleDelete}
-                      className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/20 dark:hover:bg-rose-950/40 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-colors"
+                      className="h-[36px] px-4 bg-[#FF3B30]/10 hover:bg-[#FF3B30]/20 text-[#FF3B30] rounded-full font-medium text-xs flex items-center gap-1.5 transition-colors"
                     >
-                      <Trash2 size={14} /> Delete Event
+                      <Trash2 size={13} /> Delete Event
                     </button>
                   )}
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2.5">
                   <button
                     type="button"
                     onClick={() => setIsEventModalOpen(false)}
-                    className="px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl font-bold text-xs transition-colors"
+                    className="h-[36px] px-4 border border-[#D2D2D7] dark:border-white/15 text-[#1D1D1F] dark:text-white hover:bg-black/5 dark:hover:bg-white/5 rounded-full font-medium text-xs transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2 bg-[#6057DA] hover:bg-[#5046c8] text-white rounded-xl font-bold text-xs shadow-md transition-colors"
+                    className="h-[36px] px-5 bg-[#0071E3] hover:bg-[#0076DF] active:scale-[0.99] text-white rounded-full font-medium text-xs shadow-sm transition-all"
                   >
                     {selectedEvent ? 'Update Event' : 'Book Event'}
                   </button>
@@ -1028,65 +1024,65 @@ export default function CalendarPage() {
 
       {/* Inline Quick Add Lead Modal */}
       {isLeadModalOpen && (
-        <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-850 rounded-2xl border border-slate-250 dark:border-slate-850 shadow-2xl max-w-md w-full overflow-hidden flex flex-col">
+        <div className="fixed inset-0 bg-black/30 dark:bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-[#1D1D1F] rounded-[24px] border border-[#D2D2D7]/80 dark:border-white/10 shadow-2xl max-w-md w-full overflow-hidden flex flex-col">
             
             {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-slate-150 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/10">
-              <h3 className="text-md font-bold text-slate-850 dark:text-white">
+            <div className="px-6 py-4 border-b border-[#D2D2D7]/70 dark:border-white/10 flex items-center justify-between">
+              <h3 className="text-base font-semibold text-[#1D1D1F] dark:text-white tracking-tight">
                 Quick Add CRM Lead
               </h3>
               <button 
                 onClick={() => setIsLeadModalOpen(false)}
-                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400"
+                className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 text-[#86868B] transition-colors"
               >
-                <X size={18} />
+                <X size={16} />
               </button>
             </div>
 
             {/* Modal Form */}
             <form onSubmit={handleAddLead} className="p-6 flex flex-col gap-4 overflow-y-auto max-h-[calc(100vh-200px)]">
               <div>
-                <label className="block text-xs font-bold text-slate-455 mb-1 uppercase">Full Name *</label>
+                <label className="block text-[11px] font-semibold text-[#86868B] uppercase tracking-wider mb-1.5">Full Name *</label>
                 <input 
                   type="text" 
                   value={leadName} 
                   onChange={(e) => setLeadName(e.target.value)} 
                   required
                   placeholder="e.g. Kristin Watson"
-                  className="w-full border border-slate-200 dark:border-slate-750 bg-slate-50 dark:bg-slate-800/50 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 text-slate-800 dark:text-white"
+                  className="w-full border border-[#D2D2D7] dark:border-white/10 bg-[#F5F5F7]/60 dark:bg-white/5 rounded-[11px] px-3.5 py-2.5 text-sm text-[#1D1D1F] dark:text-white placeholder-[#86868B]/60 focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3] transition-all"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-455 mb-1 uppercase">Email Address</label>
+                <label className="block text-[11px] font-semibold text-[#86868B] uppercase tracking-wider mb-1.5">Email Address</label>
                 <input 
                   type="email" 
                   value={leadEmail} 
                   onChange={(e) => setLeadEmail(e.target.value)} 
                   placeholder="e.g. kristin@watson.com"
-                  className="w-full border border-slate-200 dark:border-slate-750 bg-slate-50 dark:bg-slate-800/50 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 text-slate-800 dark:text-white"
+                  className="w-full border border-[#D2D2D7] dark:border-white/10 bg-[#F5F5F7]/60 dark:bg-white/5 rounded-[11px] px-3.5 py-2.5 text-sm text-[#1D1D1F] dark:text-white placeholder-[#86868B]/60 focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3] transition-all"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-455 mb-1 uppercase">Phone Number</label>
+                <label className="block text-[11px] font-semibold text-[#86868B] uppercase tracking-wider mb-1.5">Phone Number</label>
                 <input 
                   type="tel" 
                   value={leadPhone} 
                   onChange={(e) => setLeadPhone(e.target.value)} 
                   placeholder="e.g. +1 555-019-2834"
-                  className="w-full border border-slate-200 dark:border-slate-750 bg-slate-50 dark:bg-slate-800/50 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 text-slate-800 dark:text-white"
+                  className="w-full border border-[#D2D2D7] dark:border-white/10 bg-[#F5F5F7]/60 dark:bg-white/5 rounded-[11px] px-3.5 py-2.5 text-sm text-[#1D1D1F] dark:text-white placeholder-[#86868B]/60 focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3] transition-all"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-455 mb-1 uppercase font-semibold">Priority</label>
+                  <label className="block text-[11px] font-semibold text-[#86868B] uppercase tracking-wider mb-1.5">Priority</label>
                   <select 
                     value={leadPriority} 
-                    onChange={(e) => setLeadPriority(e.target.value)}
-                    className="w-full border border-slate-200 dark:border-slate-750 bg-slate-50 dark:bg-slate-800/50 rounded-xl px-3 py-2 text-sm focus:outline-none text-slate-850 dark:text-white"
+                    onChange={(e) => setLeadPriority(e.target.value)} 
+                    className="w-full border border-[#D2D2D7] dark:border-white/10 bg-[#F5F5F7]/60 dark:bg-white/5 rounded-[11px] px-3 py-2 text-xs text-[#1D1D1F] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3] transition-all"
                   >
                     <option value="Urgent">Urgent</option>
                     <option value="High">High</option>
@@ -1095,11 +1091,11 @@ export default function CalendarPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-455 mb-1 uppercase font-semibold">Status</label>
+                  <label className="block text-[11px] font-semibold text-[#86868B] uppercase tracking-wider mb-1.5">Status</label>
                   <select 
                     value={leadStatus} 
-                    onChange={(e) => setLeadStatus(e.target.value)}
-                    className="w-full border border-slate-200 dark:border-slate-750 bg-slate-50 dark:bg-slate-800/50 rounded-xl px-3 py-2 text-sm focus:outline-none text-slate-850 dark:text-white"
+                    onChange={(e) => setLeadStatus(e.target.value)} 
+                    className="w-full border border-[#D2D2D7] dark:border-white/10 bg-[#F5F5F7]/60 dark:bg-white/5 rounded-[11px] px-3 py-2 text-xs text-[#1D1D1F] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3] transition-all"
                   >
                     <option value="New">New</option>
                     <option value="Contacted">Contacted</option>
@@ -1111,17 +1107,17 @@ export default function CalendarPage() {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex justify-end gap-3 mt-4 border-t border-slate-100 dark:border-slate-800 pt-4">
+              <div className="flex justify-end gap-2.5 mt-4 border-t border-[#D2D2D7]/70 dark:border-white/10 pt-4">
                 <button
                   type="button"
                   onClick={() => setIsLeadModalOpen(false)}
-                  className="px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl font-semibold text-xs"
+                  className="h-[36px] px-4 border border-[#D2D2D7] dark:border-white/15 text-[#1D1D1F] dark:text-white hover:bg-black/5 dark:hover:bg-white/5 rounded-full font-medium text-xs transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold text-xs shadow-md"
+                  className="h-[36px] px-5 bg-[#0071E3] hover:bg-[#0076DF] active:scale-[0.99] text-white rounded-full font-medium text-xs shadow-sm transition-all"
                 >
                   Add & Select
                 </button>

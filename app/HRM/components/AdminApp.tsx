@@ -18,6 +18,8 @@ import EmployeeOnboarding from './views/admin/EmployeeOnboarding';
 import OrganizationChart from './views/admin/OrganizationChart';
 import ModuleAccessManager from './views/admin/ModuleAccessManager';
 import AdminAttendance from './views/admin/AdminAttendance';
+import OnboardingTracker from './views/admin/onboarding-tracker/OnboardingTracker';
+import EmployeeTracker from './views/admin/onboarding-tracker/EmployeeTracker';
 import Tickets from './views/Tickets';
 import Expenses from './views/Expenses';
 import PolicyManualManager from './views/admin/PolicyManualManager';
@@ -57,6 +59,8 @@ export default function AdminApp() {
   }, []);
 
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
+  // employee shown in Onboarding Progress → Employee Tracker
+  const [onboardingEmployeeId, setOnboardingEmployeeId] = useState('');
   const [pendingOnboardingRequestId, setPendingOnboardingRequestId] = useState<string | null>(null);
   const [admin, setAdmin] = useState(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -221,6 +225,28 @@ export default function AdminApp() {
     'admin-organization-chart': <OrganizationChart />,
     'admin-module-access': <ModuleAccessManager />,
     'admin-attendance': <AdminAttendance />,
+    'admin-onboarding-progress': (
+      <OnboardingTracker
+        onOpenEmployee={(employeeId) => {
+          setSelectedEmployeeId(employeeId);
+          setCurrentTab('admin-employee-profile');
+        }}
+        onOpenTracker={(employeeId) => {
+          setOnboardingEmployeeId(employeeId);
+          setCurrentTab('admin-onboarding-employee');
+        }}
+      />
+    ),
+    'admin-onboarding-employee': (
+      <EmployeeTracker
+        selectedId={onboardingEmployeeId}
+        onSelect={setOnboardingEmployeeId}
+        onOpenProfile={(employeeId) => {
+          setSelectedEmployeeId(employeeId);
+          setCurrentTab('admin-employee-profile');
+        }}
+      />
+    ),
     'admin-work-logs': <DailyWorkLogs />,
     'admin-policy-manual': <PolicyManualManager />,
     'admin-notices': <NoticeManager />,
@@ -292,6 +318,10 @@ export default function AdminApp() {
       ? 'Leave'
       : currentTab === 'admin-holidays'
       ? 'Holiday'
+      : currentTab === 'admin-onboarding-progress'
+      ? 'Onboarding Progress'
+      : currentTab === 'admin-onboarding-employee'
+      ? 'Employee Tracker'
       : 'HR Admin';
 
   return (
@@ -310,7 +340,7 @@ export default function AdminApp() {
         onMobileClose={() => setIsMobileSidebarOpen(false)}
       />
       
-      <div className={`flex-1 flex min-w-0 flex-col transition-all duration-300 ${isSidebarCollapsed ? 'md:ml-24' : 'md:ml-64'}`}>
+      <div className={`flex-1 flex min-w-0 flex-col transition-all duration-300 ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-56'}`}>
         <div className="sticky top-0 z-30 flex items-center justify-between border-b border-outline-variant/10 bg-surface-container-lowest/95 px-4 py-3 backdrop-blur md:hidden">
           <button
             type="button"

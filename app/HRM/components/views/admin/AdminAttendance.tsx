@@ -4,6 +4,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import HrmEmptyState from '../../ui/HrmEmptyState';
 import { LoadingPanel } from '../../ui/Skeleton';
 import { useHrmFeedback } from '../../ui/HrmFeedback';
+import DailyVisual from './attendance-visual/DailyVisual';
+import IndividualVisual from './attendance-visual/IndividualVisual';
 
 type AttendanceMode = 'daily' | 'individual' | 'monthly';
 
@@ -314,6 +316,9 @@ const MONTHLY_LEAVE_ACTION_GROUPS: Array<{ title: string; options: Array<{ value
 export default function AdminAttendance() {
   const { showFeedback } = useHrmFeedback();
   const [mode, setMode] = useState<AttendanceMode>('daily');
+  // table (default) or visual view for daily / individual attendance — display only
+  const [viewMode, setViewMode] = useState<'table' | 'visual'>('table');
+  const showVisual = viewMode === 'visual' && mode !== 'monthly';
   const [selectedDate, setSelectedDate] = useState(getTodayDate());
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -809,8 +814,33 @@ export default function AdminAttendance() {
         </p>
       </section>
 
-      <section className="overflow-x-auto py-3 mb-6">
-        <div className="inline-grid min-w-full grid-cols-3 gap-2 rounded-full border border-outline-variant/10 bg-surface-container-lowest p-1 shadow-sm md:min-w-[640px]">
+      <section className="mb-6 flex items-center gap-3 overflow-x-auto py-3">
+        <div className="inline-flex shrink-0 rounded-full border border-outline-variant/10 bg-surface-container-lowest p-1 shadow-sm" role="group" aria-label="View">
+          {[
+            { id: 'table' as const, icon: 'table_rows', label: 'Table view' },
+            { id: 'visual' as const, icon: 'monitoring', label: mode === 'monthly' ? 'Visual view (daily & individual)' : 'Visual view' },
+          ].map((view) => {
+            const isActive = viewMode === view.id;
+            const disabled = view.id === 'visual' && mode === 'monthly';
+            return (
+              <button
+                key={view.id}
+                type="button"
+                title={view.label}
+                aria-label={view.label}
+                aria-pressed={isActive}
+                disabled={disabled}
+                onClick={() => setViewMode(view.id)}
+                className={`grid h-10 w-10 place-items-center rounded-full transition ${
+                  isActive && !disabled ? 'bg-white text-violet-700 shadow-sm' : 'text-on-surface-variant hover:text-on-surface'
+                } ${disabled ? 'cursor-not-allowed opacity-40' : ''}`}
+              >
+                <span className="material-symbols-outlined text-[20px]">{view.icon}</span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="inline-grid min-w-max grid-cols-3 gap-2 rounded-full border border-outline-variant/10 bg-surface-container-lowest p-1 shadow-sm md:min-w-[640px]">
           {sectionCards.map((section) => {
             const isActive = mode === section.id;
             return (
@@ -1130,6 +1160,8 @@ export default function AdminAttendance() {
                 title="No attendance rows found"
                 message="Try another date or widen the filters to view employee attendance records."
               />
+            ) : showVisual ? (
+              <DailyVisual rows={dailyRows} date={response?.date || selectedDate} onOpenSwipes={openSwipeModal} />
             ) : (
               <div className="overflow-x-auto scroll-smooth [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 <table className="min-w-[1600px] w-full text-left">
@@ -1230,6 +1262,8 @@ export default function AdminAttendance() {
                 title="No attendance records found"
                 message="No attendance rows matched this employee and filter combination."
               />
+            ) : showVisual ? (
+              <IndividualVisual rows={individualRows} employee={response?.employee} employeeRecordId={selectedEmployeeId} />
             ) : (
               <div className="overflow-x-auto scroll-smooth [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 <table className="min-w-[1100px] w-full text-left">
