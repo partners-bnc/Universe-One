@@ -47,4 +47,16 @@ export const AUDIT_TEMPLATES = [
       "Saudi Arabia internal audit workspace covering planning, Master RCM, data request tracker, and organisational charts.",
     status: "Ready",
   },
+  {
+    id: "static-audit-template",
+    name: "Static Audit Tracker",
+    shortCode: "STATIC",
+    icon: "📋",
+    accent: "#0071E3",
+    bg: "rgba(0, 113, 227, 0.08)",
+    border: "rgba(0, 113, 227, 0.22)",
+    description:
+      "CSR Assessment & Surprise Visit Tracker covering NGO queries, student beneficiary questionnaires, and expense audits.",
+    status: "Ready",
+  },
 ];

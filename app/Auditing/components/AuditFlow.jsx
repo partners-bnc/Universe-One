@@ -6,6 +6,7 @@ import PdplWorkspace from "./PdplWorkspace";
 import CstAuditWorkspace from "./CstAuditWorkspace";
 import SaudiAuditWorkspace from "./SaudiAuditWorkspace";
 import DynamicSaaSWorkspace from "./DynamicSaaSWorkspace";
+import StaticTrackerWorkspace from "./StaticTrackerWorkspace";
 import Link from "next/link";
 import {
   ShieldCheck,
@@ -1442,6 +1443,7 @@ export default function AuditFlow() {
   const isPdplTemplate = selectedTemplateId === 'pdpl-template';
   const isCstTemplate = selectedTemplateId === 'cst-audit-template';
   const isSaudiTemplate = selectedTemplateId === 'saudi-audit-template';
+  const isStaticTrackerTemplate = selectedTemplateId === 'static-audit-template';
   const templateProjects = selectedTemplateId ? projects.filter(p => p.templateId === selectedTemplateId) : [];
   const backToTemplateLibrary = () => { setSelectedTemplateId(null); setCurrentProjId(null); setView('templates'); setSearch(''); };
   const currentProj = projects.find(p => p.id === currentProjId);
@@ -1935,6 +1937,14 @@ export default function AuditFlow() {
         setSearch={setSearch}
         showToast={showToast}
         onBackToTemplates={backToTemplateLibrary}
+      />
+    );
+  }
+  if (isStaticTrackerTemplate) {
+    return (
+      <StaticTrackerWorkspace
+        onBackToTemplates={backToTemplateLibrary}
+        showToast={showToast}
       />
     );
   }
