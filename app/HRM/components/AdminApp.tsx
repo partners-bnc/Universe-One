@@ -17,6 +17,7 @@ import EmployeeDirectoryWorkspace from './views/admin/EmployeeDirectoryWorkspace
 import EmployeeOnboarding from './views/admin/EmployeeOnboarding';
 import OrganizationChart from './views/admin/OrganizationChart';
 import ModuleAccessManager from './views/admin/ModuleAccessManager';
+import HomeSettingsManager from './views/admin/HomeSettingsManager';
 import AdminAttendance from './views/admin/AdminAttendance';
 import OnboardingTracker from './views/admin/onboarding-tracker/OnboardingTracker';
 import EmployeeTracker from './views/admin/onboarding-tracker/EmployeeTracker';
@@ -224,6 +225,7 @@ export default function AdminApp() {
     'admin-calendar': <CalendarView />,
     'admin-organization-chart': <OrganizationChart />,
     'admin-module-access': <ModuleAccessManager />,
+    'admin-home-settings': <HomeSettingsManager />,
     'admin-attendance': <AdminAttendance />,
     'admin-onboarding-progress': (
       <OnboardingTracker
@@ -300,6 +302,8 @@ export default function AdminApp() {
       ? 'Organization Chart'
       : currentTab === 'admin-module-access'
       ? 'Module Access'
+      : currentTab === 'admin-home-settings'
+      ? 'Home Screen Settings'
       : currentTab === 'admin-attendance'
       ? 'Attendance'
       : currentTab === 'admin-work-logs'

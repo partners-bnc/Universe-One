@@ -293,6 +293,10 @@ export default function PayoutsPayroll() {
   const [bulkMarkingPaid, setBulkMarkingPaid] = useState(false);
   const [selectedLedgerIds, setSelectedLedgerIds] = useState<string[]>([]);
   const [directorySearchQuery, setDirectorySearchQuery] = useState('');
+  const [directoryStatusFilter, setDirectoryStatusFilter] = useState('all');
+  const [ledgerYearFilter, setLedgerYearFilter] = useState('all');
+  const [ledgerMonthFilter, setLedgerMonthFilter] = useState('all');
+  const [refreshing, setRefreshing] = useState(false);
 
   const [profileForm, setProfileForm] = useState({
     pfEnabled: false,
@@ -633,19 +637,35 @@ export default function PayoutsPayroll() {
   const isHistoryDetailOpen = activeSection === 'history' && Boolean(selectedHistoryItemId && historyDetail);
 
   const filteredDirectory = useMemo(() => {
-    if (!directorySearchQuery.trim()) return directory;
     const query = directorySearchQuery.toLowerCase().trim();
-    return directory.filter(
-      (employee) =>
+    return directory.filter((employee) => {
+      if (directoryStatusFilter !== 'all') {
+        const status = String(employee.resolved_employment_lifecycle_status || 'active').toLowerCase();
+        if (status !== directoryStatusFilter) return false;
+      }
+      if (!query) return true;
+      return (
         String(employee.name || '').toLowerCase().includes(query) ||
         String(employee.employee_id || '').toLowerCase().includes(query) ||
         String(employee.company || '').toLowerCase().includes(query)
-    );
-  }, [directory, directorySearchQuery]);
+      );
+    });
+  }, [directory, directorySearchQuery, directoryStatusFilter]);
+
+  const ledgerYearOptions = useMemo(
+    () => Array.from(new Set(runs.map((run) => Number(run.year)))).sort((a, b) => b - a),
+    [runs]
+  );
 
   const ledgerRows = useMemo(
     () =>
-      runs.flatMap((run) =>
+      runs
+        .filter(
+          (run) =>
+            (ledgerYearFilter === 'all' || String(run.year) === ledgerYearFilter) &&
+            (ledgerMonthFilter === 'all' || String(run.month) === ledgerMonthFilter)
+        )
+        .flatMap((run) =>
         (run.items || []).map((item: any) => ({
           ...item,
           ledgerMonthLabel: formatMonthLabel(run.year, run.month),
@@ -654,8 +674,23 @@ export default function PayoutsPayroll() {
           ledgerMonth: run.month,
         }))
       ),
-    [runs]
+    [runs, ledgerYearFilter, ledgerMonthFilter]
   );
+
+  const handleRefresh = useCallback(async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    try {
+      setSelectedLedgerIds([]);
+      const tasks: Promise<unknown>[] = [loadDirectory(selectedEmployeeId), loadRuns()];
+      if (selectedEmployeeId) tasks.push(loadDetail(selectedEmployeeId));
+      if (historyEmployeeId) tasks.push(loadHistoryRows(historyEmployeeId, historyYear));
+      if (selectedItemId) tasks.push(loadItem(selectedItemId));
+      await Promise.all(tasks);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshing, loadDirectory, loadRuns, loadDetail, loadHistoryRows, loadItem, selectedEmployeeId, historyEmployeeId, historyYear, selectedItemId]);
 
   const activeSectionIndex = useMemo(
     () => Math.max(SECTIONS.findIndex((section) => section.id === activeSection), 0),
@@ -1056,7 +1091,16 @@ export default function PayoutsPayroll() {
   return (
     <div className="mx-auto max-w-[1540px] space-y-6 px-7 py-7 pb-10">
       <section className="space-y-5">
-        <div>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="absolute right-0 top-0 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <span className={`material-symbols-outlined text-[16px] ${refreshing ? 'animate-spin' : ''}`}>refresh</span>
+            {refreshing ? 'Refreshing...' : 'Refresh'}
+          </button>
           <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500">HR Payroll Desk</p>
           <h1 className="mt-2 text-4xl font-headline font-extrabold tracking-tight text-on-background">
             Payouts & Payroll
@@ -1233,6 +1277,15 @@ export default function PayoutsPayroll() {
                     className="w-72 rounded-full border border-slate-200 bg-slate-50 pl-10 pr-4 py-2 text-xs focus:border-violet-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-violet-500"
                   />
                 </div>
+                <select
+                  value={directoryStatusFilter}
+                  onChange={(e) => setDirectoryStatusFilter(e.target.value)}
+                  className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-xs focus:border-violet-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-violet-500"
+                >
+                  <option value="all">All Status</option>
+                  <option value="active">Active</option>
+                  <option value="separated">Separated</option>
+                </select>
               </div>
             </div>
 
@@ -2262,6 +2315,28 @@ export default function PayoutsPayroll() {
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-3">
+                <select
+                  value={ledgerYearFilter}
+                  onChange={(e) => { setLedgerYearFilter(e.target.value); setSelectedLedgerIds([]); }}
+                  className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-xs focus:border-violet-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-violet-500"
+                >
+                  <option value="all">All Years</option>
+                  {ledgerYearOptions.map((year) => (
+                    <option key={year} value={String(year)}>{year}</option>
+                  ))}
+                </select>
+                <select
+                  value={ledgerMonthFilter}
+                  onChange={(e) => { setLedgerMonthFilter(e.target.value); setSelectedLedgerIds([]); }}
+                  className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-xs focus:border-violet-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-violet-500"
+                >
+                  <option value="all">All Months</option>
+                  {Array.from({ length: 12 }, (_, i) => (
+                    <option key={i + 1} value={String(i + 1)}>
+                      {new Intl.DateTimeFormat('en-US', { month: 'long', timeZone: 'UTC' }).format(new Date(Date.UTC(2000, i, 1)))}
+                    </option>
+                  ))}
+                </select>
                 {selectedLedgerIds.length > 0 ? (
                   <div className="flex flex-wrap items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-4 py-2">
                     <span className="text-xs font-semibold text-slate-700">
@@ -2341,9 +2416,9 @@ export default function PayoutsPayroll() {
                   title="Loading payroll ledger"
                   message="Payroll runs, item totals, and payment status are being prepared."
                 />
-              ) : runs.length === 0 ? (
+              ) : ledgerRows.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-outline-variant/25 px-5 py-12 text-center text-sm text-on-surface-variant">
-                  No payroll run is available yet.
+                  {runs.length === 0 ? 'No payroll run is available yet.' : 'No payroll records match the selected month/year.'}
                 </div>
               ) : (
                 <div className="relative overflow-x-auto rounded-[1.5rem] border border-outline-variant/10 bg-white scroll-smooth [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">

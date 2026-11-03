@@ -44,6 +44,7 @@ export default function AdminSidebar({
     { id: 'admin-payouts', label: 'Payouts & Payroll', icon: 'account_balance_wallet' },
     { id: 'admin-organization-chart', label: 'Organization Chart', icon: 'account_tree' },
     { id: 'admin-module-access', label: 'Module Access', icon: 'verified_user' },
+    { id: 'admin-home-settings', label: 'Home Screen Settings', icon: 'tune' },
     { id: 'admin-attendance', label: 'Attendance', icon: 'calendar_clock' },
     { id: 'admin-work-logs', label: 'Daily Work Log', icon: 'assignment' },
     { id: 'admin-policy-manual', label: 'Policy Manual', icon: 'menu_book' },

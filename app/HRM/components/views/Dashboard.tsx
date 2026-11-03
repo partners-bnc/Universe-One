@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { AttendanceRecord, AttendanceResponse } from './attendanceShared';
 import EmployeePageHeader from '../ui/EmployeePageHeader';
+import DiwaliDecor from '../ui/DiwaliDecor';
 import { useHrmFeedback } from '../ui/HrmFeedback';
 import { captureAttendanceLocationPayload } from '@/utils/attendance-location';
 import DailyWorkLogModal from './DailyWorkLogModal';
@@ -214,6 +215,12 @@ export default function Dashboard({
   isLoggingOut?: boolean;
 }) {
   const { showFeedback } = useHrmFeedback();
+  const [homeSettings, setHomeSettings] = useState({
+    show_greeting: true,
+    show_date_card: true,
+    show_attendance_notice: true,
+    show_festive_decor: false,
+  });
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isSwipesModalOpen, setIsSwipesModalOpen] = useState(false);
   const [isHolidayModalOpen, setIsHolidayModalOpen] = useState(false);
@@ -617,6 +624,19 @@ export default function Dashboard({
     };
   };
 
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/HRM/api/home-settings', { cache: 'no-store' })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((result) => {
+        if (!cancelled && result?.settings) setHomeSettings((current) => ({ ...current, ...result.settings }));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const displayName = employee?.name || employee?.employee_id || 'Employee';
   const loginId = employee?.employee_id || 'not assigned yet';
   const averageWorkHoursLabel = useMemo(() => {
@@ -767,26 +787,39 @@ export default function Dashboard({
     }
   };
 
+  const dateCard = (
+    <div className="flex items-center gap-4 rounded-3xl border border-outline-variant/10 bg-surface-container-lowest px-5 py-4 editorial-shadow">
+      <span className="text-3xl leading-none">{greetingMeta.emoji}</span>
+      <div>
+        <p className="text-sm font-headline font-bold text-on-surface">{formattedFullDate}</p>
+        <p className="text-xs text-on-surface-variant">{dayName}</p>
+      </div>
+    </div>
+  );
+
   return (
     <div className="mx-auto max-w-7xl space-y-6 pb-8 sm:space-y-8">
       {/* Welcome Hero Section */}
-      <EmployeePageHeader
-        icon="space_dashboard"
-        title={`${greetingMeta.title}, ${displayName}`}
-        description={`${greetingMeta.note} Your login ID is ${loginId}.`}
-        action={(
-          <div className="flex items-center gap-4 rounded-3xl border border-outline-variant/10 bg-surface-container-lowest px-5 py-4 editorial-shadow">
-            <span className="text-3xl leading-none">{greetingMeta.emoji}</span>
-            <div>
-              <p className="text-sm font-headline font-bold text-on-surface">{formattedFullDate}</p>
-              <p className="text-xs text-on-surface-variant">{dayName}</p>
-            </div>
+      {(homeSettings.show_greeting || homeSettings.show_date_card || homeSettings.show_festive_decor) && (
+        <div className={!homeSettings.show_greeting && !homeSettings.show_date_card && homeSettings.show_festive_decor ? 'min-h-[150px]' : ''}>
+          {homeSettings.show_festive_decor && <DiwaliDecor />}
+          <div className="relative z-10">
+            {homeSettings.show_greeting ? (
+              <EmployeePageHeader
+                icon="space_dashboard"
+                title={`${greetingMeta.title}, ${displayName}`}
+                description={`${greetingMeta.note} Your login ID is ${loginId}.`}
+                action={homeSettings.show_date_card ? dateCard : undefined}
+              />
+            ) : homeSettings.show_date_card ? (
+              <div className="flex justify-end">{dateCard}</div>
+            ) : null}
           </div>
-        )}
-      />
+        </div>
+      )}
 
       {/* Yesterday Shift Warning Banner */}
-      {yesterdayWarning && (
+      {homeSettings.show_attendance_notice && yesterdayWarning && (
         <div className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900 shadow-sm transition-all duration-300">
           <span className="material-symbols-outlined text-[20px] shrink-0 text-amber-700">warning</span>
           <div className="text-sm">
