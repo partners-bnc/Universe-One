@@ -1,6 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "universe-one",
+  "main": "vinext/server/fetch-handler",
   "account_id": "dbfc73e51331005f54ca28137dabbf09",
   "compatibility_date": "2026-11-05",
   "observability": {
@@ -17,5 +18,16 @@
     "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxsZm9hcW5sampibmVvdWllZGJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0MDI0ODEsImV4cCI6MjA5MDk3ODQ4MX0.aSDF2yWZGtYevOMAn2L_GnqjU4dlrn0N5CEXBotRtb8",
     "NEXT_PUBLIC_SUPABASE_URL": "https://llfoaqnljjbneouiedbg.supabase.co",
     "TURNSTILE_HOSTNAMES": "universeone.bncglobal.in,localhost,127.0.0.1"
+  },
+  "assets": {
+    "directory": "dist/client",
+    "html_handling": "none",
+    "not_found_handling": "none",
+    "binding": "ASSETS",
+    "run_worker_first": [
+      "/*",
+      "!/_next/static/*",
+      "!/*/_next/static/*"
+    ]
   }
 }
